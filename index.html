@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>יומן מסחר</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Heebo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>(function(){var t=localStorage.getItem('tj-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- Settings Overlay -->
+<div class="overlay" id="settings-overlay">
+  <div class="settings-modal">
+    <div class="settings-title"><i class="ti ti-settings" style="color:var(--blue-t)"></i>הגדרות</div>
+    <div class="settings-group">
+      <div class="settings-label">עמלת מסחר ברירת מחדל ($)</div>
+      <div class="settings-row">
+        <input type="number" class="settings-input" id="settings-fee" placeholder="2.50" step="0.01" min="0" style="width:140px;direction:ltr;text-align:left">
+        <button class="btn-p" onclick="saveSettings()">שמור</button>
+        <span class="settings-saved" id="settings-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
+      </div>
+      <div class="settings-hint">עמלה זו תמולא אוטומטית בכל עסקה חדשה.</div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label" style="display:flex;align-items:center;gap:6px">
+        <i class="ti ti-target" style="color:var(--amber-t);font-size:13px"></i>
+        יחידת סיכון ($)
+      </div>
+      <div class="settings-row">
+        <input type="number" class="settings-input" id="settings-risk" placeholder="100" step="1" min="0" style="width:140px;direction:ltr;text-align:left">
+        <button class="btn-p" onclick="saveRiskUnit()">שמור</button>
+        <span class="settings-saved" id="risk-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
+      </div>
+      <div class="settings-hint">הסכום שאתה מוכן להפסיד בעסקה אחת. ישמש לחישוב P&L ביחידות סיכון בסקירת החשבון.</div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">שווי חשבונות</div>
+      <div class="settings-acct-row">
+        <div class="settings-acct-card">
+          <div class="settings-acct-label"><i class="ti ti-chart-candle" style="color:var(--blue-t);font-size:12px"></i>תיק מסחר ($)</div>
+          <input type="number" class="settings-acct-input" id="settings-trading-val" placeholder="0" step="100" min="0">
+          <div class="settings-hint">הון בחשבון המסחר</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:-0.4rem;margin-bottom:0.3rem">
+        <button class="btn-p" onclick="saveAcctValues()" style="font-size:12px;padding:0.35rem 0.8rem">שמור שינויים</button>
+        <span class="settings-saved" id="acct-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">API Key — Finnhub</div>
+      <div class="settings-row">
+        <input type="text" class="settings-input" id="settings-key" placeholder="הדבק מפתח Finnhub..." autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:11px;direction:ltr;text-align:left">
+        <button class="btn-p" onclick="saveApiKey()">שמור</button>
+      </div>
+      <div class="settings-hint">finnhub.io — 60 בקשות/דקה (חינמי)</div>
+    </div>
+    <div class="modal-actions"><button class="btn-s" onclick="closeSettings()">סגור</button></div>
+  </div>
+</div>
+
+<!-- PM Overlay -->
+<div class="overlay" id="pm-overlay">
+  <div class="modal">
+    <div class="modal-title" id="pm-title"><i class="ti ti-percentage"></i>מימוש חלקי</div>
+    <div class="modal-sec"><div class="modal-label">מחיר מימוש ($)</div><input type="number" id="pm-price" placeholder="0.00" step="0.01" oninput="calcPM()"></div>
+    <div class="modal-sec"><div class="modal-label">כמות למימוש</div><input type="number" id="pm-qty" placeholder="0" step="1" min="1" oninput="calcPM()"><div class="quick-btns" id="pm-qbtns"></div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="pm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="pm-pnl">—</div></div>
+    <div class="modal-actions"><button class="btn-p" onclick="confirmPM()">בצע מימוש</button><button class="btn-s" onclick="closePM()">ביטול</button></div>
+  </div>
+</div>
+
+<!-- SL Overlay -->
+<div class="overlay" id="sl-overlay">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--red)"><i class="ti ti-shield-x"></i>סגירה ב-Stop Loss</div>
+    <div class="modal-sec"><div class="modal-label">מחיר סגירה ($)</div><input type="number" id="sl-price" placeholder="0.00" step="0.01" oninput="calcSL()"></div>
+    <div id="sl-preset"></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">הפסד צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="sl-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace;color:var(--red)" id="sl-pnl">—</div></div>
+    <div class="modal-actions"><button class="btn-p" style="background:var(--red)" onclick="confirmSL()">סגור עסקה</button><button class="btn-s" onclick="closeSL()">ביטול</button></div>
+  </div>
+</div>
+
+<!-- HM Overlay -->
+<div class="overlay" id="hm-overlay">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-briefcase"></i><span id="hm-title">הוסף החזקה</span></div>
+    <div class="modal-sec"><div class="modal-label">טיקר *</div><input type="text" id="hm-ticker" placeholder="AAPL" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+      <div class="modal-sec"><div class="modal-label">כמות *</div><input type="number" id="hm-qty" placeholder="0" min="1" step="1" oninput="calcHC()"></div>
+      <div class="modal-sec"><div class="modal-label">מחיר קנייה ($) *</div><input type="number" id="hm-cost" placeholder="0.00" step="0.01" oninput="calcHC()"></div>
+      <div class="modal-sec"><div class="modal-label">תאריך קנייה</div><input type="date" id="hm-date"></div>
+      <div class="modal-sec"><div class="modal-label">סקטור</div><select id="hm-sector"><option value="">בחר...</option><option>טכנולוגיה</option><option>פיננסים</option><option>בריאות</option><option>צרכנות</option><option>אנרגיה</option><option>תעשייה</option><option>תקשורת</option><option>נדל"ן</option><option>מדד / ETF</option><option>אחר</option></select></div>
+    </div>
+    <div class="modal-sec"><div class="modal-label">הערות</div><input type="text" id="hm-notes" placeholder="למה קנית?"></div>
+    <div class="modal-pnl" id="hm-cost-preview" style="display:none">
+      <div><div style="font-size:11.5px;color:var(--tx2)">עלות כוללת</div><div style="font-size:10.5px;color:var(--tx3)" id="hm-cost-det">—</div></div>
+      <div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="hm-cost-val">—</div>
+    </div>
+    <div class="modal-actions"><button class="btn-p" onclick="saveHolding()">שמור</button><button class="btn-s" onclick="closeHM()">ביטול</button></div>
+  </div>
+</div>
+
+<!-- Sell Overlay -->
+<div class="overlay" id="sell-overlay">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--green)"><i class="ti ti-coin"></i>מכירה — <span id="sell-tkr-lbl"></span></div>
+    <div class="sell-info"><i class="ti ti-info-circle"></i><span id="sell-info-txt"></span></div>
+    <div class="modal-sec"><div class="modal-label">מחיר מכירה ($)</div><input type="number" id="sell-price" placeholder="0.00" step="0.01" oninput="calcSellPnl()"></div>
+    <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="sell-qty" placeholder="0" step="1" min="1" oninput="calcSellPnl()"><div class="quick-btns" id="sell-qbtns"></div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sell-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="sell-pnl">—</div></div>
+    <div class="modal-actions"><button class="btn-p" style="background:var(--green);color:#052e16" onclick="confirmSell()">בצע מכירה</button><button class="btn-s" onclick="closeSell()">ביטול</button></div>
+  </div>
+</div>
+
+<!-- Add Watchlist Modal -->
+<div class="overlay" id="wl-add-overlay">
+  <div class="wl-add-modal">
+    <div class="modal-title"><i class="ti ti-eye" style="color:var(--blue-t)"></i>הוסף מניה לרשימת מעקב</div>
+    <div class="modal-sec">
+      <div class="modal-label">טיקר *</div>
+      <input type="text" id="wl-add-ticker" placeholder="AAPL" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="modal-sec">
+      <div class="modal-label">הערה (אופציונלי)</div>
+      <input type="text" id="wl-add-note" placeholder="למה אתה עוקב אחריה?">
+    </div>
+    <div class="modal-actions"><button class="btn-p" onclick="saveWatchlistItem()">הוסף</button><button class="btn-s" onclick="closeWLAdd()">ביטול</button></div>
+  </div>
+</div>
+
+<!-- FA Overlay -->
+<div class="fa-overlay" id="fa-overlay">
+  <div class="fa-modal">
+    <div class="fa-header">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div>
+          <div class="fa-ticker-big" id="fa-ticker-lbl">—</div>
+          <div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="fa-note-lbl"></div>
+        </div>
+        <div class="fa-price-blk">
+          <div class="fa-price" id="fa-price-lbl">—</div>
+          <div class="fa-chg" id="fa-chg-lbl"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="fa-autosave" id="fa-autosave-lbl"><i class="ti ti-device-floppy" style="font-size:11px"></i>שמירה אוטומטית</span>
+        <button class="fa-close-btn" onclick="closeFAModal()"><i class="ti ti-x" style="font-size:12px"></i>סגור</button>
+      </div>
+    </div>
+    <div class="fa-body">
+      <div class="fa-section">
+        <div class="fa-section-title"><i class="ti ti-building"></i>על העסק</div>
+        <div class="fa-biz-grid">
+          <div><div class="fa-field-lbl">תיאור עסקי</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-desc" placeholder="במה העסק עוסק? מה המודל העסקי שלו?" rows="3" oninput="faAutoSave();autoResize(this)"></textarea></div>
+          <div><div class="fa-field-lbl">חפיר תחרותי (Moat)</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-moat" placeholder="מה מגן על החברה מפני תחרות?" rows="2" oninput="faAutoSave();autoResize(this)"></textarea></div>
+          <div><div class="fa-field-lbl">סיכונים עיקריים</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-risks" placeholder="מה הסיכונים הגדולים ביותר?" rows="2" oninput="faAutoSave();autoResize(this)"></textarea></div>
+        </div>
+      </div>
+      <div class="fa-section">
+        <div class="fa-section-title" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-file-text"></i>דוחות כספיים</span>
+          <span id="fa-earnings-countdown"></span>
+        </div>
+        <div class="fa-reports-hdr" id="fa-tabs-row">
+          <button class="fa-add-report-btn" onclick="faAddReport()"><i class="ti ti-plus" style="font-size:11px"></i>הוסף דוח</button>
+        </div>
+        <div id="fa-reports-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App Shell -->
+<div class="app">
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+<button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="toggleMobileSidebar()" aria-label="תפריט">
+  <span></span><span></span><span></span>
+</button>
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <polyline points="2,24 8,18 15,12 26,4" stroke="#C28B4A" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+        <line x1="7.5" y1="14" x2="7.5" y2="17" stroke="#F87171" stroke-width="1.1" stroke-linecap="round"/>
+        <rect x="5.2" y="17" width="4.6" height="5.5" rx="0.9" fill="#F87171"/>
+        <line x1="7.5" y1="22.5" x2="7.5" y2="25" stroke="#F87171" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="14" y1="8" x2="14" y2="11" stroke="#C28B4A" stroke-width="1.1" stroke-linecap="round"/>
+        <rect x="11.7" y="11" width="4.6" height="7" rx="0.9" fill="#C28B4A"/>
+        <line x1="14" y1="18" x2="14" y2="21" stroke="#C28B4A" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="20.5" y1="4" x2="20.5" y2="7" stroke="#DDBA84" stroke-width="1.1" stroke-linecap="round"/>
+        <rect x="18.2" y="7" width="4.6" height="9" rx="0.9" fill="#DDBA84"/>
+        <line x1="20.5" y1="16" x2="20.5" y2="19" stroke="#DDBA84" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-title">יומן מסחר</div>
+      <div class="logo-sub">v5.1 — Finnhub</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">יומן מסחר</div>
+    <button class="nav-item active" onclick="nav('live',this)"><i class="ti ti-activity"></i>סטטוס תיק</button>
+    <button class="nav-item" onclick="nav('closed',this)"><i class="ti ti-checks"></i>עסקאות שנסגרו</button>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">תכנון</div>
+    <button class="nav-item" onclick="nav('prep',this)"><i class="ti ti-calendar-event"></i>תכנון עסקאות</button>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">תיק השקעות</div>
+    <button class="nav-item" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label" style="display:flex;align-items:center;justify-content:space-between">
+      <span>מעקב קבוע</span>
+      <button class="wl-add-mini-btn" onclick="openWLAdd()" title="הוסף מניה" style="margin-bottom:0"><i class="ti ti-plus"></i></button>
+    </div>
+    <button class="nav-item" onclick="nav('watchlist',this)"><i class="ti ti-news"></i>מעקב וחדשות</button>
+    <div id="wl-sidebar-list" style="margin-top:2px"></div>
+  </div>
+  <div style="margin-top:auto;padding:0 0.6rem;display:flex;flex-direction:column;gap:5px">
+    <button class="sidebar-new-trade" onclick="nav('add',null)"><i class="ti ti-plus"></i>עסקה חדשה</button>
+    <button class="nav-item" onclick="openSettings()" style="justify-content:center;font-size:11px"><i class="ti ti-settings" style="font-size:12px"></i>הגדרות</button>
+    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">
+      <i class="ti ti-sun" id="theme-icon"></i>
+      <span id="theme-label">מצב בהיר</span>
+    </button>
+  </div>
+</aside>
+
+
+<main class="main">
+
+  <!-- Live Page -->
+  <div id="page-live" class="page active">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">עסקאות חיות</span><div class="live-dot" id="live-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="live-lbl">ממתין</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="last-upd"></span><button class="refresh-btn" id="ref-btn" onclick="fullRefresh()"><i class="ti ti-refresh"></i>רענן</button></div>
+    </div>
+    <div class="api-key-bar">
+      <i class="ti ti-bolt" style="color:var(--blue-t);font-size:12px"></i><span>רענון אוטומטי:</span>
+      <button class="iv-btn" onclick="setIv(30)" id="iv-30">30ש׳</button>
+      <button class="iv-btn on" onclick="setIv(60)" id="iv-60">1 דק׳</button>
+      <button class="iv-btn" onclick="setIv(300)" id="iv-300">5 דק׳</button>
+      <button class="iv-btn" onclick="setIv(0)" id="iv-0">כבוי</button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <svg class="cd-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2.5"/><circle id="cd-ring" cx="8" cy="8" r="6" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-dasharray="37.7" stroke-dashoffset="0" transform="rotate(-90 8 8)" style="transition:stroke-dashoffset 1s linear"/></svg>
+        <span class="cd-txt" id="cd-num">60</span>
+      </div>
+      <span id="api-status" style="margin-right:auto;font-size:10.5px;color:var(--tx3)"></span>
+    </div>
+    <div class="acct-stats">
+      <div class="acct-stats-hdr" onclick="toggleStats()"><span class="acct-stats-title">סקירת חשבון</span><button class="acct-stats-toggle" id="stats-toggle"><i class="ti ti-chevron-down"></i><span id="stats-lbl">כווץ</span></button></div>
+      <div class="acct-stats-body" id="stats-body">
+        <div class="acct-grid" id="acct-grid"></div>
+        <div class="equity-wrap"><div class="equity-lbl">עקומת הון — P&L מצטבר</div><div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div></div>
+      </div>
+    </div>
+    <div class="summary-bar" id="trading-summary-bar" style="grid-template-columns:repeat(3,1fr)">
+      <div class="s-card"><div class="s-label">P&L לא ממומש</div><div class="s-val" id="sum-pnl">—</div></div>
+      <div class="s-card"><div class="s-label">שווי פוזיציות</div><div class="s-val" id="sum-val">—</div></div>
+      <div class="s-card"><div class="s-label">פוזיציות פתוחות</div><div class="s-val" id="sum-cnt">0</div></div>
+      <div style="display:none"><div class="s-val" id="sum-avg">—</div></div>
+      <div class="s-card" id="sum-cash-card" style="display:none">
+        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן פנוי — מסחר</div>
+        <div class="s-val" id="sum-cash">—</div>
+        <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="sum-cash-sub"></div>
+      </div>
+      <div class="s-card" id="trading-acct-card" style="display:none">
+        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-wallet" style="font-size:11px;color:var(--blue-t)"></i>שווי חשבון</div>
+        <div class="s-val" id="trading-acct-val">—</div>
+        <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="trading-acct-sub"></div>
+      </div>
+    </div>
+    <div id="live-content" style="overflow-y:auto;flex:1"></div>
+  </div>
+
+  <!-- Add/Edit Trade Page -->
+  <div id="page-add" class="page">
+    <div class="page-inner">
+      <div class="page-header">
+        <div class="page-title" id="form-title">עסקה חדשה</div>
+        <div class="autosave-bar idle" id="autosave-bar"><i class="ti ti-device-floppy" style="font-size:12px"></i><span id="autosave-txt">שמירה אוטומטית פעילה</span></div>
+      </div>
+      <div class="card">
+        <div style="margin-bottom:1.1rem">
+          <div class="form-sec-hdr"><div class="form-sec-num">1</div><div class="form-sec-title">פרטי כניסה</div></div>
+          <div class="form-grid">
+            <div class="fg"><label>טיקר *</label><input type="text" id="f-ticker" placeholder="NVDA" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase();draftSave()"></div>
+            <div class="fg"><label>תאריך *</label><input type="date" id="f-date" oninput="draftSave()"></div>
+            <div class="fg"><label>כיוון *</label><select id="f-dir" onchange="draftSave()"><option value="Long">Long (קנייה)</option><option value="Short">Short (מכירה)</option></select></div>
+            <div class="fg"><label>מחיר כניסה ($) *</label><input type="number" id="f-entry" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:'IBM Plex Mono',monospace"></div>
+            <div class="fg"><label>כמות *</label><input type="number" id="f-qty" placeholder="0" step="1" min="1" oninput="calcFormPnl();draftSave()"></div>
+            <div class="fg">
+              <label>עמלה ($) <span id="fee-default-badge" style="font-size:9.5px;color:var(--blue-t);font-weight:400"></span></label>
+              <input type="number" id="f-fee" step="0.01" oninput="draftSave()" style="font-family:'IBM Plex Mono',monospace">
+              <div class="fee-default-hint" id="fee-hint" style="display:none"><i class="ti ti-info-circle" style="font-size:10px"></i><span id="fee-hint-txt"></span></div>
+            </div>
+            <div class="fg full">
+              <div style="background:rgba(239,68,68,0.07);border:0.5px solid rgba(239,68,68,0.22);border-radius:var(--r);padding:0.7rem">
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:7px"><i class="ti ti-shield-x" style="color:var(--red);font-size:13px"></i><span style="font-size:11.5px;font-weight:600;color:var(--red-t)">Stop Loss — הגדר לפני הכניסה!</span></div>
+                <div style="display:flex;gap:9px;align-items:flex-end">
+                  <div class="fg" style="flex:1;margin:0;gap:3px"><label>מחיר Stop Loss ($)</label><input type="number" id="f-sl" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="border-color:rgba(239,68,68,0.3);font-family:'IBM Plex Mono',monospace"></div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--red-t);padding-bottom:7px;white-space:nowrap" id="sl-risk">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="pnl-prev"><div><div style="font-size:11.5px;color:var(--tx2)">עלות כניסה</div><div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="pnl-det">הכנס מחירים לחישוב</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="pnl-val">—</div></div>
+          </div>
+        </div>
+        <div style="margin-bottom:1.1rem">
+          <div class="form-sec-hdr"><div class="form-sec-num" style="background:var(--green);color:#052e16">2</div><div class="form-sec-title">יעדי מימוש</div></div>
+          <div class="form-grid">
+            <div class="targets-builder">
+              <div class="tb-hdr"><span class="tb-title">יעדים</span><button class="add-target-btn" id="add-tgt-btn" onclick="addTarget()"><i class="ti ti-plus" style="font-size:11px"></i>הוסף יעד</button></div>
+              <div id="targets-list"></div>
+              <div id="targets-summary" style="font-size:10.5px;color:var(--tx3);margin-top:7px;padding-top:7px;border-top:0.5px solid var(--br)"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="form-sec-hdr"><div class="form-sec-num" style="background:var(--tx3)">3</div><div class="form-sec-title">ניתוח ומחשבות</div></div>
+          <div class="form-grid">
+            <div class="fg">
+              <label>סיווג עסקה</label>
+              <div class="grade-toggle">
+                <button type="button" id="f-grade-1" class="grade-btn active" onclick="setGrade('1')">סיווג 1</button>
+                <button type="button" id="f-grade-2" class="grade-btn" onclick="setGrade('2')">סיווג 2</button>
+              </div>
+            </div>
+            <div class="fg"><label>סטטוס</label><select id="f-status" onchange="draftSave()"><option value="open">פתוחה</option><option value="closed">סגורה</option></select></div>
+            <div class="fg"><label>מחיר יציאה ($)</label><input type="number" id="f-exit" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:'IBM Plex Mono',monospace"></div>
+            <div class="fg full"><label>סיבה לכניסה</label><textarea id="f-reason" placeholder="מה ראית? למה נכנסת לעסקה הזו?" oninput="draftSave()" rows="3"></textarea></div>
+            <div class="fg full"><label>תרחיש</label><textarea id="f-scenario" placeholder="מה אתה מצפה שיקרה? מה התרחיש המנצח?" oninput="draftSave()" rows="3"></textarea></div>
+            <div class="form-actions"><button class="btn-p" onclick="saveTrade()">שמור עסקה</button><button class="btn-s" onclick="resetForm()">נקה</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Closed Trades Page -->
+  <div id="page-closed" class="page">
+    <div class="page-inner">
+      <div class="page-header">
+        <div class="page-title">עסקאות שנסגרו</div>
+        <div class="view-toggle" id="closed-view-toggle">
+          <button class="view-toggle-btn active" id="vtb-table" onclick="setClosedView('table')"><i class="ti ti-table"></i>טבלה</button>
+          <button class="view-toggle-btn" id="vtb-cards" onclick="setClosedView('cards')"><i class="ti ti-layout-grid"></i>כרטיסיות</button>
+        </div>
+      </div>
+      <div class="filter-row"><span style="font-size:11.5px;color:var(--tx2)">סינון:</span><select id="fc-dir" onchange="renderClosedTable()"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()"><option value="">הכל</option><option value="win">רווח</option><option value="loss">הפסד</option></select><input type="text" id="fc-ticker" placeholder="חיפוש טיקר..." oninput="renderClosedTable()"></div>
+      <div id="closed-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:0.9rem"></div>
+      <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto" id="closed-ct"></div></div>
+    </div>
+  </div>
+
+  <!-- Portfolio Page -->
+  <div id="page-portfolio" class="page">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">תיק השקעות</span><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
+    </div>
+    <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
+      <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div></div>
+      <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div></div>
+      <div class="s-card"><div class="s-label">רווח / הפסד</div><div class="s-val" id="ps-pnl">—</div></div>
+      <div class="s-card"><div class="s-label">תשואה</div><div class="s-val" id="ps-ret">—</div></div>
+      <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div></div>
+      <div class="s-card">
+        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן בתיק</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
+          <span style="font-size:13px;color:var(--tx3)">$</span>
+          <input id="ps-cash-input" type="number" min="0" step="100" placeholder="0"
+            style="width:100%;background:var(--bg-overlay);border:1px solid var(--cb);border-radius:5px;padding:3px 7px;font-size:14px;color:var(--tx);font-family:var(--font-mono);direction:ltr;text-align:left"
+            onchange="saveInvestCash()" onblur="saveInvestCash()">
+        </div>
+        <div style="font-size:9.5px;color:var(--tx3);margin-top:4px">יתרת מזומן בחשבון</div>
+      </div>
+      <div class="s-card" id="ps-acct-card" style="display:none">
+        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-wallet" style="font-size:11px;color:var(--green-t)"></i>גודל תיק</div>
+        <div class="s-val" id="ps-acct-total">—</div>
+        <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="ps-acct-ret"></div>
+      </div>
+    </div>
+    <div style="padding:1.1rem 1.4rem;overflow-y:auto;flex:1">
+      <div id="port-charts-row" style="display:none;grid-template-columns:240px 1fr;gap:12px;margin-bottom:1.1rem">
+        <div class="port-chart-card"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">הקצאה</div><div style="position:relative;height:150px;display:flex;align-items:center;justify-content:center"><canvas id="alloc-chart"></canvas></div><div class="port-legend" id="alloc-legend"></div></div>
+        <div class="port-chart-card"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">ביצועים</div><div style="position:relative;height:190px"><canvas id="perf-chart"></canvas></div></div>
+      </div>
+      <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
+    </div>
+  </div>
+
+  <!-- Watchlist Page -->
+  <div id="page-watchlist" class="page">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">מעקב וחדשות</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="refresh-btn" id="wl-ref-btn" onclick="loadWatchlistPage()"><i class="ti ti-refresh"></i>רענן</button>
+        <button class="add-btn" onclick="openWLAdd()"><i class="ti ti-plus"></i>הוסף מניה</button>
+      </div>
+    </div>
+    <div class="page-inner">
+      <div id="wl-hub-stocks"></div>
+    </div>
+  </div>
+
+  <!-- Prep Page -->
+  <div id="page-prep" class="page">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font-size:14.5px;font-weight:500">תכנון עסקאות</span>
+      </div>
+    </div>
+    <div class="page-inner">
+      <div id="prep-grid"></div>
+    </div>
+  </div>
+
+  <!-- Prep Detail Overlay -->
+  <div class="fa-overlay" id="prep-overlay">
+    <div class="fa-modal" style="max-width:580px">
+      <div class="fa-header">
+        <div>
+          <div class="fa-ticker-big" id="prep-modal-ticker">—</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px" id="prep-modal-sub"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="fa-close-btn" onclick="prepCloseCard()">
+            <i class="ti ti-x"></i>סגור
+          </button>
+        </div>
+      </div>
+      <div class="fa-body" id="prep-modal-body"></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="prep.js"></script>
+<script>
+// render prep page when navigating to it
+(function() {
+  var origNav = nav;
+  nav = function(page, btn) {
+    origNav(page, btn);
+    if (page === 'prep') prepRender();
+  };
+}());
+</script>
+<script>
+function toggleMobileSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  var toggle = document.getElementById('mobile-nav-toggle');
+  var isOpen = sidebar.classList.contains('mobile-open');
+  if (isOpen) {
+    sidebar.classList.remove('mobile-open');
+    backdrop.classList.remove('active');
+    toggle.classList.remove('open');
+    document.body.classList.remove('sidebar-open');
+  } else {
+    sidebar.classList.add('mobile-open');
+    backdrop.classList.add('active');
+    toggle.classList.add('open');
+    document.body.classList.add('sidebar-open');
+  }
+}
+function closeMobileSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  var toggle = document.getElementById('mobile-nav-toggle');
+  sidebar.classList.remove('mobile-open');
+  backdrop.classList.remove('active');
+  toggle.classList.remove('open');
+  document.body.classList.remove('sidebar-open');
+}
+// Close sidebar on nav click (mobile)
+document.addEventListener('DOMContentLoaded', function() {
+  var origNav = window.nav;
+  if (origNav) {
+    window.nav = function(page, btn) {
+      origNav(page, btn);
+      closeMobileSidebar();
+    };
+  }
+});
+function toggleTheme() {
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('tj-theme', 'light');
+    document.getElementById('theme-icon').className = 'ti ti-sun';
+    document.getElementById('theme-label').textContent = 'מצב בהיר';
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('tj-theme', 'dark');
+    document.getElementById('theme-icon').className = 'ti ti-moon';
+    document.getElementById('theme-label').textContent = 'מצב כהה';
+  }
+}
+// Sync button label with saved theme on load
+(function() {
+  var saved = localStorage.getItem('tj-theme');
+  if (saved === 'dark') {
+    var icon = document.getElementById('theme-icon');
+    var label = document.getElementById('theme-label');
+    if (icon) icon.className = 'ti ti-moon';
+    if (label) label.textContent = 'מצב כהה';
+  }
+}());
+</script>
+</body>
+</html>
