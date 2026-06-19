@@ -508,6 +508,48 @@ function loadDraft() {
 function clearDraft() { localStorage.removeItem(SK.draft); }
 
 // ═══════════════════════════════════════════════════════════
+//  EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════
+function exportData() {
+  const exportKeys = [SK.trades, SK.port, SK.key, SK.fee, SK.risk, SK.watchlist, SK.faData, SK.tradingVal, SK.investCash];
+  const data = { _version: 1, _exported: new Date().toISOString() };
+  exportKeys.forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = v; });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `trading-journal-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('✓ גיבוי יוצא בהצלחה');
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data._version) throw new Error('קובץ לא תקין');
+        const skip = new Set(['_version', '_exported']);
+        let count = 0;
+        Object.entries(data).forEach(([k, v]) => {
+          if (!skip.has(k)) { localStorage.setItem(k, v); count++; }
+        });
+        toast(`✓ יובאו ${count} פריטים — מרענן...`);
+        setTimeout(() => location.reload(), 1200);
+      } catch { toast('⚠ שגיאה בייבוא הקובץ'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ═══════════════════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════════════════
 function openSettings() {

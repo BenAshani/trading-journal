@@ -65,6 +65,14 @@
       </div>
       <div class="settings-hint">finnhub.io — 60 בקשות/דקה (חינמי)</div>
     </div>
+    <div class="settings-group">
+      <div class="settings-label"><i class="ti ti-database" style="color:var(--blue-t);font-size:13px"></i> גיבוי ושחזור נתונים</div>
+      <div class="settings-row" style="gap:8px">
+        <button class="btn-p" onclick="exportData()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-download" style="font-size:12px"></i> ייצא גיבוי</button>
+        <button class="btn-s" onclick="importData()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-upload" style="font-size:12px"></i> ייבא גיבוי</button>
+      </div>
+      <div class="settings-hint">ייצא את כל הנתונים לקובץ JSON. ייבא להעברת נתונים בין מכשירים.</div>
+    </div>
     <div class="modal-actions"><button class="btn-s" onclick="closeSettings()">סגור</button></div>
   </div>
 </div>
