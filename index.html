@@ -12,6 +12,7 @@
 <script>(function(){var t=localStorage.getItem('tj-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}());</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -21,7 +22,51 @@
 <!-- Settings Overlay -->
 <div class="overlay" id="settings-overlay">
   <div class="settings-modal">
-    <div class="settings-title"><i class="ti ti-settings" style="color:var(--blue-t)"></i>הגדרות</div>
+    <div class="settings-title"><i class="ti ti-settings" style="color:var(--blue-t)"></i>הגדרות<span id="db-sync-status" style="font-size:10.5px;font-weight:400;margin-right:auto;display:flex;align-items:center;gap:4px;color:var(--tx3)"><i class="ti ti-database" style="font-size:11px"></i>מקומי בלבד</span></div>
+
+    <!-- Cloud Sync -->
+    <div class="settings-group">
+      <div class="settings-label"><i class="ti ti-cloud" style="color:var(--blue-t);font-size:13px"></i> סינכרון ענן — Supabase</div>
+      <div class="settings-hint" style="margin-bottom:8px">מאפשר גישה לנתונים מכל מכשיר. <a href="https://supabase.com" target="_blank" style="color:var(--blue-t)">צור פרויקט חינמי</a> ב-Supabase והכנס את הפרטים כאן.</div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Project URL</div>
+          <input type="text" class="settings-input" id="db-url" placeholder="https://xxxx.supabase.co" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+        </div>
+        <div>
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Anon / Public Key</div>
+          <input type="text" class="settings-input" id="db-anon-key" placeholder="eyJhbGc..." style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+        </div>
+        <div>
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">מזהה משתמש (אימייל שלך)</div>
+          <input type="email" class="settings-input" id="db-user-id" placeholder="you@email.com" style="direction:ltr;text-align:left;font-size:12px;width:100%">
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <button class="btn-p" onclick="dbSaveSettings()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-cloud-upload" style="font-size:12px"></i> הפעל סינכרון</button>
+        <span class="settings-saved" id="db-save-feedback"><i class="ti ti-check" style="font-size:12px"></i>פעיל!</span>
+      </div>
+
+      <!-- Setup Code (shown after first setup) -->
+      <div id="db-code-section" style="display:none;margin-top:12px;padding:10px;background:var(--bg-overlay);border-radius:var(--r);border:0.5px solid var(--br)">
+        <div style="font-size:10.5px;font-weight:500;color:var(--tx2);margin-bottom:6px"><i class="ti ti-qrcode" style="font-size:11px"></i> קוד הגדרה — העתק למכשיר אחר</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="db-code-display" readonly style="flex:1;font-size:9px;font-family:var(--font-mono);direction:ltr;background:var(--bg);border:0.5px solid var(--br);border-radius:5px;padding:5px 7px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis">
+          <button class="btn-s" onclick="dbCopyCode()" style="font-size:11px;padding:5px 10px;white-space:nowrap"><i class="ti ti-copy" style="font-size:11px"></i> העתק</button>
+        </div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:4px">במכשיר אחר: פתח הגדרות ← הדבק קוד זה בתיבה למטה ← לחץ "החל"</div>
+      </div>
+
+      <!-- Apply Setup Code -->
+      <div style="margin-top:10px;padding:10px;background:var(--bg-overlay);border-radius:var(--r);border:0.5px dashed var(--br)">
+        <div style="font-size:10.5px;font-weight:500;color:var(--tx2);margin-bottom:6px"><i class="ti ti-device-mobile" style="font-size:11px"></i> מכשיר חדש — הדבק קוד הגדרה</div>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="settings-input" id="db-setup-code" placeholder="הדבק קוד כאן..." style="flex:1;font-size:10px;direction:ltr">
+          <button class="btn-s" onclick="dbApplyCode()" style="font-size:11px;padding:5px 10px;white-space:nowrap">החל</button>
+        </div>
+      </div>
+    </div>
     <div class="settings-group">
       <div class="settings-label">עמלת מסחר ברירת מחדל ($)</div>
       <div class="settings-row">
@@ -459,6 +504,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="db.js"></script>
 <script src="app.js"></script>
 <script src="prep.js"></script>
 <script>

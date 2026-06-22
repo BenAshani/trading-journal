@@ -276,14 +276,17 @@ const SK = {
 
 const ld    = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
 const ldObj = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
-const sv    = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const sv    = (k, v) => {
+  localStorage.setItem(k, JSON.stringify(v));
+  if (typeof dbPush === 'function') dbPush(k, v);
+};
 
 const getKey        = ()  => localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '';
-const setKey        = k   => localStorage.setItem(SK.key, k);
+const setKey        = k   => _pushSetting(SK.key, k);
 const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)); return isNaN(v) ? 2.50 : v; };
-const setDefaultFee = v   => localStorage.setItem(SK.fee, v);
+const setDefaultFee = v   => _pushSetting(SK.fee, v);
 const getRiskUnit   = ()  => { const v = parseFloat(localStorage.getItem(SK.risk)); return isNaN(v) ? 0 : v; };
-const setRiskUnit   = v   => localStorage.setItem(SK.risk, v);
+const setRiskUnit   = v   => _pushSetting(SK.risk, v);
 const getTradingVal = ()  => parseFloat(localStorage.getItem(SK.tradingVal)) || 0;
 const getInvestCash = ()  => parseFloat(localStorage.getItem(SK.investCash)) || 0;
 
@@ -507,6 +510,12 @@ function loadDraft() {
 
 function clearDraft() { localStorage.removeItem(SK.draft); }
 
+// ── Individual settings cloud push ───────────────────────────
+function _pushSetting(key, value) {
+  localStorage.setItem(key, value);
+  if (typeof dbPush === 'function') dbPush(key, value);
+}
+
 // ═══════════════════════════════════════════════════════════
 //  EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════════
@@ -558,6 +567,12 @@ function openSettings() {
   document.getElementById('settings-trading-val').value = localStorage.getItem(SK.tradingVal) || '';
   document.getElementById('settings-risk').value        = getRiskUnit() > 0 ? getRiskUnit() : '';
   ['settings-saved','risk-saved','acct-saved'].forEach(id => document.getElementById(id).classList.remove('show'));
+  if (typeof dbOpenSetup === 'function') dbOpenSetup();
+  if (typeof dbIsReady === 'function' && dbIsReady()) {
+    const code = typeof dbGenSetupCode === 'function' ? dbGenSetupCode() : '';
+    const codeDisplay = document.getElementById('db-code-display');
+    if (codeDisplay && code) { codeDisplay.textContent = code; document.getElementById('db-code-section')?.style.removeProperty('display'); }
+  }
   document.getElementById('settings-overlay').classList.add('open');
 }
 
@@ -587,6 +602,7 @@ function saveRiskUnit() {
     toast(`✓ יחידת סיכון: $${v.toFixed(0)}`);
   } else {
     localStorage.removeItem(SK.risk);
+    if (typeof dbPush === 'function') dbPush(SK.risk, null);
     toast('✓ יחידת סיכון נמחקה');
   }
   renderStats();
@@ -594,7 +610,7 @@ function saveRiskUnit() {
 
 function saveAcctValues() {
   const tv = parseFloat(document.getElementById('settings-trading-val').value) || 0;
-  if (tv > 0) localStorage.setItem(SK.tradingVal, tv); else localStorage.removeItem(SK.tradingVal);
+  if (tv > 0) _pushSetting(SK.tradingVal, tv); else localStorage.removeItem(SK.tradingVal);
   showSaved('acct-saved');
   toast('✓ שוויי החשבון עודכן');
   renderStats();
@@ -602,7 +618,7 @@ function saveAcctValues() {
 
 function saveInvestCash() {
   const v = parseFloat(document.getElementById('ps-cash-input').value) || 0;
-  if (v >= 0) localStorage.setItem(SK.investCash, v); else localStorage.removeItem(SK.investCash);
+  if (v >= 0) _pushSetting(SK.investCash, v); else localStorage.removeItem(SK.investCash);
   loadPortfolio();
 }
 
@@ -2315,7 +2331,16 @@ function migrateBizDescs() {
   if (changed) saveFAData();
 }
 
-function init() {
+async function init() {
+  // Sync from cloud before loading (if configured)
+  if (typeof dbIsReady === 'function' && dbIsReady()) {
+    if (typeof dbSetSyncStatus === 'function') dbSetSyncStatus('syncing');
+    const ok = await dbPullAll();
+    if (typeof dbSetSyncStatus === 'function') dbSetSyncStatus(ok ? 'ok' : 'error');
+  } else {
+    if (typeof dbSetSyncStatus === 'function') dbSetSyncStatus('local');
+  }
+
   trades      = ld(SK.trades);
   portfolio   = ld(SK.port);
   watchlist   = ld(SK.watchlist);

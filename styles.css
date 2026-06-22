@@ -1791,4 +1791,29 @@ tr:hover td { background: var(--color-bg-overlay); }
   /* ── Live content ── */
   #live-content { overflow-y: visible; }
   .sec-title { padding: var(--space-5) var(--space-5) var(--space-3); }
+
+  /* ── Settings sync title ── */
+  .settings-title { flex-wrap: wrap; gap: 6px; }
+
+  /* ── Watchlist: 1 column on very small ── */
+  @media (max-width: 420px) {
+    .wl-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Portfolio summary: 2 cols, hide less important ── */
+  #invest-summary-bar { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* ── Closed trades: thinner table ── */
+  #closed-ct table td, #closed-ct table th { padding: 6px 8px; font-size: 11px; }
+
+  /* ── API key bar: stack nicely ── */
+  .api-key-bar { gap: 5px; }
+  .cd-txt, .cd-ring { display: none; }
+
+  /* ── Settings input full width ── */
+  .settings-input { width: 100% !important; }
+  #settings-fee, #settings-risk { width: 120px !important; }
 }
+
+/* ── sync status spin animation ── */
+@keyframes spin { to { transform: rotate(360deg); } }

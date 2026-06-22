@@ -8,7 +8,10 @@ const PREP_KEY = 'tj-prep';
 function prepLoad() {
   try { return JSON.parse(localStorage.getItem(PREP_KEY) || '[]'); } catch { return []; }
 }
-function prepSave(data) { localStorage.setItem(PREP_KEY, JSON.stringify(data)); }
+function prepSave(data) {
+  localStorage.setItem(PREP_KEY, JSON.stringify(data));
+  if (typeof dbPush === 'function') dbPush(PREP_KEY, data);
+}
 function prepUID()      { return Math.random().toString(36).slice(2, 9); }
 
 /* ── ADD / DELETE ── */
