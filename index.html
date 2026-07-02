@@ -501,6 +501,30 @@
   </div>
 
 </main>
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="mbn-item active" id="mbn-live" onclick="nav('live',null);mbnSet('live')">
+    <i class="ti ti-activity"></i>
+    <span>יומן</span>
+  </button>
+  <button class="mbn-item" id="mbn-closed" onclick="nav('closed',null);mbnSet('closed')">
+    <i class="ti ti-checks"></i>
+    <span>סגורות</span>
+  </button>
+  <button class="mbn-add" onclick="nav('add',null);mbnSet('add')">
+    <i class="ti ti-plus"></i>
+  </button>
+  <button class="mbn-item" id="mbn-portfolio" onclick="nav('portfolio',null);mbnSet('portfolio')">
+    <i class="ti ti-briefcase"></i>
+    <span>תיק</span>
+  </button>
+  <button class="mbn-item" id="mbn-watchlist" onclick="nav('watchlist',null);mbnSet('watchlist')">
+    <i class="ti ti-news"></i>
+    <span>מעקב</span>
+  </button>
+</nav>
+
 </div>
 
 <script src="config.js"></script>
@@ -577,6 +601,25 @@ function toggleTheme() {
     if (icon) icon.className = 'ti ti-moon';
     if (label) label.textContent = 'מצב כהה';
   }
+}());
+</script>
+<script>
+// Mobile bottom nav active state
+function mbnSet(page) {
+  var ids = ['live','closed','add','portfolio','watchlist'];
+  ids.forEach(function(id) {
+    var el = document.getElementById('mbn-' + id);
+    if (el) el.classList.toggle('active', id === page);
+  });
+}
+// Patch nav to also update bottom nav
+(function() {
+  var origNav = window.nav;
+  window.nav = function(page, btn) {
+    origNav(page, btn);
+    mbnSet(page);
+    if (page === 'prep') mbnSet('');
+  };
 }());
 </script>
 </body>

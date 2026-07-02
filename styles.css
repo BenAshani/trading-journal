@@ -1817,3 +1817,104 @@ tr:hover td { background: var(--color-bg-overlay); }
 
 /* ── sync status spin animation ── */
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════
+   MOBILE BOTTOM NAVIGATION BAR
+   Hidden on desktop, shown only on mobile
+══════════════════════════════════════════ */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    height: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--color-bg-elevated);
+    border-top: 1px solid var(--color-border-subtle);
+    z-index: 1000;
+    align-items: stretch;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  }
+
+  /* push main content above bottom nav */
+  .main {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  .mbn-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    padding: 0;
+    transition: color var(--duration-fast) var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mbn-item i {
+    font-size: 22px;
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .mbn-item.active {
+    color: var(--color-accent);
+  }
+
+  .mbn-item.active i {
+    transform: scale(1.1);
+  }
+
+  .mbn-item:active i {
+    transform: scale(0.92);
+  }
+
+  .mbn-add {
+    flex: 0 0 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    margin: auto;
+    cursor: pointer;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb, 100,80,40), 0.35);
+    transition: transform var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mbn-add i {
+    font-size: 24px;
+    font-weight: 300;
+  }
+
+  .mbn-add:active {
+    transform: scale(0.93);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .mbn-add.active {
+    background: var(--color-accent);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+}
