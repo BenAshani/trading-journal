@@ -540,17 +540,24 @@ function importData() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const data = JSON.parse(ev.target.result);
         if (!data._version) throw new Error('קובץ לא תקין');
         const skip = new Set(['_version', '_exported']);
-        let count = 0;
+        const importedKeys = [];
         Object.entries(data).forEach(([k, v]) => {
-          if (!skip.has(k)) { localStorage.setItem(k, v); count++; }
+          if (!skip.has(k)) { localStorage.setItem(k, v); importedKeys.push(k); }
         });
-        toast(`✓ יובאו ${count} פריטים — מרענן...`);
-        setTimeout(() => location.reload(), 1200);
+        // Push imported data to cloud BEFORE reload, so the cloud pull-on-init
+        // doesn't overwrite what we just imported with stale cloud data.
+        if (typeof dbIsReady === 'function' && dbIsReady() && typeof dbPushAll === 'function') {
+          toast(`✓ יובאו ${importedKeys.length} פריטים — מסנכרן לענן...`);
+          await dbPushAll(importedKeys);
+        } else {
+          toast(`✓ יובאו ${importedKeys.length} פריטים — מרענן...`);
+        }
+        setTimeout(() => location.reload(), 1000);
       } catch { toast('⚠ שגיאה בייבוא הקובץ'); }
     };
     reader.readAsText(file);
