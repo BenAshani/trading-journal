@@ -520,7 +520,12 @@ function _pushSetting(key, value) {
 //  EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════════
 function exportData() {
-  const exportKeys = [SK.trades, SK.port, SK.key, SK.fee, SK.risk, SK.watchlist, SK.faData, SK.tradingVal, SK.investCash];
+  // Export every app key — anything prefixed tj_/tj- plus the legacy prep key.
+  // Using a dynamic scan (instead of a fixed list) so newly added data types
+  // are never silently left out of the backup.
+  const exportKeys = Object.keys(localStorage).filter(k =>
+    (k.startsWith('tj_') || k.startsWith('tj-')) && k !== SK.draft && k !== DB_CFG_KEY
+  );
   const data = { _version: 1, _exported: new Date().toISOString() };
   exportKeys.forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = v; });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
