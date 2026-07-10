@@ -2369,13 +2369,16 @@ async function init() {
   setIv(60);
 
   // Close modals on backdrop click
-  ['pm-overlay','sl-overlay','hm-overlay','sell-overlay','settings-overlay','wl-add-overlay'].forEach(id => {
+  ['pm-overlay','sl-overlay','hm-overlay','sell-overlay','settings-overlay','wl-add-overlay','ibkr-preview-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
   });
   document.getElementById('fa-overlay').addEventListener('click', function(e) { if (e.target === this) closeFAModal(); });
 
   if (!getKey()) setTimeout(() => { openSettings(); toast('⚠ הגדר API Key של Finnhub בהגדרות'); }, 400);
+
+  // Signal add-ons (ibkr.js) that data is loaded, including cloud pull
+  window.dispatchEvent(new Event('tj-ready'));
 }
 
 init();
