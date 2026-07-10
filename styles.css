@@ -997,6 +997,7 @@ tr:hover td { background: var(--color-bg-overlay); }
   border: 1px solid var(--color-glass-border);
   border-radius: var(--radius-2xl); padding: var(--space-8);
   width: 460px; max-width: 92vw; box-shadow: var(--shadow-xl);
+  max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
 }
 .settings-title {
   font-size: var(--text-lg); font-weight: var(--weight-bold);
@@ -1939,32 +1940,98 @@ tr:hover td { background: var(--color-bg-overlay); }
 }
 .ibkr-banner.show { display: flex; }
 
+/* Preview modal — redesigned */
+.ibkr-modal {
+  background: var(--color-glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-2xl);
+  width: 560px; max-width: 94vw;
+  max-height: 86vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+.ibkr-modal-head {
+  padding: var(--space-6) var(--space-7) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ibkr-modal-title {
+  font-size: var(--text-lg); font-weight: var(--weight-bold);
+  display: flex; align-items: center; gap: var(--space-3);
+}
+.ibkr-modal-sub { font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: 4px; line-height: 1.5; }
+.ibkr-list {
+  flex: 1; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-5);
+}
 .ibkr-prop-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 9px 4px;
-  border-bottom: 0.5px solid var(--color-border-subtle, var(--br));
-  font-size: 12px;
-  line-height: 1.5;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 8px;
+  border-bottom: 0.5px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  transition: background 0.12s ease;
+  cursor: pointer;
 }
+.ibkr-prop-row:hover { background: var(--color-bg-overlay); }
 .ibkr-prop-row:last-child { border-bottom: none; }
-.ibkr-prop-row input[type="checkbox"] { margin-top: 3px; accent-color: var(--blue-t, #60a5fa); }
+.ibkr-prop-row input[type="checkbox"] {
+  width: 17px; height: 17px; flex-shrink: 0;
+  accent-color: var(--blue-t, #6366F1); cursor: pointer;
+}
+.ibkr-prop-main { flex: 1; min-width: 0; }
+.ibkr-prop-line1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ibkr-prop-ticker { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
 .ibkr-prop-kind {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  margin-inline-end: 6px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 99px; white-space: nowrap;
 }
+.ibkr-kind-new     { background: rgba(99,102,241,0.12);  color: var(--blue-t, #818cf8); }
+.ibkr-kind-close   { background: rgba(34,197,94,0.12);   color: var(--green-t, #4ade80); }
+.ibkr-kind-partial { background: rgba(245,158,11,0.12);  color: var(--amber-t, #fbbf24); }
 .ibkr-prop-meta {
-  display: block;
-  font-size: 10.5px;
-  color: var(--color-text-tertiary, var(--tx3));
+  font-size: 11px; color: var(--color-text-tertiary);
   font-family: var(--font-mono, monospace);
+  margin-top: 3px; direction: ltr; text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.ibkr-prop-side { flex-shrink: 0; text-align: left; }
+.ibkr-prop-qty { font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 600; direction: ltr; white-space: nowrap; }
+.ibkr-prop-pnl { font-family: var(--font-mono, monospace); font-size: 11.5px; font-weight: 600; direction: ltr; margin-top: 2px; white-space: nowrap; }
+.ibkr-modal-foot {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-7);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-overlay);
+}
+.ibkr-select-all {
+  font-size: 11.5px; color: var(--color-text-tertiary);
+  cursor: pointer; user-select: none; margin-inline-end: auto;
+}
+.ibkr-select-all:hover { color: var(--color-text-primary); }
+
 .ibkr-spin { display: inline-block; animation: ibkrspin 1s linear infinite; }
 @keyframes ibkrspin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
   .ibkr-banner { bottom: 74px; left: 12px; right: 12px; max-width: none; }
+  .ibkr-modal {
+    width: 100%; max-width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  }
+  .ibkr-modal-foot {
+    flex-wrap: wrap;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  }
+  .ibkr-modal-foot .btn-p, .ibkr-modal-foot .btn-s { flex: 1; justify-content: center; text-align: center; }
+  .ibkr-select-all { width: 100%; margin: 0 0 4px; }
+  .ibkr-prop-dirtxt { display: none; }
+  .ibkr-prop-row { gap: 9px; padding: 11px 4px; }
+  .ibkr-meta-desktop { display: none; }
+}
+.ibkr-meta-mobile { display: none; }
+@media (max-width: 640px) {
+  .ibkr-meta-mobile { display: block; text-align: left; }
 }

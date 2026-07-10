@@ -74,26 +74,29 @@
     <!-- IBKR Flex Sync -->
     <div class="settings-group">
       <div class="settings-label"><i class="ti ti-building-bank" style="color:var(--blue-t);font-size:13px"></i> סנכרון מ-Interactive Brokers</div>
-      <div class="settings-hint" style="margin-bottom:8px">מושך אוטומטית עסקאות שבוצעו בחשבון ה-IBKR שלך בכל פתיחת האתר (עד פעם ב-15 דק'). דורש הגדרת Flex Query חד-פעמית ב-Account Management.</div>
+      <div class="settings-hint" style="margin-bottom:8px">מושך אוטומטית עסקאות שבוצעו בחשבון בכל פתיחת האתר.</div>
 
-      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 110px;gap:7px;margin-bottom:7px">
         <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Flex Web Service Token</div>
-          <input type="text" class="settings-input" id="ibkr-token" placeholder="123456789012345678901234" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Flex Token</div>
+          <input type="text" class="settings-input" id="ibkr-token" placeholder="1234567890..." style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
         </div>
         <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Flex Query ID</div>
-          <input type="text" class="settings-input" id="ibkr-query" placeholder="123456" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:140px">
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Query ID</div>
+          <input type="text" class="settings-input" id="ibkr-query" placeholder="123456" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
         </div>
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">כתובת Proxy (אופציונלי — מזוהה אוטומטית מ-Supabase)</div>
+      </div>
+      <details style="margin-bottom:8px">
+        <summary style="font-size:10.5px;color:var(--tx3);cursor:pointer">מתקדם — Proxy ודיבאג</summary>
+        <div style="margin-top:7px">
+          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">כתובת Proxy (ריק = מזוהה אוטומטית מ-Supabase)</div>
           <input type="text" class="settings-input" id="ibkr-proxy" placeholder="https://xxxx.supabase.co/functions/v1/ibkr-flex" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);cursor:pointer">
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);cursor:pointer;margin-top:7px">
           <input type="checkbox" id="ibkr-debug" style="accent-color:var(--blue-t)">
-          מצב דיבאג — הצג תשובה גולמית מ-IBKR (לכיוונון ראשוני)
+          מצב דיבאג — הצג תשובה גולמית מ-IBKR
         </label>
-      </div>
+      </details>
 
       <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
         <button class="btn-p" onclick="ibkrSaveSettings()" style="font-size:12px;padding:0.35rem 0.9rem">שמור</button>
@@ -581,13 +584,16 @@
 
 <!-- IBKR: preview / diff modal -->
 <div class="overlay" id="ibkr-preview-overlay">
-  <div class="settings-modal" style="max-width:520px">
-    <div class="settings-title"><i class="ti ti-building-bank" style="color:var(--blue-t)"></i>עסקאות חדשות מ-IBKR</div>
-    <div class="settings-hint" style="margin-bottom:10px">סמן מה להוסיף ליומן. שדות שמילאת ידנית (סיבה, תרחיש, יעדים) לעולם לא נדרסים — רק שדות אובייקטיביים מתמלאים.</div>
-    <div id="ibkr-preview-list"></div>
-    <div style="display:flex;gap:7px;margin-top:14px">
-      <button class="btn-p" onclick="ibkrApply()"><i class="ti ti-check" style="font-size:12px"></i> הוסף ליומן</button>
+  <div class="ibkr-modal">
+    <div class="ibkr-modal-head">
+      <div class="ibkr-modal-title"><i class="ti ti-building-bank" style="color:var(--blue-t)"></i>עסקאות חדשות מ-IBKR<span id="ibkr-preview-count" class="hdr-badge badge-green" style="margin-right:auto"></span></div>
+      <div class="ibkr-modal-sub">סמן מה להוסיף ליומן. שדות שמילאת ידנית (סיבה, תרחיש, יעדים) לעולם לא נדרסים.</div>
+    </div>
+    <div class="ibkr-list" id="ibkr-preview-list"></div>
+    <div class="ibkr-modal-foot">
+      <span class="ibkr-select-all" onclick="ibkrToggleAll()" id="ibkr-select-all">בטל בחירת הכל</span>
       <button class="btn-s" onclick="ibkrClosePreview()">סגור</button>
+      <button class="btn-p" onclick="ibkrApply()" id="ibkr-apply-btn"><i class="ti ti-check" style="font-size:12px"></i> הוסף ליומן</button>
     </div>
   </div>
 </div>

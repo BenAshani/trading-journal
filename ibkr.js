@@ -142,6 +142,13 @@ function ibkrParseFlex(xmlText) {
     const price  = parseFloat(a.tradePrice ?? a.price ?? 'NaN');
     if (!symbol || isNaN(qtyRaw) || isNaN(price)) return;
 
+    // רק ביצועים בפועל — מדלגים על הזמנות שבוטלו / לא מולאו / שורות סיכום
+    const lod = (a.levelOfDetail || '').toUpperCase();
+    if (lod && lod !== 'EXECUTION') return;                    // ORDER / SYMBOL_SUMMARY וכו'
+    const codes = String(a.notes ?? a.code ?? a.codes ?? '');
+    if (/(^|;)\s*Ca\s*(;|$)/i.test(codes)) return;             // Ca = הזמנה שבוטלה
+    if (qtyRaw === 0 || price <= 0) return;                    // לא מולא בפועל
+
     // buySell מפורש אם קיים, אחרת סימן הכמות (מכירה = כמות שלילית ב-Flex)
     const bs   = (a.buySell || '').toUpperCase();
     const side = bs.includes('SELL') || (!bs && qtyRaw < 0) ? 'SELL' : 'BUY';
@@ -243,27 +250,68 @@ function ibkrIgnoreAll() {
 function ibkrOpenPreview() {
   const box = document.getElementById('ibkr-preview-list');
   if (!box) return;
-  const kindLbl = { new: 'עסקה חדשה', close: 'סגירת עסקה', partial: 'מימוש חלקי' };
-  const kindCol = { new: 'var(--blue-t, #60a5fa)', close: 'var(--green-t, #4ade80)', partial: 'var(--amber-t, #fbbf24)' };
+  const kindLbl = { new: 'עסקה חדשה', close: 'סגירה', partial: 'מימוש חלקי' };
   box.innerHTML = ibkrProposals.map((p, i) => {
     const ex = p.exec;
+    const qty = p.qty ?? ex.qty;
     const dirTxt = p.kind === 'new'
-      ? (p.dir === 'Long' ? 'קנייה (Long)' : 'מכירה בחסר (Short)')
-      : (ex.side === 'SELL' ? 'מכירה' : 'כיסוי');
-    const pnlTxt = p.kind !== 'new' && p.pnl !== undefined
-      ? ` · P&L ${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(2)}` : '';
-    return `<div class="ibkr-prop-row">
-      <input type="checkbox" id="ibkr-p-${i}" ${p.checked ? 'checked' : ''} onchange="ibkrProposals[${i}].checked=this.checked">
-      <label for="ibkr-p-${i}" style="flex:1;cursor:pointer">
-        <span class="ibkr-prop-kind" style="color:${kindCol[p.kind]}">${kindLbl[p.kind]}</span>
-        <b>${ex.ticker}</b> — ${dirTxt} · ${p.qty ?? ex.qty} × $${ex.price}${pnlTxt}
-        <span class="ibkr-prop-meta">${ex.date}${ex.fee ? ' · עמלה $' + ex.fee.toFixed(2) : ''}${ex.currency !== 'USD' ? ' · ' + ex.currency : ''}</span>
-      </label>
+      ? (p.dir === 'Long' ? 'קנייה — Long' : 'מכירה בחסר — Short')
+      : (ex.side === 'SELL' ? 'מכירה' : 'כיסוי שורט');
+    const logo = (typeof stockLogoImg === 'function') ? stockLogoImg(ex.ticker, 30) : '';
+    const sideCell = p.kind === 'new'
+      ? `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+         <div class="ibkr-prop-pnl" style="color:${p.dir === 'Long' ? 'var(--green-t,#4ade80)' : 'var(--red-t,#f87171)'}">${p.dir === 'Long' ? '▲ LONG' : '▼ SHORT'}</div>`
+      : `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+         <div class="ibkr-prop-pnl" style="color:${p.pnl >= 0 ? 'var(--green-t,#4ade80)' : 'var(--red-t,#f87171)'}">${p.pnl >= 0 ? '+' : '-'}$${Math.abs(p.pnl).toFixed(2)}</div>`;
+    return `<div class="ibkr-prop-row" onclick="ibkrRowToggle(event, ${i})">
+      <input type="checkbox" id="ibkr-p-${i}" ${p.checked ? 'checked' : ''} onchange="ibkrProposals[${i}].checked=this.checked;ibkrUpdateFoot()">
+      ${logo}
+      <div class="ibkr-prop-main">
+        <div class="ibkr-prop-line1">
+          <span class="ibkr-prop-ticker">${ex.ticker}</span>
+          <span class="ibkr-prop-kind ibkr-kind-${p.kind}">${kindLbl[p.kind]}</span>
+          <span class="ibkr-prop-dirtxt" style="font-size:11px;color:var(--tx2)">${dirTxt}</span>
+        </div>
+        <div class="ibkr-prop-meta ibkr-meta-desktop">${ex.date}${ex.fee ? ' · fee $' + ex.fee.toFixed(2) : ''}${ex.currency !== 'USD' ? ' · ' + ex.currency : ''}</div>
+      </div>
+      <div class="ibkr-prop-side">${sideCell}<div class="ibkr-prop-meta ibkr-meta-mobile">${ex.date}</div></div>
     </div>`;
   }).join('');
+  ibkrUpdateFoot();
   document.getElementById('ibkr-preview-overlay').classList.add('open');
 }
 function ibkrClosePreview() { document.getElementById('ibkr-preview-overlay').classList.remove('open'); }
+
+function ibkrRowToggle(e, i) {
+  if (e.target.tagName === 'INPUT') return; // הקליק היה על הצ'קבוקס עצמו
+  const cb = document.getElementById('ibkr-p-' + i);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  ibkrProposals[i].checked = cb.checked;
+  ibkrUpdateFoot();
+}
+function ibkrToggleAll() {
+  const allChecked = ibkrProposals.every(p => p.checked);
+  ibkrProposals.forEach((p, i) => {
+    p.checked = !allChecked;
+    const cb = document.getElementById('ibkr-p-' + i);
+    if (cb) cb.checked = !allChecked;
+  });
+  ibkrUpdateFoot();
+}
+function ibkrUpdateFoot() {
+  const n = ibkrProposals.filter(p => p.checked).length;
+  const count = document.getElementById('ibkr-preview-count');
+  if (count) count.textContent = ibkrProposals.length + ' עסקאות';
+  const btn = document.getElementById('ibkr-apply-btn');
+  if (btn) {
+    btn.innerHTML = `<i class="ti ti-check" style="font-size:12px"></i> הוסף ליומן${n ? ' (' + n + ')' : ''}`;
+    btn.disabled = n === 0;
+    btn.style.opacity = n === 0 ? '0.5' : '';
+  }
+  const sa = document.getElementById('ibkr-select-all');
+  if (sa) sa.textContent = ibkrProposals.every(p => p.checked) ? 'בטל בחירת הכל' : 'בחר הכל';
+}
 
 // ── Apply approved proposals ────────────────────────────────
 // ממלא שדות אובייקטיביים בלבד. הערות/סיבה/תרחיש/יעדים לא נגעים לעולם.
