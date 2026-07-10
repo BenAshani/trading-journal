@@ -81,7 +81,7 @@ function ibkrAutoSync() {
   ibkrSync();
 }
 
-async function ibkrSync() {
+async function ibkrSync(attempt = 0) {
   if (!ibkrIsConfigured()) { toast('⚠ הגדר טוקן ו-Query ID של IBKR בהגדרות'); return; }
   const cfg = ibkrGetCfg();
   ibkrLastError = '';
@@ -113,9 +113,37 @@ async function ibkrSync() {
     }
   } catch (e) {
     console.warn('[ibkr] sync failed', e);
-    ibkrLastError = e.message || String(e);
+    const msg = e.message || String(e);
+
+    // שגיאות זמניות של IBKR (עומס/דוח בהפקה) — ניסיון חוזר אוטומטי
+    if (/1001|1019|try again shortly|generation in progress/i.test(msg) && attempt < 2) {
+      const waitSec = attempt === 0 ? 30 : 90;
+      ibkrSetChip('syncing', `IBKR עמוס — ניסיון חוזר בעוד ${waitSec} שנ'`);
+      setTimeout(() => ibkrSync(attempt + 1), waitSec * 1000);
+      return;
+    }
+
+    ibkrLastError = ibkrFriendlyError(msg);
     ibkrSetChip('error', 'שגיאת סנכרון — לחץ לפרטים');
   }
+}
+
+// תרגום שגיאות Flex נפוצות להסבר מעשי
+function ibkrFriendlyError(msg) {
+  let hint = '';
+  if (/1001|try again shortly/i.test(msg))
+    hint = 'השרת של IBKR עמוס כרגע. זו תקלה זמנית אצלם — נסה שוב בעוד כמה דקות ("סנכרן עכשיו" בהגדרות).';
+  else if (/1012|expired/i.test(msg))
+    hint = 'פג תוקף הטוקן. צור טוקן חדש ב-IBKR: Performance & Reports ← Flex Queries ← Flex Web Service.';
+  else if (/1015|1020|invalid token|token/i.test(msg))
+    hint = 'הטוקן לא תקין — בדוק שהעתקת אותו במלואו, בלי רווחים.';
+  else if (/1003|1004|query/i.test(msg))
+    hint = 'בעיה ב-Query ID — בדוק שהמספר תואם לשאילתה שיצרת ב-IBKR.';
+  else if (/HTTP 404/.test(msg))
+    hint = 'פונקציית ה-proxy לא נמצאה ב-Supabase — ודא שפרסת פונקציה בשם ibkr-flex בדיוק.';
+  else if (/HTTP 401|HTTP 403|JWT/i.test(msg))
+    hint = 'בעיית הרשאה מול Supabase — ודא שסינכרון הענן מוגדר בהגדרות, או פרוס את הפונקציה עם --no-verify-jwt.';
+  return hint ? hint + '\n\n— פרטים טכניים —\n' + msg : msg;
 }
 
 // ── Flex XML parsing ────────────────────────────────────────
