@@ -11,9 +11,11 @@ const IBKR_LAST_KEY  = 'tj_ibkr_lastsync';  // timestamp של סנכרון אח�
 const IBKR_THROTTLE_MS = 15 * 60 * 1000;    // סנכרון אוטומטי לכל היותר פעם ב-15 דק'
 const IBKR_SEEN_CAP  = 3000;
 
-let ibkrProposals = [];
-let ibkrLastRaw   = '';
-let ibkrLastError = '';
+let ibkrProposals    = [];
+let ibkrLastExecs    = [];   // הביצועים מהסנכרון האחרון — לבנייה מחדש כשמשנים ניתוב
+let ibkrDestOverride = {};   // execId → 'trades'|'port' — עקיפה ידנית מהתצוגה המקדימה
+let ibkrLastRaw      = '';
+let ibkrLastError    = '';
 
 // ── Config ──────────────────────────────────────────────────
 function ibkrGetCfg() {
@@ -103,6 +105,9 @@ async function ibkrSync(attempt = 0) {
 
     const execs = ibkrParseFlex(text);
     localStorage.setItem(IBKR_LAST_KEY, String(Date.now()));
+    ibkrLastExecs = execs;
+    ibkrDestOverride = {};
+    ibkrRememberAccounts(execs);
     ibkrProposals = ibkrBuildProposals(execs);
     if (ibkrProposals.length) {
       ibkrSetChip('ok', `${ibkrProposals.length} חדשות`);
@@ -184,6 +189,7 @@ function ibkrParseFlex(xmlText) {
     execs.push({
       id:       a.tradeID || a.transactionID || a.execID || a.ibExecID ||
                 (symbol + '_' + (a.tradeDate || '') + '_' + qtyRaw + '_' + price),
+      account:  a.accountId || a.acctAlias || '',
       ticker:   symbol,
       date:     ibkrFmtDate(a.tradeDate || a.dateTime || a.reportDate || ''),
       time:     a.tradeTime || (a.dateTime || '').split(';')[1] || '',
@@ -212,46 +218,119 @@ function ibkrFmtDate(s) {
 }
 
 // ── Building proposals ──────────────────────────────────────
-// BUY  → אם יש שורט פתוח באותו טיקר: כיסוי (סגירה/מימוש). אחרת: עסקת לונג חדשה.
-// SELL → אם יש לונג פתוח באותו טיקר: סגירה/מימוש. אחרת: עסקת שורט חדשה.
+// כל ביצוע מנותב ליעד: 'trades' (יומן מסחר) או 'port' (תיק השקעות).
+// סדר קביעת היעד: עקיפה ידנית מהשורה → מיפוי חשבון מההגדרות → היוריסטיקה
+// (מכירה/קנייה בטיקר שמוחזק בתיק ההשקעות ואין לו עסקה פתוחה ביומן → תיק).
+// בנוסף: ביצוע שתואם עסקה ידנית קיימת (טיקר+תאריך+כמות) אבל במחיר/עמלה
+// שונים → הצעת "עדכון" שמיישרת את הנתונים לברוקר בלי לגעת בשדות ידניים.
 function ibkrBuildProposals(execs) {
   const seen = ibkrGetSeen();
   const autoSeen = [];
-  // עותק עבודה כדי לדמות ביצוע עוקב (מימוש ראשון משפיע על הנותרת של הבא)
-  const work = JSON.parse(JSON.stringify(trades));
-  const proposals = [];
+  // עותקי עבודה כדי לדמות ביצוע עוקב (מימוש ראשון משפיע על הנותרת של הבא)
+  const workTrades = JSON.parse(JSON.stringify(trades));
+  const workPort   = JSON.parse(JSON.stringify(portfolio));
+  const proposals  = [];
+  const cfg  = ibkrGetCfg();
+  const near = (a, b, tol = 0.005) => Math.abs((a || 0) - (b || 0)) <= tol;
+  const isManual = t => !String(t.id).startsWith('ibkr_');
+
+  function closeLogic(ex, t) {
+    const rem   = t.remainingQty ?? t.qty;
+    const qty   = Math.min(ex.qty, rem);
+    const gross = t.dir === 'Long' ? (ex.price - t.entry) * qty : (t.entry - ex.price) * qty;
+    const pnl   = +(gross - ex.fee).toFixed(2);
+    const full  = qty >= rem;
+    t.remainingQty = rem - qty;
+    if (full) t.status = 'closed';
+    proposals.push({ kind: full ? 'close' : 'partial', dest: 'trades', exec: ex, tradeId: t.id, qty, pnl, checked: true });
+  }
+
+  function newTradeProp(ex, dir) {
+    workTrades.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, dir, status: 'open',
+                         entry: ex.price, qty: ex.qty, remainingQty: ex.qty });
+    proposals.push({ kind: 'new', dest: 'trades', dir, exec: ex, checked: true });
+  }
+
+  // explicit=true: המשתמש/מיפוי החשבון קבעו יומן — בלי ניתוב אוטומטי לתיק
+  function tradesLogic(ex, explicit) {
+    if (ex.side === 'BUY') {
+      // יישור עסקה ידנית קיימת לנתוני הברוקר (אותם טיקר+תאריך+כמות)
+      const m = workTrades.find(t => isManual(t) && t.ticker === ex.ticker && t.dir === 'Long' &&
+                                     t.date === ex.date && (t.qty || 0) === ex.qty);
+      if (m) {
+        if (near(m.entry, ex.price) && near(m.fee, ex.fee)) { autoSeen.push(ex.id); return; }
+        proposals.push({ kind: 'update', dest: 'trades', exec: ex, tradeId: m.id, old: m.entry, checked: true });
+        m.entry = ex.price; m.fee = ex.fee;
+        return;
+      }
+      const shortT = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Short');
+      if (shortT) return closeLogic(ex, shortT);
+      if (!explicit && workPort.some(h => h.ticker === ex.ticker)) return portLogic(ex);
+      newTradeProp(ex, 'Long');
+    } else {
+      const longT = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Long');
+      if (longT) return closeLogic(ex, longT);
+      // יישור מחיר יציאה של עסקה סגורה קיימת
+      const m = workTrades.find(t => isManual(t) && t.ticker === ex.ticker && t.status === 'closed' &&
+                                     (t.qty || 0) === ex.qty && t.exit != null && t.date <= ex.date);
+      if (m) {
+        if (near(m.exit, ex.price)) { autoSeen.push(ex.id); return; }
+        proposals.push({ kind: 'update-exit', dest: 'trades', exec: ex, tradeId: m.id, old: m.exit, checked: true });
+        m.exit = ex.price;
+        return;
+      }
+      if (!explicit) {
+        const h = workPort.find(x => x.ticker === ex.ticker && (x.remainingQty ?? x.qty) > 0);
+        if (h) return portLogic(ex);
+      }
+      newTradeProp(ex, 'Short');
+    }
+  }
+
+  function portLogic(ex) {
+    if (ex.side === 'BUY') {
+      const h = workPort.find(x => x.ticker === ex.ticker);
+      if (h) {
+        if (h.date === ex.date && (h.qty || 0) === ex.qty && near(h.avgCost, ex.price)) { autoSeen.push(ex.id); return; }
+        const oldQty = h.qty || 0;
+        const newAvg = +(((h.avgCost * oldQty) + ex.price * ex.qty) / (oldQty + ex.qty)).toFixed(4);
+        proposals.push({ kind: 'port-add', dest: 'port', exec: ex, holdingId: h.id, oldAvg: h.avgCost, newAvg, checked: true });
+        h.qty = oldQty + ex.qty;
+        h.remainingQty = (h.remainingQty ?? oldQty) + ex.qty;
+        h.avgCost = newAvg;
+      } else {
+        workPort.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, qty: ex.qty, avgCost: ex.price, remainingQty: ex.qty });
+        proposals.push({ kind: 'port-new', dest: 'port', exec: ex, checked: true });
+      }
+    } else {
+      const h = workPort.find(x => x.ticker === ex.ticker && (x.remainingQty ?? x.qty) > 0);
+      if (!h) return newTradeProp(ex, 'Short'); // אין אחזקה למכור ממנה — שורט ביומן
+      const rem = h.remainingQty ?? h.qty;
+      const qty = Math.min(ex.qty, rem);
+      const pnl = +(((ex.price - h.avgCost) * qty)).toFixed(2);
+      proposals.push({ kind: 'port-sell', dest: 'port', exec: ex, holdingId: h.id, qty, pnl, full: qty >= rem, checked: true });
+      h.remainingQty = rem - qty;
+    }
+  }
 
   execs.forEach(ex => {
     if (seen.has(ex.id)) return;
-
-    const closeDir = ex.side === 'SELL' ? 'Long' : 'Short';
-    const openTrade = work.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === closeDir);
-
-    if (openTrade) {
-      const rem  = openTrade.remainingQty ?? openTrade.qty;
-      const qty  = Math.min(ex.qty, rem);
-      const gross = closeDir === 'Long' ? (ex.price - openTrade.entry) * qty : (openTrade.entry - ex.price) * qty;
-      const pnl  = +(gross - ex.fee).toFixed(2);
-      const full = qty >= rem;
-      openTrade.remainingQty = rem - qty;
-      if (full) openTrade.status = 'closed';
-      proposals.push({ kind: full ? 'close' : 'partial', exec: ex, tradeId: openTrade.id, qty, pnl, checked: true });
-      return;
-    }
-
-    // עסקה חדשה — קודם בדיקה שלא קיימת כבר ידנית ביומן (טיקר+תאריך+כמות+מחיר)
-    const dir = ex.side === 'BUY' ? 'Long' : 'Short';
-    const dup = trades.find(t => t.ticker === ex.ticker && t.date === ex.date &&
-                Math.abs((t.qty || 0) - ex.qty) < 0.001 && Math.abs((t.entry || 0) - ex.price) < 0.01);
-    if (dup) { autoSeen.push(ex.id); return; }
-
-    work.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, dir, status: 'open',
-                   entry: ex.price, qty: ex.qty, remainingQty: ex.qty });
-    proposals.push({ kind: 'new', exec: ex, dir, checked: true });
+    const d = ibkrDestOverride[ex.id] || (cfg.accountDest || {})[ex.account] || '';
+    if (d === 'port') portLogic(ex);
+    else tradesLogic(ex, d === 'trades');
   });
 
   if (autoSeen.length) { autoSeen.forEach(id => seen.add(id)); ibkrSaveSeen(seen); }
   return proposals;
+}
+
+// שמירת רשימת החשבונות שהתגלו בדוח — למיפוי בהגדרות
+function ibkrRememberAccounts(execs) {
+  const cfg = ibkrGetCfg();
+  const found = [...new Set(execs.map(e => e.account).filter(Boolean))];
+  const known = new Set(cfg.accounts || []);
+  const merged = [...new Set([...known, ...found])];
+  if (merged.length !== known.size) { cfg.accounts = merged; ibkrSaveCfg(cfg); }
 }
 
 // ── Banner ──────────────────────────────────────────────────
@@ -275,38 +354,82 @@ function ibkrIgnoreAll() {
 }
 
 // ── Preview modal ───────────────────────────────────────────
+const IBKR_KIND_LBL = {
+  'new':         'עסקה חדשה',
+  'close':       'סגירה',
+  'partial':     'מימוש חלקי',
+  'update':      'עדכון כניסה',
+  'update-exit': 'עדכון יציאה',
+  'port-new':    'אחזקה חדשה',
+  'port-add':    'הוספה לאחזקה',
+  'port-sell':   'מימוש מאחזקה',
+};
+
 function ibkrOpenPreview() {
   const box = document.getElementById('ibkr-preview-list');
   if (!box) return;
-  const kindLbl = { new: 'עסקה חדשה', close: 'סגירה', partial: 'מימוש חלקי' };
   box.innerHTML = ibkrProposals.map((p, i) => {
     const ex = p.exec;
     const qty = p.qty ?? ex.qty;
-    const dirTxt = p.kind === 'new'
-      ? (p.dir === 'Long' ? 'קנייה — Long' : 'מכירה בחסר — Short')
-      : (ex.side === 'SELL' ? 'מכירה' : 'כיסוי שורט');
+    const green = 'var(--green-t,#4ade80)', red = 'var(--red-t,#f87171)';
     const logo = (typeof stockLogoImg === 'function') ? stockLogoImg(ex.ticker, 30) : '';
-    const sideCell = p.kind === 'new'
-      ? `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
-         <div class="ibkr-prop-pnl" style="color:${p.dir === 'Long' ? 'var(--green-t,#4ade80)' : 'var(--red-t,#f87171)'}">${p.dir === 'Long' ? '▲ LONG' : '▼ SHORT'}</div>`
-      : `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
-         <div class="ibkr-prop-pnl" style="color:${p.pnl >= 0 ? 'var(--green-t,#4ade80)' : 'var(--red-t,#f87171)'}">${p.pnl >= 0 ? '+' : '-'}$${Math.abs(p.pnl).toFixed(2)}</div>`;
+
+    let dirTxt, sideCell;
+    if (p.kind === 'new') {
+      dirTxt = p.dir === 'Long' ? 'קנייה — Long' : 'מכירה בחסר — Short';
+      sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:${p.dir === 'Long' ? green : red}">${p.dir === 'Long' ? '▲ LONG' : '▼ SHORT'}</div>`;
+    } else if (p.kind === 'update' || p.kind === 'update-exit') {
+      dirTxt = 'יישור לנתוני הברוקר';
+      sideCell = `<div class="ibkr-prop-qty">$${p.old} ← $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:var(--tx3)">${qty} יח'</div>`;
+    } else if (p.kind === 'port-new') {
+      dirTxt = 'קנייה לתיק ההשקעות';
+      sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:${green}">▲ LONG</div>`;
+    } else if (p.kind === 'port-add') {
+      dirTxt = 'הגדלת פוזיציה';
+      sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:var(--tx3)">ממוצע: $${(+p.newAvg).toFixed(2)}</div>`;
+    } else {   // close / partial / port-sell
+      dirTxt = ex.side === 'SELL' ? 'מכירה' : 'כיסוי שורט';
+      sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:${p.pnl >= 0 ? green : red}">${p.pnl >= 0 ? '+' : '-'}$${Math.abs(p.pnl).toFixed(2)}</div>`;
+    }
+
+    const acct = ex.account ? `<span class="ibkr-prop-acct">${ex.account}</span>` : '';
+    const destToggle = `<span class="ibkr-dest-toggle" onclick="event.stopPropagation()">
+        <button class="${p.dest === 'trades' ? 'on' : ''}" onclick="ibkrSetDest('${ex.id}','trades')">יומן</button>
+        <button class="${p.dest === 'port' ? 'on' : ''}" onclick="ibkrSetDest('${ex.id}','port')">תיק</button>
+      </span>`;
+
     return `<div class="ibkr-prop-row" onclick="ibkrRowToggle(event, ${i})">
       <input type="checkbox" id="ibkr-p-${i}" ${p.checked ? 'checked' : ''} onchange="ibkrProposals[${i}].checked=this.checked;ibkrUpdateFoot()">
       ${logo}
       <div class="ibkr-prop-main">
         <div class="ibkr-prop-line1">
           <span class="ibkr-prop-ticker">${ex.ticker}</span>
-          <span class="ibkr-prop-kind ibkr-kind-${p.kind}">${kindLbl[p.kind]}</span>
+          <span class="ibkr-prop-kind ibkr-kind-${p.kind}">${IBKR_KIND_LBL[p.kind]}</span>
           <span class="ibkr-prop-dirtxt" style="font-size:11px;color:var(--tx2)">${dirTxt}</span>
         </div>
-        <div class="ibkr-prop-meta ibkr-meta-desktop">${ex.date}${ex.fee ? ' · fee $' + ex.fee.toFixed(2) : ''}${ex.currency !== 'USD' ? ' · ' + ex.currency : ''}</div>
+        <div class="ibkr-prop-meta ibkr-meta-desktop">${ex.account ? ex.account + ' · ' : ''}${ex.date}${ex.fee ? ' · fee $' + ex.fee.toFixed(2) : ''}${ex.currency !== 'USD' ? ' · ' + ex.currency : ''}</div>
       </div>
+      ${destToggle}
       <div class="ibkr-prop-side">${sideCell}<div class="ibkr-prop-meta ibkr-meta-mobile">${ex.date}</div></div>
     </div>`;
   }).join('');
   ibkrUpdateFoot();
   document.getElementById('ibkr-preview-overlay').classList.add('open');
+}
+
+// שינוי יעד לשורה — בנייה מחדש של כל ההצעות (כדי שהרצף יישאר עקבי)
+function ibkrSetDest(execId, dest) {
+  ibkrDestOverride[execId] = dest;
+  const checkedState = {};
+  ibkrProposals.forEach(p => checkedState[p.exec.id] = p.checked);
+  ibkrProposals = ibkrBuildProposals(ibkrLastExecs);
+  ibkrProposals.forEach(p => { if (p.exec.id in checkedState && p.exec.id !== execId) p.checked = checkedState[p.exec.id]; });
+  ibkrOpenPreview();
 }
 function ibkrClosePreview() { document.getElementById('ibkr-preview-overlay').classList.remove('open'); }
 
@@ -345,7 +468,8 @@ function ibkrUpdateFoot() {
 // ממלא שדות אובייקטיביים בלבד. הערות/סיבה/תרחיש/יעדים לא נגעים לעולם.
 function ibkrApply() {
   const seen = ibkrGetSeen();
-  let added = 0, closed = 0, realized = 0;
+  let added = 0, closed = 0, realized = 0, updated = 0, portChanged = 0;
+  let tradesDirty = false, portDirty = false;
 
   ibkrProposals.forEach(p => {
     if (!p.checked) return;
@@ -358,8 +482,9 @@ function ibkrApply() {
         grade: '1', reason: '', scenario: '', sl: null,
         targets: [], realizations: [], remainingQty: ex.qty, source: 'ibkr',
       });
-      added++;
-    } else {
+      added++; tradesDirty = true;
+
+    } else if (p.kind === 'close' || p.kind === 'partial') {
       const t = trades.find(x => x.id === p.tradeId);
       if (t) {
         const rem = t.remainingQty ?? t.qty;
@@ -373,6 +498,57 @@ function ibkrApply() {
           t.pnl    = +t.realizations.reduce((s, r) => s + r.pnl, 0).toFixed(2);
           closed++;
         } else realized++;
+        tradesDirty = true;
+      }
+
+    } else if (p.kind === 'update') {
+      // יישור כניסה: מחיר ועמלה בלבד — שדות ידניים לא נגעים
+      const t = trades.find(x => x.id === p.tradeId);
+      if (t) {
+        t.entry = ex.price;
+        t.fee   = ex.fee;
+        if (t.status === 'closed' && t.exit != null)
+          t.pnl = +((t.dir === 'Long' ? (t.exit - t.entry) : (t.entry - t.exit)) * t.qty - t.fee).toFixed(2);
+        updated++; tradesDirty = true;
+      }
+
+    } else if (p.kind === 'update-exit') {
+      const t = trades.find(x => x.id === p.tradeId);
+      if (t) {
+        t.exit = ex.price;
+        t.fee  = +(((t.fee || 0) + ex.fee)).toFixed(2);
+        t.pnl  = +((t.dir === 'Long' ? (t.exit - t.entry) : (t.entry - t.exit)) * t.qty - t.fee).toFixed(2);
+        updated++; tradesDirty = true;
+      }
+
+    } else if (p.kind === 'port-new') {
+      portfolio.unshift({
+        id: 'ibkr_' + ex.id, ticker: ex.ticker, qty: ex.qty, avgCost: ex.price,
+        date: ex.date, sector: '', notes: '', sales: [], remainingQty: ex.qty, source: 'ibkr',
+      });
+      portChanged++; portDirty = true;
+
+    } else if (p.kind === 'port-add') {
+      const h = portfolio.find(x => x.id === p.holdingId);
+      if (h) {
+        const oldQty = h.qty || 0;
+        h.avgCost = +(((h.avgCost * oldQty) + ex.price * ex.qty) / (oldQty + ex.qty)).toFixed(4);
+        h.qty = oldQty + ex.qty;
+        h.remainingQty = (h.remainingQty ?? oldQty) + ex.qty;
+        portChanged++; portDirty = true;
+      }
+
+    } else if (p.kind === 'port-sell') {
+      const idx = portfolio.findIndex(x => x.id === p.holdingId);
+      if (idx !== -1) {
+        const h = portfolio[idx];
+        const rem = h.remainingQty ?? h.qty;
+        const qty = Math.min(p.qty, rem);
+        if (!h.sales) h.sales = [];
+        h.sales.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr' });
+        h.remainingQty = rem - qty;
+        if (h.remainingQty <= 0) portfolio.splice(idx, 1);   // כמו מכירה ידנית מלאה
+        portChanged++; portDirty = true;
       }
     }
     seen.add(ex.id);
@@ -382,20 +558,25 @@ function ibkrApply() {
   ibkrProposals.forEach(p => seen.add(p.exec.id));
   ibkrSaveSeen(seen);
   ibkrProposals = [];
+  ibkrDestOverride = {};
 
-  sv(SK.trades, trades);
+  if (tradesDirty) sv(SK.trades, trades);
+  if (portDirty)   sv(SK.port, portfolio);
   ibkrClosePreview();
   ibkrHideBanner();
   ibkrSetChip('ok', 'מסונכרן • עכשיו');
 
   const parts = [];
-  if (added)    parts.push(`${added} נוספו`);
-  if (closed)   parts.push(`${closed} נסגרו`);
-  if (realized) parts.push(`${realized} מימושים`);
+  if (added)       parts.push(`${added} נוספו`);
+  if (closed)      parts.push(`${closed} נסגרו`);
+  if (realized)    parts.push(`${realized} מימושים`);
+  if (updated)     parts.push(`${updated} עודכנו`);
+  if (portChanged) parts.push(`${portChanged} בתיק`);
   toast(parts.length ? '✓ IBKR: ' + parts.join(', ') : 'לא נבחרו עסקאות');
 
   if (typeof loadLive === 'function') loadLive();
   if (typeof renderClosedTable === 'function') try { renderClosedTable(); } catch {}
+  if (portDirty && typeof loadPortfolio === 'function') try { loadPortfolio(); } catch {}
 }
 
 // ── Manual file import (Flex XML שהורד ידנית מהפורטל) ──────
@@ -410,6 +591,9 @@ function ibkrHandleFile(input) {
       if (ibkrGetCfg().debug) { console.log('[ibkr] raw file ↓↓↓'); console.log(text); ibkrFillDebugPanel(); }
       const execs = ibkrParseFlex(text);
       if (!execs.length) { toast('⚠ לא נמצאו עסקאות בקובץ'); return; }
+      ibkrLastExecs = execs;
+      ibkrDestOverride = {};
+      ibkrRememberAccounts(execs);
       ibkrProposals = ibkrBuildProposals(execs);
       if (!ibkrProposals.length) { toast('אין עסקאות חדשות — הכל כבר ביומן'); return; }
       closeSettings();
@@ -434,7 +618,37 @@ function ibkrFillSettings() {
   if (dbg) dbg.checked = !!c.debug;
   const proxyEl = document.getElementById('ibkr-proxy');
   if (proxyEl && !c.proxyUrl) proxyEl.placeholder = ibkrProxyUrl() || 'https://xxxx.supabase.co/functions/v1/ibkr-flex';
+  ibkrRenderAccountMap();
   ibkrFillDebugPanel();
+}
+
+// מיפוי חשבונות: לאן מנותבות עסקאות מכל חשבון IBKR שהתגלה בסנכרון
+function ibkrRenderAccountMap() {
+  const wrap = document.getElementById('ibkr-accounts');
+  if (!wrap) return;
+  const cfg = ibkrGetCfg();
+  const accounts = cfg.accounts || [];
+  if (!accounts.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const dest = cfg.accountDest || {};
+  wrap.innerHTML =
+    '<div style="font-size:10.5px;color:var(--tx3);margin-bottom:5px">ניתוב לפי חשבון — לאן נכנסות עסקאות מכל חשבון:</div>' +
+    accounts.map(acc => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:11px;font-family:var(--font-mono);direction:ltr;flex:1">${acc}</span>
+        <select class="settings-input" style="width:150px;font-size:11px;padding:4px 8px" onchange="ibkrSetAccountDest('${acc}', this.value)">
+          <option value=""       ${!dest[acc] ? 'selected' : ''}>זיהוי אוטומטי</option>
+          <option value="trades" ${dest[acc] === 'trades' ? 'selected' : ''}>יומן מסחר (סווינג)</option>
+          <option value="port"   ${dest[acc] === 'port' ? 'selected' : ''}>תיק השקעות</option>
+        </select>
+      </div>`).join('');
+}
+function ibkrSetAccountDest(acc, dest) {
+  const cfg = ibkrGetCfg();
+  if (!cfg.accountDest) cfg.accountDest = {};
+  if (dest) cfg.accountDest[acc] = dest; else delete cfg.accountDest[acc];
+  ibkrSaveCfg(cfg);
+  toast('✓ ניתוב חשבון ' + acc + ' נשמר');
 }
 function ibkrSaveSettings() {
   const val = id => (document.getElementById(id)?.value || '').trim();
