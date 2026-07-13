@@ -961,19 +961,26 @@ async function fetchNextEarnings(ticker) {
   const key = getKey();
   if (!key) return;
   try {
+    // תאריך מקומי (לא UTC) — toISOString עלול להחזיר יום קודם/הבא בערב
+    const fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const today = new Date();
-    const from  = today.toISOString().split('T')[0];
-    const to    = new Date(today.getTime() + 365 * 86400000).toISOString().split('T')[0];
+    const from  = fmtLocal(today);
+    const to    = fmtLocal(new Date(today.getTime() + 365 * 86400000));
     const url   = `https://finnhub.io/api/v1/calendar/earnings?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}&token=${key}`;
     const res   = await fetch(url);
     if (!res.ok) return;
     const data  = await res.json();
-    const next  = data?.earningsCalendar?.[0];
-    if (!next?.date) return;
-    const days = Math.ceil((new Date(next.date) - today) / 86400000);
+    // Finnhub מחזיר בסדר יורד — הדוח הקרוב ביותר הוא התאריך העתידי המוקדם ביותר
+    const next = (data?.earningsCalendar || [])
+      .filter(e => e.date && e.date >= from)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+    if (!next) return;
+    const days = Math.round((new Date(next.date + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000);
     const badge = days <= 7  ? 'ea-soon' :
                   days <= 30 ? 'ea-near' : 'ea-far';
-    el.innerHTML = `<span class="fa-ea-badge ${badge}"><i class="ti ti-calendar-event" style="font-size:11px"></i>${next.date} — עוד ${days} ימים לדוח</span>`;
+    const dateHe  = next.date.split('-').reverse().join('/');
+    const whenTxt = days === 0 ? 'הדוח היום!' : days === 1 ? 'הדוח מחר' : `עוד ${days} ימים לדוח`;
+    el.innerHTML = `<span class="fa-ea-badge ${badge}"><i class="ti ti-calendar-event" style="font-size:11px"></i>${dateHe} — ${whenTxt}</span>`;
   } catch { /* silent */ }
 }
 
@@ -1042,7 +1049,7 @@ function buildReportPanel(r) {
     <div class="fa-report-meta">
       <div>
         <div class="fa-field-lbl">רבעון</div>
-        <select class="fa-textarea" style="min-height:auto;resize:none" onchange="faUpdateField('${r.id}','quarter',this.value);faUpdateTab('${r.id}')">${quarterOpts}</select>
+        <select class="fa-textarea" style="min-height:auto;resize:none" onchange="faUpdateField('${r.id}','quarter',this.value);faUpdateTab('${r.id}');faRenderIncStmt('${r.id}')">${quarterOpts}</select>
       </div>
       <div>
         <div class="fa-field-lbl">שנה</div>
@@ -1146,6 +1153,16 @@ function faIncStmtHTML(r) {
   const section = (sfx, revC, revP, opC, opP, hdrCurr, hdrPrev) =>
     faIncSectionHTML(r, sfx, revC, revP, opC, opP, hdrCurr, hdrPrev);
 
+  // דוח שנתי — רק הכנסות/הוצאות/התייעלות שנה מול שנה, בלי הסקציה הרבעונית
+  if (r.quarter === 'שנתי') {
+    return `<div class="fai-wrap">
+      <div class="fai-section">
+        <div class="fai-section-title">שנתי</div>
+        ${section('annual','revAnnualCurr','revAnnualPrev','opexAnnualCurr','opexAnnualPrev','שנה נוכחית ($M)','שנה קודמת ($M)')}
+      </div>
+    </div>`;
+  }
+
   const hasAnnual = r.revAnnualCurr || r.revAnnualPrev || r.opexAnnualCurr || r.opexAnnualPrev;
   const annualOpen = !!(hasAnnual || r._annualOpen);
 
@@ -1169,6 +1186,13 @@ function faIncStmtHTML(r) {
       }
     </div>
   </div>`;
+}
+
+// רינדור מחדש של טבלת ההכנסות/הוצאות של דוח — למעבר בין רבעוני לשנתי
+function faRenderIncStmt(rid) {
+  const r = faDataStore[faCurrentTicker]?.reports.find(x => x.id === rid);
+  const wrap = document.querySelector(`.fa-report-panel[data-rid="${rid}"] .fai-wrap`);
+  if (r && wrap) wrap.outerHTML = faIncStmtHTML(r);
 }
 
 function faToggleAnnual(rid, open) {
