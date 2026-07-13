@@ -270,7 +270,6 @@ const SK = {
   draft:      'tj_form_draft',
   watchlist:  'tj_watchlist_v1',
   faData:     'tj_fa_data_v1',
-  tradingVal: 'tj_trading_val',
   investCash: 'tj_invest_cash',
 };
 
@@ -287,7 +286,6 @@ const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)
 const setDefaultFee = v   => _pushSetting(SK.fee, v);
 const getRiskUnit   = ()  => { const v = parseFloat(localStorage.getItem(SK.risk)); return isNaN(v) ? 0 : v; };
 const setRiskUnit   = v   => _pushSetting(SK.risk, v);
-const getTradingVal = ()  => parseFloat(localStorage.getItem(SK.tradingVal)) || 0;
 const getInvestCash = ()  => parseFloat(localStorage.getItem(SK.investCash)) || 0;
 
 // ═══════════════════════════════════════════════════════════
@@ -576,9 +574,8 @@ function importData() {
 function openSettings() {
   document.getElementById('settings-fee').value         = getDefaultFee().toFixed(2);
   document.getElementById('settings-key').value         = getKey();
-  document.getElementById('settings-trading-val').value = localStorage.getItem(SK.tradingVal) || '';
   document.getElementById('settings-risk').value        = getRiskUnit() > 0 ? getRiskUnit() : '';
-  ['settings-saved','risk-saved','acct-saved'].forEach(id => document.getElementById(id).classList.remove('show'));
+  ['settings-saved','risk-saved'].forEach(id => document.getElementById(id).classList.remove('show'));
   if (typeof dbOpenSetup === 'function') dbOpenSetup();
   if (typeof dbIsReady === 'function' && dbIsReady()) {
     const code = typeof dbGenSetupCode === 'function' ? dbGenSetupCode() : '';
@@ -618,20 +615,6 @@ function saveRiskUnit() {
     toast('✓ יחידת סיכון נמחקה');
   }
   renderStats();
-}
-
-function saveAcctValues() {
-  const tv = parseFloat(document.getElementById('settings-trading-val').value) || 0;
-  if (tv > 0) _pushSetting(SK.tradingVal, tv); else localStorage.removeItem(SK.tradingVal);
-  showSaved('acct-saved');
-  toast('✓ שוויי החשבון עודכן');
-  renderStats();
-}
-
-function saveInvestCash() {
-  const v = parseFloat(document.getElementById('ps-cash-input').value) || 0;
-  if (v >= 0) _pushSetting(SK.investCash, v); else localStorage.removeItem(SK.investCash);
-  loadPortfolio();
 }
 
 function updateFeeHint() {
@@ -688,18 +671,49 @@ function setDot(which, state, lbl) {
 // ═══════════════════════════════════════════════════════════
 //  TRADING ACCOUNT CARD  (shared: live page + stats panel)
 // ═══════════════════════════════════════════════════════════
+// מזומן בחשבון המסחר (נמשך מ-IBKR) — null אם אין נתון
+function getTradesCash() {
+  return (typeof ibkrCashFor === 'function') ? ibkrCashFor('trades') : null;
+}
+
+// עלות הפוזיציות הפתוחות ביומן — "מזומן שתפוס בעסקאות"
+function openTradesCost() {
+  return trades.filter(t => t.status === 'open')
+    .reduce((s, t) => s + (t.entry || 0) * (t.remainingQty ?? t.qty ?? 0), 0);
+}
+
+// כרטיס "מזומן פנוי — מסחר" בעמוד העסקאות החיות
+function updateLiveCashCard(openCost) {
+  const cash = getTradesCash();
+  const cashCard = document.getElementById('sum-cash-card');
+  const bar = document.getElementById('trading-summary-bar');
+  if (cash !== null) {
+    const acctSize = cash + openCost;
+    document.getElementById('sum-cash').textContent = '$' + Math.round(cash).toLocaleString();
+    document.getElementById('sum-cash').style.color = cash >= 0 ? 'var(--tx)' : 'var(--red)';
+    document.getElementById('sum-cash-sub').textContent =
+      (acctSize > 0 ? (cash / acctSize * 100).toFixed(1) + '% מהחשבון · ' : '') + 'נמשך מ-IBKR';
+    cashCard.style.display = '';
+    bar.style.gridTemplateColumns = 'repeat(5,1fr)';
+  } else {
+    cashCard.style.display = 'none';
+    bar.style.gridTemplateColumns = 'repeat(4,1fr)';
+  }
+}
+
+// שווי חשבון המסחר = מזומן בחשבון + מזומן שתפוס בפוזיציות פתוחות
 function updateTradingAcctCard(totalPnl) {
-  const tradingVal = getTradingVal();
   const card = document.getElementById('trading-acct-card');
   const bar  = document.getElementById('trading-summary-bar');
-  if (tradingVal > 0) {
-    const acct   = tradingVal + totalPnl;
-    const retPct = totalPnl / tradingVal * 100;
-    const col    = pnlCol(totalPnl);
-    document.getElementById('trading-acct-val').textContent = '$' + Math.round(acct).toLocaleString();
+  const cash = getTradesCash();
+  if (cash !== null) {
+    const open = openTradesCost();
+    const col  = pnlCol(totalPnl);
+    document.getElementById('trading-acct-val').textContent = '$' + Math.round(cash + open).toLocaleString();
     document.getElementById('trading-acct-val').style.color = col;
-    document.getElementById('trading-acct-sub').textContent = `${signStr(retPct)}${retPct.toFixed(2)}% | בסיס $${Math.round(tradingVal).toLocaleString()}`;
-    document.getElementById('trading-acct-sub').style.color = col;
+    document.getElementById('trading-acct-sub').textContent =
+      `מזומן $${Math.round(cash).toLocaleString()} + פתוחות $${Math.round(open).toLocaleString()}`;
+    document.getElementById('trading-acct-sub').style.color = 'var(--tx3)';
     if (card) card.style.display = '';
     if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
   } else {
@@ -1331,13 +1345,19 @@ function renderStats() {
   const wr       = closed.length ? (winners.length / closed.length * 100) : null;
   const avgWin   = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : null;
   const riskUnit = getRiskUnit();
-  const tradingVal = getTradingVal();
 
   updateTradingAcctCard(totalPnl);
 
+  // שווי תיק המסחר = מזומן בחשבון (מ-IBKR) + מזומן שתפוס בפוזיציות פתוחות.
+  // הון הבסיס לתשואה נגזר: שווי נוכחי פחות ה-P&L המצטבר.
+  const tCash    = getTradesCash();
+  const openCost = openTradesCost();
+  const acctVal  = tCash !== null ? tCash + openCost : null;
+  const base     = acctVal !== null ? acctVal - totalPnl : null;
+
   const wrColor   = wr === null ? 'var(--tx)' : wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--amber)' : 'var(--red)';
-  const retStr    = tradingVal > 0 ? signStr(totalPnl / tradingVal * 100) + (totalPnl / tradingVal * 100).toFixed(2) + '%' : '—';
-  const portStr   = tradingVal > 0 ? '$' + (tradingVal + totalPnl).toLocaleString('en', { maximumFractionDigits: 0 }) : '—';
+  const retStr    = base > 0 ? signStr(totalPnl / base * 100) + (totalPnl / base * 100).toFixed(2) + '%' : '—';
+  const portStr   = acctVal !== null ? '$' + Math.round(acctVal).toLocaleString('en') : '—';
   let pnlRuHtml = '';
   if (riskUnit > 0) {
     const ru = totalPnl / riskUnit;
@@ -1347,8 +1367,8 @@ function renderStats() {
   const cards = [
     { lbl: 'P&L מצטבר',        val: closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toFixed(0) : '—', valColor: closed.length ? pnlCol(totalPnl) : 'var(--tx)', subHtml: pnlRuHtml || (closed.length ? `<div class="acct-sub">${closed.length} עסקאות</div>` : '') },
     { lbl: 'Win Rate',          val: wr !== null ? wr.toFixed(1) + '%' : '—', valColor: wrColor, sub: closed.length ? winners.length + ' זוכים · ' + losers.length + ' מפסידים' : '' },
-    { lbl: 'תשואה על החשבון',  val: retStr, valColor: tradingVal > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: tradingVal > 0 ? 'הון בסיס $' + tradingVal.toLocaleString('en', { maximumFractionDigits: 0 }) : '' },
-    { lbl: 'שווי תיק',          val: portStr, valColor: tradingVal > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: tradingVal > 0 ? 'בסיס $' + tradingVal.toLocaleString('en', { maximumFractionDigits: 0 }) : '' },
+    { lbl: 'תשואה על החשבון',  val: retStr, valColor: base > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: base > 0 ? 'הון בסיס $' + Math.round(base).toLocaleString('en') : '' },
+    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', sub: acctVal !== null ? `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')}` : '' },
   ];
 
   document.getElementById('acct-grid').innerHTML = cards.map(c => {
@@ -1489,6 +1509,7 @@ async function loadLive() {
 
   if (!open.length) {
     document.getElementById('live-content').innerHTML = '<div class="empty-state"><i class="ti ti-trending-up"></i><p>אין פוזיציות פתוחות</p><button class="add-btn" style="display:inline-flex;margin-top:0.65rem" onclick="nav(\'add\',null)"><i class="ti ti-plus"></i>הוסף עסקה</button></div>';
+    updateLiveCashCard(0);
     setDot('live', 'off', 'ממתין');
     btn.classList.remove('spinning');
     return;
@@ -1530,22 +1551,7 @@ async function loadLive() {
   ae.textContent = avgPct !== null ? signStr(avgPct) + avgPct.toFixed(2) + '%' : '—';
   ae.style.color  = avgPct !== null ? pnlCol(avgPct) : 'var(--tx)';
 
-  // Available cash — trading account
-  const tradingValForCash = getTradingVal();
-  const cashCard = document.getElementById('sum-cash-card');
-  const bar = document.getElementById('trading-summary-bar');
-  if (tradingValForCash > 0) {
-    const cash = tradingValForCash - totalCost;
-    const cashPct = (cash / tradingValForCash * 100).toFixed(1);
-    document.getElementById('sum-cash').textContent = '$' + Math.round(cash).toLocaleString();
-    document.getElementById('sum-cash').style.color = cash >= 0 ? 'var(--tx)' : 'var(--red)';
-    document.getElementById('sum-cash-sub').textContent = cashPct + '% מהחשבון';
-    cashCard.style.display = '';
-    bar.style.gridTemplateColumns = 'repeat(5,1fr)';
-  } else {
-    cashCard.style.display = 'none';
-    bar.style.gridTemplateColumns = 'repeat(4,1fr)';
-  }
+  updateLiveCashCard(totalCost);
 
   // Sync account card with live unrealized + closed P&L combined
   const closedPnl = trades.filter(t => t.status === 'closed' && t.pnl !== null).reduce((s, t) => s + (t.pnl || 0), 0);
@@ -2150,10 +2156,13 @@ function setPsValSub(txt) {
   if (el) el.textContent = txt;
 }
 
-// סנכרון כרטיס "מזומן בתיק": ערך השדה + מקור (IBKR או ידני)
+// סנכרון כרטיס "מזומן בתיק": ערך + מקור (נמשך מ-IBKR)
 function syncCashCard(investCash) {
-  const cashInput = document.getElementById('ps-cash-input');
-  if (cashInput && !cashInput.matches(':focus')) cashInput.value = investCash ? investCash : '';
+  const valEl = document.getElementById('ps-cash-val');
+  if (valEl) {
+    valEl.textContent = investCash ? '$' + Math.round(investCash).toLocaleString() : '—';
+    valEl.style.color = investCash < 0 ? 'var(--red)' : '';
+  }
   const src = document.getElementById('ps-cash-src');
   if (src) {
     const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
@@ -2222,24 +2231,6 @@ async function loadPortfolio() {
   const psRet = document.getElementById('ps-ret');
   psRet.textContent = totalRet !== null ? signStr(totalRet) + totalRet.toFixed(2) + '%' : '—';
   psRet.style.color = totalRet !== null ? pnlCol(totalRet) : '';
-
-  const investTotal = totalCost + investCash; // total portfolio size = holdings cost + cash
-  const psAcctCard  = document.getElementById('ps-acct-card');
-  const investBar   = document.getElementById('invest-summary-bar');
-
-  if (investTotal > 0) {
-    const acctRetPct = investTotal ? ((totalPnl || 0) / investTotal * 100) : 0;
-    const col        = pnlCol(totalPnl || 0);
-    document.getElementById('ps-acct-total').textContent = '$' + Math.round(investTotal + (totalPnl || 0)).toLocaleString();
-    document.getElementById('ps-acct-total').style.color = col;
-    document.getElementById('ps-acct-ret').textContent   = `${signStr(acctRetPct)}${acctRetPct.toFixed(2)}% | בסיס $${Math.round(investTotal).toLocaleString()}`;
-    document.getElementById('ps-acct-ret').style.color   = col;
-    if (psAcctCard) psAcctCard.style.display = '';
-    if (investBar)  investBar.style.gridTemplateColumns = 'repeat(6,1fr)';
-  } else {
-    if (psAcctCard)  psAcctCard.style.display = 'none';
-    if (investBar)   investBar.style.gridTemplateColumns = 'repeat(5,1fr)';
-  }
 
   // Charts
   document.getElementById('port-charts-row').style.display = 'grid';

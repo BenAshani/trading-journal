@@ -253,21 +253,48 @@ function ibkrGetCash() {
   catch { return null; }
 }
 
-// שמירת המזומן + עדכון "מזומן בתיק" של תיק ההשקעות.
-// אם מוגדר ניתוב חשבונות — נלקח רק המזומן של חשבונות שמנותבים ל"תיק"; אחרת סך הכל.
+// המזומן של יעד ('trades' | 'port'), לפי סדר עדיפות:
+// בחירה מפורשת בהגדרות → חשבונות שמנותבים ליעד → חשבון יחיד בדוח → null (צריך לבחור)
+function ibkrCashFor(dest) {
+  const data = ibkrLastCash || ibkrGetCash();
+  if (!data || !data.byAccount) return null;
+  const cfg = ibkrGetCfg();
+  const chosen = (cfg.cashAccounts || {})[dest];
+  if (chosen) return chosen in data.byAccount ? +data.byAccount[chosen].toFixed(2) : null;
+  const destMap = cfg.accountDest || {};
+  const accs = Object.keys(destMap).filter(a => destMap[a] === dest && a in data.byAccount);
+  if (accs.length) return +accs.reduce((s, a) => s + data.byAccount[a], 0).toFixed(2);
+  const all = Object.keys(data.byAccount);
+  if (all.length === 1) return +data.byAccount[all[0]].toFixed(2);
+  return null;
+}
+
+// שמירת המזומן + עדכון התצוגות. מזומן ה"תיק" נשמר גם ב-SK.investCash (לענן).
 function ibkrApplyCash() {
-  if (!ibkrLastCash) return;
-  sv(IBKR_CASH_KEY, ibkrLastCash);
-  const dest     = ibkrGetCfg().accountDest || {};
-  const portAccs = Object.keys(dest).filter(a => dest[a] === 'port');
-  const portCash = portAccs.length
-    ? portAccs.reduce((s, a) => s + (ibkrLastCash.byAccount[a] || 0), 0)
-    : ibkrLastCash.total;
-  const rounded  = +portCash.toFixed(2);
-  const current  = parseFloat(localStorage.getItem(SK.investCash)) || 0;
-  if (Math.abs(current - rounded) > 0.005) _pushSetting(SK.investCash, rounded);
-  if (document.getElementById('page-portfolio')?.classList.contains('active') &&
-      typeof loadPortfolio === 'function') loadPortfolio();
+  if (ibkrLastCash) sv(IBKR_CASH_KEY, ibkrLastCash);
+  const data = ibkrLastCash || ibkrGetCash();
+  if (!data) return;
+
+  const portCash = ibkrCashFor('port');
+  if (portCash !== null) {
+    const current = parseFloat(localStorage.getItem(SK.investCash)) || 0;
+    if (Math.abs(current - portCash) > 0.005) _pushSetting(SK.investCash, portCash);
+  }
+
+  // כמה חשבונות ואין בחירה — מבקשים מהמשתמש לבחור בהגדרות
+  if ((portCash === null || ibkrCashFor('trades') === null) && Object.keys(data.byAccount).length > 1)
+    toast('⚠ יש כמה חשבונות IBKR — בחר בהגדרות מאיזה חשבון למשוך מזומן');
+
+  ibkrRefreshCashViews();
+}
+
+function ibkrRefreshCashViews() {
+  const active = id => document.getElementById(id)?.classList.contains('active');
+  try {
+    if (active('page-portfolio') && typeof loadPortfolio === 'function') loadPortfolio();
+    if (active('page-live')      && typeof loadLive      === 'function') loadLive();
+    if (active('page-closed')    && typeof renderStats   === 'function') renderStats();
+  } catch {}
 }
 
 // '20260708' / '20260708;093015' / '2026-07-08' → '2026-07-08'
@@ -393,10 +420,11 @@ function ibkrBuildProposals(execs) {
   return proposals;
 }
 
-// שמירת רשימת החשבונות שהתגלו בדוח — למיפוי בהגדרות
+// שמירת רשימת החשבונות שהתגלו בדוח (עסקאות + מזומן) — למיפוי בהגדרות
 function ibkrRememberAccounts(execs) {
   const cfg = ibkrGetCfg();
   const found = [...new Set(execs.map(e => e.account).filter(Boolean))];
+  if (ibkrLastCash) found.push(...Object.keys(ibkrLastCash.byAccount));
   const known = new Set(cfg.accounts || []);
   const merged = [...new Set([...known, ...found])];
   if (merged.length !== known.size) { cfg.accounts = merged; ibkrSaveCfg(cfg); }
@@ -692,7 +720,7 @@ function ibkrFillSettings() {
   ibkrFillDebugPanel();
 }
 
-// מיפוי חשבונות: לאן מנותבות עסקאות מכל חשבון IBKR שהתגלה בסנכרון
+// מיפוי חשבונות: לאן מנותבות עסקאות מכל חשבון + מאיזה חשבון נמשך מזומן לכל יעד
 function ibkrRenderAccountMap() {
   const wrap = document.getElementById('ibkr-accounts');
   if (!wrap) return;
@@ -701,6 +729,17 @@ function ibkrRenderAccountMap() {
   if (!accounts.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   const dest = cfg.accountDest || {};
+  const cashAcc = cfg.cashAccounts || {};
+
+  const cashSelect = (d, lbl) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <span style="font-size:11px;flex:1">${lbl}</span>
+      <select class="settings-input" style="width:150px;font-size:11px;padding:4px 8px" onchange="ibkrSetCashAccount('${d}', this.value)">
+        <option value="" ${!cashAcc[d] ? 'selected' : ''}>אוטומטי (לפי ניתוב)</option>
+        ${accounts.map(a => `<option value="${a}" ${cashAcc[d] === a ? 'selected' : ''}>${a}</option>`).join('')}
+      </select>
+    </div>`;
+
   wrap.innerHTML =
     '<div style="font-size:10.5px;color:var(--tx3);margin-bottom:5px">ניתוב לפי חשבון — לאן נכנסות עסקאות מכל חשבון:</div>' +
     accounts.map(acc => `
@@ -711,7 +750,10 @@ function ibkrRenderAccountMap() {
           <option value="trades" ${dest[acc] === 'trades' ? 'selected' : ''}>יומן מסחר (סווינג)</option>
           <option value="port"   ${dest[acc] === 'port' ? 'selected' : ''}>תיק השקעות</option>
         </select>
-      </div>`).join('');
+      </div>`).join('') +
+    '<div style="font-size:10.5px;color:var(--tx3);margin:9px 0 5px;padding-top:7px;border-top:0.5px solid var(--br)">מזומן — מאיזה חשבון נמשכת יתרת המזומן:</div>' +
+    cashSelect('trades', 'יומן מסחר (סווינג)') +
+    cashSelect('port',   'תיק השקעות');
 }
 function ibkrSetAccountDest(acc, dest) {
   const cfg = ibkrGetCfg();
@@ -719,6 +761,14 @@ function ibkrSetAccountDest(acc, dest) {
   if (dest) cfg.accountDest[acc] = dest; else delete cfg.accountDest[acc];
   ibkrSaveCfg(cfg);
   toast('✓ ניתוב חשבון ' + acc + ' נשמר');
+}
+function ibkrSetCashAccount(dest, acc) {
+  const cfg = ibkrGetCfg();
+  if (!cfg.cashAccounts) cfg.cashAccounts = {};
+  if (acc) cfg.cashAccounts[dest] = acc; else delete cfg.cashAccounts[dest];
+  ibkrSaveCfg(cfg);
+  toast('✓ חשבון המזומן נשמר');
+  ibkrApplyCash();   // עדכון מיידי של התצוגות לפי הבחירה
 }
 function ibkrSaveSettings() {
   const val = id => (document.getElementById(id)?.value || '').trim();
