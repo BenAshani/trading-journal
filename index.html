@@ -74,7 +74,7 @@
     <!-- IBKR Flex Sync -->
     <div class="settings-group">
       <div class="settings-label"><i class="ti ti-building-bank" style="color:var(--blue-t);font-size:13px"></i> סנכרון מ-Interactive Brokers</div>
-      <div class="settings-hint" style="margin-bottom:8px">מושך אוטומטית עסקאות שבוצעו בחשבון בכל פתיחת האתר.</div>
+      <div class="settings-hint" style="margin-bottom:8px">מושך אוטומטית עסקאות ויתרת מזומן בכל פתיחת האתר. כדי שהמזומן יימשך — הוסף לשאילתת ה-Flex ב-IBKR את הסעיף Cash Report (או Change in NAV).</div>
 
       <div style="display:grid;grid-template-columns:1fr 110px;gap:7px;margin-bottom:7px">
         <div>
@@ -106,6 +106,7 @@
           <i class="ti ti-file-import" style="font-size:12px"></i> ייבוא קובץ Flex
           <input type="file" accept=".xml,text/xml" style="display:none" onchange="ibkrHandleFile(this)">
         </label>
+        <button class="btn-s" onclick="ibkrResetSeen()" style="font-size:12px;padding:0.35rem 0.9rem" title="הצג שוב עסקאות שנדחו או לא סומנו — בלי לשכפל מה שכבר נוסף"><i class="ti ti-history" style="font-size:12px"></i> הצג עסקאות מחדש</button>
         <span class="settings-saved" id="ibkr-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
       </div>
 
@@ -474,7 +475,7 @@
       <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
     <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
-      <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div></div>
+      <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div id="ps-val-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div></div>
       <div class="s-card"><div class="s-label">רווח / הפסד</div><div class="s-val" id="ps-pnl">—</div></div>
       <div class="s-card"><div class="s-label">תשואה</div><div class="s-val" id="ps-ret">—</div></div>
@@ -487,7 +488,7 @@
             style="width:100%;background:var(--bg-overlay);border:1px solid var(--cb);border-radius:5px;padding:3px 7px;font-size:14px;color:var(--tx);font-family:var(--font-mono);direction:ltr;text-align:left"
             onchange="saveInvestCash()" onblur="saveInvestCash()">
         </div>
-        <div style="font-size:9.5px;color:var(--tx3);margin-top:4px">יתרת מזומן בחשבון</div>
+        <div id="ps-cash-src" style="font-size:9.5px;color:var(--tx3);margin-top:4px">יתרת מזומן בחשבון</div>
       </div>
       <div class="s-card" id="ps-acct-card" style="display:none">
         <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-wallet" style="font-size:11px;color:var(--green-t)"></i>גודל תיק</div>

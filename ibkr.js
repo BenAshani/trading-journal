@@ -8,6 +8,7 @@
 const IBKR_CFG_KEY   = 'tj_ibkr_cfg_v1';    // {token, queryId, proxyUrl, debug}
 const IBKR_SEEN_KEY  = 'tj_ibkr_seen_v1';   // מזהי עסקאות שכבר טופלו (נוספו או נדחו)
 const IBKR_LAST_KEY  = 'tj_ibkr_lastsync';  // timestamp של סנכרון אחרון (מצערת)
+const IBKR_CASH_KEY  = 'tj_ibkr_cash_v1';   // {byAccount, total, ts} — יתרת מזומן מהדוח האחרון
 const IBKR_THROTTLE_MS = 15 * 60 * 1000;    // סנכרון אוטומטי לכל היותר פעם ב-15 דק'
 const IBKR_SEEN_CAP  = 3000;
 
@@ -16,6 +17,7 @@ let ibkrLastExecs    = [];   // הביצועים מהסנכרון האחרון �
 let ibkrDestOverride = {};   // execId → 'trades'|'port' — עקיפה ידנית מהתצוגה המקדימה
 let ibkrLastRaw      = '';
 let ibkrLastError    = '';
+let ibkrLastCash     = null; // מזומן שחולץ מהדוח האחרון (לפני שמירה)
 
 // ── Config ──────────────────────────────────────────────────
 function ibkrGetCfg() {
@@ -108,6 +110,7 @@ async function ibkrSync(attempt = 0) {
     ibkrLastExecs = execs;
     ibkrDestOverride = {};
     ibkrRememberAccounts(execs);
+    ibkrApplyCash();
     ibkrProposals = ibkrBuildProposals(execs);
     if (ibkrProposals.length) {
       ibkrSetChip('ok', `${ibkrProposals.length} חדשות`);
@@ -164,6 +167,8 @@ function ibkrParseFlex(xmlText) {
     throw new Error(`IBKR Flex שגיאה ${errCode.textContent}: ${msg}`);
   }
 
+  ibkrLastCash = ibkrExtractCash(doc);
+
   const nodes = [...doc.querySelectorAll('Trade, TradeConfirm')];
   const execs = [];
   nodes.forEach(n => {
@@ -207,6 +212,62 @@ function ibkrParseFlex(xmlText) {
   const byId = new Map();
   execs.forEach(e => { if (!byId.has(e.id)) byId.set(e.id, e); });
   return [...byId.values()].sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
+}
+
+// ── Cash balance from the Flex report ───────────────────────
+// דורש שהשאילתה ב-IBKR תכלול את סעיף "Cash Report" (מועדף) או
+// "Change in NAV / Equity Summary". אם אף אחד מהם לא בדוח — אין מזומן, ולא נוגעים בערך הידני.
+function ibkrExtractCash(doc) {
+  const byAccount = {};
+
+  // Cash Report: שורת BASE_SUMMARY לכל חשבון (סיכום בכל המטבעות במטבע הבסיס)
+  const rows = [...doc.querySelectorAll('CashReportCurrency')];
+  const base = rows.filter(r => (r.getAttribute('currency') || '').toUpperCase() === 'BASE_SUMMARY');
+  (base.length ? base : rows.filter(r => (r.getAttribute('currency') || '').toUpperCase() === 'USD'))
+    .forEach(r => {
+      const acc = r.getAttribute('accountId') || r.getAttribute('acctAlias') || '';
+      const v   = parseFloat(r.getAttribute('endingCash') ?? r.getAttribute('endingSettledCash') ?? 'NaN');
+      if (!isNaN(v)) byAccount[acc] = v;
+    });
+
+  // Fallback: Equity Summary — השורה העדכנית ביותר לכל חשבון
+  if (!Object.keys(byAccount).length) {
+    const latest = {};
+    doc.querySelectorAll('EquitySummaryByReportDateInBase').forEach(n => {
+      const acc = n.getAttribute('accountId') || '';
+      const d   = n.getAttribute('reportDate') || '';
+      const v   = parseFloat(n.getAttribute('cash') ?? 'NaN');
+      if (isNaN(v)) return;
+      if (!latest[acc] || d >= latest[acc].d) latest[acc] = { d, v };
+    });
+    Object.entries(latest).forEach(([acc, o]) => { byAccount[acc] = o.v; });
+  }
+
+  if (!Object.keys(byAccount).length) return null;
+  const total = Object.values(byAccount).reduce((s, v) => s + v, 0);
+  return { byAccount, total: +total.toFixed(2), ts: Date.now() };
+}
+
+function ibkrGetCash() {
+  try { return JSON.parse(localStorage.getItem(IBKR_CASH_KEY) || 'null'); }
+  catch { return null; }
+}
+
+// שמירת המזומן + עדכון "מזומן בתיק" של תיק ההשקעות.
+// אם מוגדר ניתוב חשבונות — נלקח רק המזומן של חשבונות שמנותבים ל"תיק"; אחרת סך הכל.
+function ibkrApplyCash() {
+  if (!ibkrLastCash) return;
+  sv(IBKR_CASH_KEY, ibkrLastCash);
+  const dest     = ibkrGetCfg().accountDest || {};
+  const portAccs = Object.keys(dest).filter(a => dest[a] === 'port');
+  const portCash = portAccs.length
+    ? portAccs.reduce((s, a) => s + (ibkrLastCash.byAccount[a] || 0), 0)
+    : ibkrLastCash.total;
+  const rounded  = +portCash.toFixed(2);
+  const current  = parseFloat(localStorage.getItem(SK.investCash)) || 0;
+  if (Math.abs(current - rounded) > 0.005) _pushSetting(SK.investCash, rounded);
+  if (document.getElementById('page-portfolio')?.classList.contains('active') &&
+      typeof loadPortfolio === 'function') loadPortfolio();
 }
 
 // '20260708' / '20260708;093015' / '2026-07-08' → '2026-07-08'
@@ -313,8 +374,16 @@ function ibkrBuildProposals(execs) {
     }
   }
 
+  // ביצוע שכבר יושם בפועל (גם אחרי "הצג מחדש") — לא מציעים שוב
+  function alreadyApplied(ex) {
+    const key = 'ibkr_' + ex.id;
+    return trades.some(t => t.id === key || (t.realizations || []).some(r => r.execId === ex.id)) ||
+           portfolio.some(h => h.id === key || (h.sales || []).some(s => s.execId === ex.id));
+  }
+
   execs.forEach(ex => {
     if (seen.has(ex.id)) return;
+    if (alreadyApplied(ex)) { autoSeen.push(ex.id); return; }
     const d = ibkrDestOverride[ex.id] || (cfg.accountDest || {})[ex.account] || '';
     if (d === 'port') portLogic(ex);
     else tradesLogic(ex, d === 'trades');
@@ -490,7 +559,7 @@ function ibkrApply() {
         const rem = t.remainingQty ?? t.qty;
         const qty = Math.min(p.qty, rem);
         if (!t.realizations) t.realizations = [];
-        t.realizations.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr' });
+        t.realizations.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr', execId: ex.id });
         t.remainingQty = rem - qty;
         if (t.remainingQty <= 0) {
           t.status = 'closed';
@@ -545,7 +614,7 @@ function ibkrApply() {
         const rem = h.remainingQty ?? h.qty;
         const qty = Math.min(p.qty, rem);
         if (!h.sales) h.sales = [];
-        h.sales.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr' });
+        h.sales.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr', execId: ex.id });
         h.remainingQty = rem - qty;
         if (h.remainingQty <= 0) portfolio.splice(idx, 1);   // כמו מכירה ידנית מלאה
         portChanged++; portDirty = true;
@@ -590,7 +659,8 @@ function ibkrHandleFile(input) {
       ibkrLastRaw = text;
       if (ibkrGetCfg().debug) { console.log('[ibkr] raw file ↓↓↓'); console.log(text); ibkrFillDebugPanel(); }
       const execs = ibkrParseFlex(text);
-      if (!execs.length) { toast('⚠ לא נמצאו עסקאות בקובץ'); return; }
+      ibkrApplyCash();
+      if (!execs.length) { toast(ibkrLastCash ? '✓ המזומן עודכן — אין עסקאות בקובץ' : '⚠ לא נמצאו עסקאות בקובץ'); return; }
       ibkrLastExecs = execs;
       ibkrDestOverride = {};
       ibkrRememberAccounts(execs);
@@ -666,6 +736,28 @@ function ibkrSyncNow() {
   localStorage.removeItem(IBKR_LAST_KEY); // עוקף מצערת בסנכרון ידני
   closeSettings();
   ibkrSync();
+}
+
+// "הצג עסקאות מחדש" — מאפס את רשימת ה"טופלו" כך שעסקאות שנדחו/לא סומנו יוצעו שוב.
+// עסקאות שכבר נוספו בפועל מזוהות לפי execId ולא משוכפלות.
+async function ibkrResetSeen() {
+  if (!confirm('להציג מחדש את העסקאות מ-IBKR?\n\nעסקאות שנדחו או לא סומנו יוצעו שוב לאישור. עסקאות שכבר נוספו ליומן או לתיק לא ישוכפלו.')) return;
+  localStorage.removeItem(IBKR_SEEN_KEY);
+  localStorage.removeItem(IBKR_LAST_KEY);
+  closeSettings();
+  ibkrDestOverride = {};
+  if (ibkrLastExecs.length) {
+    ibkrProposals = ibkrBuildProposals(ibkrLastExecs);
+  } else {
+    await ibkrSync();          // אין דוח בזיכרון — מושכים מחדש (ibkrSync כבר בונה הצעות)
+  }
+  if (ibkrProposals.length) {
+    ibkrSetChip('ok', `${ibkrProposals.length} חדשות`);
+    ibkrShowBanner();
+    ibkrOpenPreview();
+  } else if (!ibkrLastError) {
+    toast('אין עסקאות להצגה מחדש — הכל כבר ביומן');
+  }
 }
 function ibkrFillDebugPanel() {
   const wrap = document.getElementById('ibkr-debug-wrap');

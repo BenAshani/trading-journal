@@ -2145,6 +2145,24 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
   </div>`;
 }
 
+function setPsValSub(txt) {
+  const el = document.getElementById('ps-val-sub');
+  if (el) el.textContent = txt;
+}
+
+// סנכרון כרטיס "מזומן בתיק": ערך השדה + מקור (IBKR או ידני)
+function syncCashCard(investCash) {
+  const cashInput = document.getElementById('ps-cash-input');
+  if (cashInput && !cashInput.matches(':focus')) cashInput.value = investCash ? investCash : '';
+  const src = document.getElementById('ps-cash-src');
+  if (src) {
+    const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
+    src.innerHTML = ic
+      ? '<i class="ti ti-building-bank" style="font-size:9px;color:var(--blue-t)"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
+      : 'יתרת מזומן בחשבון';
+  }
+}
+
 async function loadPortfolio() {
   const btn = document.getElementById('port-ref-btn');
   btn.classList.add('spinning');
@@ -2153,9 +2171,16 @@ async function loadPortfolio() {
   const holdings = portfolio.filter(h => (h.remainingQty || h.qty) > 0);
   document.getElementById('ps-cnt').textContent = holdings.length;
 
+  const investCash = getInvestCash();
+  syncCashCard(investCash);
+
   if (!holdings.length) {
     document.getElementById('port-holdings').innerHTML = '<div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div>';
     ['ps-val','ps-cost','ps-pnl','ps-ret'].forEach(id => { document.getElementById(id).textContent = '—'; document.getElementById(id).style.color = ''; });
+    if (investCash) {
+      document.getElementById('ps-val').textContent = '$' + Math.round(investCash).toLocaleString();
+      setPsValSub('מזומן בלבד');
+    } else setPsValSub('');
     document.getElementById('port-charts-row').style.display = 'none';
     setDot('port', 'off', 'ממתין');
     btn.classList.remove('spinning');
@@ -2181,7 +2206,13 @@ async function loadPortfolio() {
   const totalPnl = validN ? totalVal - totalCost : null;
   const totalRet = totalPnl !== null ? (totalPnl / totalCost) * 100 : null;
 
-  document.getElementById('ps-val').textContent  = validN ? '$' + Math.round(totalVal).toLocaleString() : '—';
+  // שווי תיק = שווי שוק של ההחזקות + מזומן (המזומן נמשך מ-IBKR או מוזן ידנית).
+  // החזקה שאין לה מחיר חי נספרת לפי עלות הבסיס שלה.
+  const holdingsDispVal = enriched.reduce((s, h) => s + (h.val ?? h.cost), 0);
+  document.getElementById('ps-val').textContent  = '$' + Math.round(holdingsDispVal + investCash).toLocaleString();
+  setPsValSub(investCash
+    ? `החזקות $${Math.round(holdingsDispVal).toLocaleString()} + מזומן $${Math.round(investCash).toLocaleString()}`
+    : '');
   document.getElementById('ps-cost').textContent = '$' + Math.round(totalCost).toLocaleString();
 
   const psPnl = document.getElementById('ps-pnl');
@@ -2192,13 +2223,9 @@ async function loadPortfolio() {
   psRet.textContent = totalRet !== null ? signStr(totalRet) + totalRet.toFixed(2) + '%' : '—';
   psRet.style.color = totalRet !== null ? pnlCol(totalRet) : '';
 
-  const investCash = getInvestCash();
   const investTotal = totalCost + investCash; // total portfolio size = holdings cost + cash
   const psAcctCard  = document.getElementById('ps-acct-card');
   const investBar   = document.getElementById('invest-summary-bar');
-  // sync cash input
-  const cashInput = document.getElementById('ps-cash-input');
-  if (cashInput && !cashInput.matches(':focus')) cashInput.value = investCash > 0 ? investCash : '';
 
   if (investTotal > 0) {
     const acctRetPct = investTotal ? ((totalPnl || 0) / investTotal * 100) : 0;
