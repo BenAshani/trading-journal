@@ -682,6 +682,13 @@ function openTradesCost() {
     .reduce((s, t) => s + (t.entry || 0) * (t.remainingQty ?? t.qty ?? 0), 0);
 }
 
+// טקסט מקור המזומן: "IBKR • לפני X" — בכתום כשהנתון בן יותר מיממה (סנכרון כנראה נכשל)
+function cashSourceNote() {
+  const age   = (typeof ibkrCashAgeTxt === 'function') ? ibkrCashAgeTxt() : '';
+  const stale = (typeof ibkrCashIsStale === 'function') && ibkrCashIsStale();
+  return { txt: age ? `IBKR • ${age}` : 'נמשך מ-IBKR', stale };
+}
+
 // כרטיס "מזומן פנוי — מסחר" בעמוד העסקאות החיות
 function updateLiveCashCard(openCost) {
   const cash = getTradesCash();
@@ -689,10 +696,12 @@ function updateLiveCashCard(openCost) {
   const bar = document.getElementById('trading-summary-bar');
   if (cash !== null) {
     const acctSize = cash + openCost;
+    const src = cashSourceNote();
     document.getElementById('sum-cash').textContent = '$' + Math.round(cash).toLocaleString();
     document.getElementById('sum-cash').style.color = cash >= 0 ? 'var(--tx)' : 'var(--red)';
-    document.getElementById('sum-cash-sub').textContent =
-      (acctSize > 0 ? (cash / acctSize * 100).toFixed(1) + '% מהחשבון · ' : '') + 'נמשך מ-IBKR';
+    const sub = document.getElementById('sum-cash-sub');
+    sub.textContent = (acctSize > 0 ? (cash / acctSize * 100).toFixed(1) + '% מהחשבון · ' : '') + src.txt;
+    sub.style.color = src.stale ? 'var(--amber-t)' : '';
     cashCard.style.display = '';
     bar.style.gridTemplateColumns = 'repeat(5,1fr)';
   } else {
@@ -709,11 +718,12 @@ function updateTradingAcctCard(totalPnl) {
   if (cash !== null) {
     const open = openTradesCost();
     const col  = pnlCol(totalPnl);
+    const src  = cashSourceNote();
     document.getElementById('trading-acct-val').textContent = '$' + Math.round(cash + open).toLocaleString();
     document.getElementById('trading-acct-val').style.color = col;
     document.getElementById('trading-acct-sub').textContent =
-      `מזומן $${Math.round(cash).toLocaleString()} + פתוחות $${Math.round(open).toLocaleString()}`;
-    document.getElementById('trading-acct-sub').style.color = 'var(--tx3)';
+      `מזומן $${Math.round(cash).toLocaleString()} + פתוחות $${Math.round(open).toLocaleString()} · ${src.txt}`;
+    document.getElementById('trading-acct-sub').style.color = src.stale ? 'var(--amber-t)' : 'var(--tx3)';
     if (card) card.style.display = '';
     if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
   } else {
@@ -1392,7 +1402,7 @@ function renderStats() {
     { lbl: 'P&L מצטבר',        val: closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toFixed(0) : '—', valColor: closed.length ? pnlCol(totalPnl) : 'var(--tx)', subHtml: pnlRuHtml || (closed.length ? `<div class="acct-sub">${closed.length} עסקאות</div>` : '') },
     { lbl: 'Win Rate',          val: wr !== null ? wr.toFixed(1) + '%' : '—', valColor: wrColor, sub: closed.length ? winners.length + ' זוכים · ' + losers.length + ' מפסידים' : '' },
     { lbl: 'תשואה על החשבון',  val: retStr, valColor: base > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: base > 0 ? 'הון בסיס $' + Math.round(base).toLocaleString('en') : '' },
-    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', sub: acctVal !== null ? `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')}` : '' },
+    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', sub: acctVal !== null ? `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${cashSourceNote().txt}` : '' },
   ];
 
   document.getElementById('acct-grid').innerHTML = cards.map(c => {
@@ -2190,9 +2200,11 @@ function syncCashCard(investCash) {
   const src = document.getElementById('ps-cash-src');
   if (src) {
     const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
+    const stale = (typeof ibkrCashIsStale === 'function') && ibkrCashIsStale();
     src.innerHTML = ic
-      ? '<i class="ti ti-building-bank" style="font-size:9px;color:var(--blue-t)"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
+      ? '<i class="ti ti-building-bank" style="font-size:9px"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
       : 'יתרת מזומן בחשבון';
+    src.style.color = ic && stale ? 'var(--amber-t)' : '';
   }
 }
 
@@ -2419,7 +2431,10 @@ async function init() {
 
   if (!getKey()) setTimeout(() => { openSettings(); toast('⚠ הגדר API Key של Finnhub בהגדרות'); }, 400);
 
-  // Signal add-ons (ibkr.js) that data is loaded, including cloud pull
+  // Signal add-ons (ibkr.js) that data is loaded, including cloud pull.
+  // הדגל נחוץ כי ibkr.js נטען אחרי app.js — אם init סיים לפני שהוא נטען,
+  // האירוע כבר נורה והמאזין שלו לא יתפוס אותו.
+  window.tjReady = true;
   window.dispatchEvent(new Event('tj-ready'));
 }
 

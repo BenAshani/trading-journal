@@ -66,7 +66,8 @@ function ibkrTimeAgo(ts) {
   if (m < 60) return `לפני ${m} דק'`;
   const h = Math.round(m / 60);
   if (h < 24) return `לפני ${h} שע'`;
-  return `לפני ${Math.round(h / 24)} ימים`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'לפני יום' : `לפני ${d} ימים`;
 }
 function ibkrChipClick() {
   if (ibkrLastError) alert('שגיאת סנכרון IBKR:\n\n' + ibkrLastError);
@@ -133,6 +134,8 @@ async function ibkrSync(attempt = 0) {
 
     ibkrLastError = ibkrFriendlyError(msg);
     ibkrSetChip('error', 'שגיאת סנכרון — לחץ לפרטים');
+    // גם כשהמשיכה נכשלת — מציגים את שווי התיק לפי הנתון האחרון שנשמר
+    if (ibkrGetCash()) ibkrRefreshCashViews();
   }
 }
 
@@ -251,6 +254,16 @@ function ibkrExtractCash(doc) {
 function ibkrGetCash() {
   try { return JSON.parse(localStorage.getItem(IBKR_CASH_KEY) || 'null'); }
   catch { return null; }
+}
+
+// גיל נתון המזומן האחרון שנמשך בהצלחה — לשקיפות כשסנכרון נכשל
+function ibkrCashAgeTxt() {
+  const d = ibkrLastCash || ibkrGetCash();
+  return d?.ts ? ibkrTimeAgo(d.ts) : '';
+}
+function ibkrCashIsStale() {
+  const d = ibkrLastCash || ibkrGetCash();
+  return !!d?.ts && (Date.now() - d.ts > 24 * 3600 * 1000);
 }
 
 // המזומן של יעד ('trades' | 'port'), לפי סדר עדיפות:
@@ -827,7 +840,15 @@ function ibkrFillDebugPanel() {
   }
 })();
 
-// סנכרון אוטומטי אחרי שה-init של האפליקציה סיים (כולל משיכת ענן)
-window.addEventListener('tj-ready', () => setTimeout(ibkrAutoSync, 300));
+// אחרי שה-init של האפליקציה סיים (כולל משיכת ענן): קודם מרעננים את התצוגות
+// עם המזומן השמור מהמשיכה המוצלחת האחרונה — הרינדור הראשוני של app.js רץ
+// לפני שהקובץ הזה נטען, בלי נתוני מזומן — ואז מסנכרנים.
+// אם init כבר סיים (window.tjReady) האירוע כבר נורה — מריצים מיד.
+function ibkrOnAppReady() {
+  if (ibkrGetCash()) ibkrRefreshCashViews();
+  setTimeout(ibkrAutoSync, 300);
+}
+if (window.tjReady) ibkrOnAppReady();
+else window.addEventListener('tj-ready', ibkrOnAppReady);
 // fallback אם האירוע לא נורה מסיבה כלשהי
 setTimeout(() => { if (!document.getElementById('ibkr-chip')?.innerHTML) ibkrAutoSync(); }, 5000);
