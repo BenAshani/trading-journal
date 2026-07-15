@@ -299,6 +299,7 @@
   <div class="nav-section">
     <div class="nav-label">יומן מסחר</div>
     <button class="nav-item active" onclick="nav('live',this)"><i class="ti ti-activity"></i>סטטוס תיק</button>
+    <button class="nav-item" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i>דאשבורד</button>
     <button class="nav-item" onclick="nav('closed',this)"><i class="ti ti-checks"></i>עסקאות שנסגרו</button>
   </div>
   <div class="nav-section">
@@ -352,7 +353,7 @@
       <div class="acct-stats-hdr" onclick="toggleStats()"><span class="acct-stats-title">סקירת חשבון</span><button class="acct-stats-toggle" id="stats-toggle"><i class="ti ti-chevron-down"></i><span id="stats-lbl">כווץ</span></button></div>
       <div class="acct-stats-body" id="stats-body">
         <div class="acct-grid" id="acct-grid"></div>
-        <div class="equity-wrap"><div class="equity-lbl">עקומת הון — P&L מצטבר</div><div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div></div>
+        <div class="equity-wrap"><div class="equity-lbl" id="equity-lbl-txt">עקומת הון — שווי התיק</div><div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div></div>
       </div>
     </div>
     <div class="summary-bar" id="trading-summary-bar" style="grid-template-columns:repeat(3,1fr)">
@@ -372,6 +373,35 @@
       </div>
     </div>
     <div id="live-content" style="overflow-y:auto;flex:1"></div>
+  </div>
+
+  <!-- Dashboard Page -->
+  <div id="page-dashboard" class="page">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">דאשבורד</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><button class="refresh-btn" onclick="loadDashboard()"><i class="ti ti-refresh"></i>רענן</button></div>
+    </div>
+    <div class="page-inner">
+      <div class="dash-stats" id="dash-stats"></div>
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-title">שווי התיק</div>
+          <div class="dash-chart-note" id="dash-chart-note"></div>
+          <div class="dash-chart-wrap">
+            <canvas id="dash-value-chart"></canvas>
+            <div id="dash-chart-empty" class="empty-state" style="display:none"><i class="ti ti-chart-line"></i><p>אין עסקאות סגורות עדיין</p></div>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-cal-nav">
+            <button onclick="dashShiftMonth(-1)" aria-label="חודש קודם"><i class="ti ti-chevron-right"></i></button>
+            <div class="dash-cal-title" id="dash-cal-title"></div>
+            <button onclick="dashShiftMonth(1)" aria-label="חודש הבא"><i class="ti ti-chevron-left"></i></button>
+          </div>
+          <div class="dash-cal-grid" id="dash-cal-grid"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Add/Edit Trade Page -->

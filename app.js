@@ -298,6 +298,7 @@ let activePMId = null, activeSLId = null, activeSellId = null;
 let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
+let dashValueChart = null, dashDate = new Date();
 let statsCollapsed = false, autosaveTimeout = null, wlSidebarCollapsed = false;
 let faCurrentTicker = null, faCurrentReportId = null, faAutoSaveTimeout = null;
 
@@ -329,6 +330,12 @@ const fmtM = n => {
   return (n >= 0 ? '+$' : '-$') + (a >= 1000 ? (a / 1000).toFixed(1) + 'K' : a.toFixed(2));
 };
 const fmtD = n => n === null || n === undefined ? '—' : (n >= 0 ? '+$' : '-$') + Math.abs(n).toFixed(0);
+
+// פורמט לצירי גרפים: $18.4K / $950 / -$1.2K
+const fmtAxisUSD = v => {
+  const a = Math.abs(v);
+  return (v < 0 ? '-$' : '$') + (a >= 1000 ? (a / 1000).toFixed(1) + 'K' : a.toFixed(0));
+};
 
 const toast = msg => {
   const el = document.getElementById('toast');
@@ -641,6 +648,7 @@ function nav(page, btn) {
   document.getElementById('page-' + page).classList.add('active');
   if (btn) btn.classList.add('active');
   const actions = {
+    dashboard: loadDashboard,
     live:      loadLive,
     closed:    renderClosedTable,
     portfolio: loadPortfolio,
@@ -1432,31 +1440,193 @@ function renderStats() {
     return `<div class="acct-card"><div class="acct-lbl">${c.lbl}</div><div class="acct-val" style="color:${c.valColor}">${c.val}</div>${sub}</div>`;
   }).join('');
 
-  // Equity curve
-  const sorted = [...closed].sort((a, b) => a.date.localeCompare(b.date));
-  let cum = 0;
-  const pts = [{ x: 'התחלה', y: 0 }];
-  sorted.forEach(t => { cum += t.pnl; pts.push({ x: t.date, y: +cum.toFixed(2) }); });
+  // Equity curve — שווי התיק לאורך זמן (הון בסיס + P&L מצטבר), לא P&L בלבד
+  const series = accountValueSeries();
+  const eqLbl = document.getElementById('equity-lbl-txt');
+  if (eqLbl) eqLbl.textContent = series.baseKnown ? 'עקומת הון — שווי התיק' : 'עקומת הון — שינוי בשווי התיק';
   if (equityChart) { equityChart.destroy(); equityChart = null; }
-  if (sorted.length) {
-    const lc = cum >= 0 ? '#22C55E' : '#EF4444';
+  if (series.n) {
+    const lc = totalPnl >= 0 ? '#22C55E' : '#EF4444';
     equityChart = new Chart(document.getElementById('equity-chart'), {
       type: 'line',
       data: {
-        labels: pts.map(p => p.x),
-        datasets: [{ data: pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: pts.length <= 10 ? 3 : 0, fill: true, backgroundColor: lc === '#22C55E' ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', tension: 0.3 }],
+        labels: series.pts.map(p => p.x),
+        datasets: [{ data: series.pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: series.pts.length <= 10 ? 3 : 0, fill: true, backgroundColor: lc === '#22C55E' ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', tension: 0.3 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '$' + c.parsed.y.toFixed(0) } } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
         scales: {
-          x: { display: pts.length <= 15, ticks: { font: { size: 9.5 }, color: '#475569', maxRotation: 0 }, grid: { display: false } },
-          y: { ticks: { font: { size: 9.5 }, color: 'var(--tx3)', callback: v => '$' + (+v).toFixed(0) }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+          x: { display: series.pts.length <= 15, ticks: { font: { size: 9.5 }, color: '#475569', maxRotation: 0 }, grid: { display: false } },
+          y: { ticks: { font: { size: 9.5 }, color: 'var(--tx3)', callback: v => fmtAxisUSD(+v) }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
         },
         animation: { duration: 400 },
       },
     });
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════
+// סדרת שווי התיק לאורך זמן: הון הבסיס (שווי נוכחי פחות P&L מצטבר)
+// ועליו כל עסקה סגורה מוסיפה/גורעת. אם אין נתון מזומן מ-IBKR —
+// הבסיס 0 והגרף מציג שינוי מצטבר בלבד (אותה צורה, ללא רמת שווי אמיתית).
+function accountValueSeries() {
+  const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
+  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const cash     = getTradesCash();
+  const acctVal  = cash !== null ? cash + openTradesCost() : null;
+  const base     = acctVal !== null ? acctVal - totalPnl : 0;
+  const sorted   = [...closed].sort((a, b) => a.date.localeCompare(b.date));
+  let cum = base;
+  const pts = [{ x: 'התחלה', y: +base.toFixed(2) }];
+  sorted.forEach(t => { cum += t.pnl; pts.push({ x: t.date, y: +cum.toFixed(2) }); });
+  return { pts, baseKnown: acctVal !== null, base, acctVal, totalPnl, n: sorted.length };
+}
+
+function loadDashboard() {
+  renderDashStats();
+  renderDashCalendar();
+  renderDashChart();
+}
+
+function renderDashStats() {
+  const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
+  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const winners  = closed.filter(t => t.pnl > 0);
+  const losers   = closed.filter(t => t.pnl < 0);
+  const wr       = closed.length ? winners.length / closed.length * 100 : null;
+  const longs    = trades.filter(t => t.dir === 'Long').length;
+  const shorts   = trades.filter(t => t.dir === 'Short').length;
+  const avgWin   = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : null;
+  const avgLoss  = losers.length ? Math.abs(losers.reduce((s, t) => s + t.pnl, 0) / losers.length) : null;
+  const rr       = avgWin !== null && avgLoss ? avgWin / avgLoss : null;
+  const wrColor  = wr === null ? 'var(--tx)' : wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--amber)' : 'var(--red)';
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-trending-up"></i>סך רווח/הפסד</div>
+      <div class="dash-stat-val" style="color:${closed.length ? pnlCol(totalPnl) : 'var(--tx)'}">${closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 }) : '—'}</div>
+      <div class="dash-stat-sub">P&L ממומש</div>
+    </div>
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-chart-bar"></i>סה"כ עסקאות</div>
+      <div class="dash-stat-val">${trades.length}</div>
+      <div class="dash-stat-sub">${longs} לונגים / ${shorts} שורטים</div>
+    </div>
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-percentage"></i>אחוז הצלחה</div>
+      <div class="dash-stat-val" style="color:${wrColor}">${wr !== null ? wr.toFixed(1) + '%' : '—'}</div>
+      ${wr !== null
+        ? `<div class="dash-wr-bar"><div class="dash-wr-win" style="width:${wr.toFixed(1)}%"></div><div class="dash-wr-loss" style="width:${(100 - wr).toFixed(1)}%"></div></div>`
+        : '<div class="dash-stat-sub">אין עסקאות סגורות</div>'}
+    </div>
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-scale"></i>יחס סיכוי/סיכון</div>
+      <div class="dash-stat-val" style="color:${rr === null ? 'var(--tx)' : rr >= 1 ? 'var(--green)' : 'var(--red)'}">${rr !== null ? rr.toFixed(2) : '—'}</div>
+      <div class="dash-stat-sub">${avgWin !== null && avgLoss ? `רווח ממוצע $${avgWin.toFixed(0)} / הפסד ממוצע $${avgLoss.toFixed(0)}` : 'דרושים רווחים והפסדים'}</div>
+    </div>`;
+}
+
+// P&L יומי: כל מימוש נזקף ליום שבו בוצע; עסקה סגורה בלי מימושים — ליום הכניסה
+function dailyPnlMap() {
+  const map = {};
+  const add = (date, pnl, id) => {
+    if (!date) return;
+    const d = map[date] || (map[date] = { pnl: 0, ids: new Set() });
+    d.pnl += pnl;
+    d.ids.add(id);
+  };
+  trades.forEach(t => {
+    const reals = t.realizations || [];
+    if (reals.length) reals.forEach(r => add(r.date, r.pnl || 0, t.id));
+    else if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) add(t.date, t.pnl, t.id);
+  });
+  return map;
+}
+
+function dashShiftMonth(d) {
+  dashDate = new Date(dashDate.getFullYear(), dashDate.getMonth() + d, 1);
+  renderDashCalendar();
+}
+
+function renderDashCalendar() {
+  const y = dashDate.getFullYear(), m = dashDate.getMonth();
+  document.getElementById('dash-cal-title').textContent = dashDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+
+  const map         = dailyPnlMap();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const startDow    = new Date(y, m, 1).getDay();
+  const todayKey    = today();
+  const key         = d => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  const DOW = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  let html = DOW.map(d => `<div class="dash-cal-hdr">${d}</div>`).join('') + '<div class="dash-cal-hdr">סיכום שבועי</div>';
+
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+
+  for (let w = 0; w < cells.length; w += 7) {
+    let wkPnl = 0, wkN = 0, wkHas = false, rowHtml = '';
+    for (let i = w; i < w + 7; i++) {
+      const d = cells[i];
+      if (d === null) { rowHtml += '<div class="dash-cal-day empty"></div>'; continue; }
+      const data = map[key(d)];
+      const n    = data ? data.ids.size : 0;
+      if (data) { wkPnl += data.pnl; wkN += n; wkHas = true; }
+      const cls = data ? (data.pnl > 0 ? ' win' : data.pnl < 0 ? ' loss' : '') : '';
+      rowHtml += `<div class="dash-cal-day${cls}${key(d) === todayKey ? ' today' : ''}">
+        <div class="dash-cal-num">${d}</div>
+        ${data ? `<div class="dash-cal-cnt">${n} עסקאות</div><div class="dash-cal-pnl" style="color:${pnlCol(data.pnl)}">${fmtD(data.pnl)}</div>` : ''}
+      </div>`;
+    }
+    html += rowHtml + (wkHas
+      ? `<div class="dash-cal-week"><div class="dash-cal-wk-pnl" style="color:${pnlCol(wkPnl)}">${fmtD(wkPnl)}</div><div class="dash-cal-cnt">${wkN} עסקאות</div></div>`
+      : '<div class="dash-cal-week"><div class="dash-cal-wk-pnl" style="color:var(--tx3)">—</div></div>');
+  }
+  document.getElementById('dash-cal-grid').innerHTML = html;
+}
+
+function renderDashChart() {
+  const s     = accountValueSeries();
+  const note  = document.getElementById('dash-chart-note');
+  const empty = document.getElementById('dash-chart-empty');
+  const cnv   = document.getElementById('dash-value-chart');
+
+  if (dashValueChart) { dashValueChart.destroy(); dashValueChart = null; }
+
+  if (!s.n) {
+    note.textContent = '';
+    cnv.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  cnv.style.display = '';
+  empty.style.display = 'none';
+  note.textContent = s.baseKnown
+    ? `שווי נוכחי $${Math.round(s.acctVal).toLocaleString('en')} · הון בסיס $${Math.round(s.base).toLocaleString('en')} · ${cashSourceNote().txt}`
+    : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
+
+  const lc = s.totalPnl >= 0 ? '#22C55E' : '#EF4444';
+  dashValueChart = new Chart(cnv, {
+    type: 'line',
+    data: {
+      labels: s.pts.map(p => p.x),
+      datasets: [{ data: s.pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: s.pts.length <= 12 ? 3 : 0, fill: true, backgroundColor: s.totalPnl >= 0 ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', tension: 0.3 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'שווי תיק: $' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
+      scales: {
+        x: { display: s.pts.length <= 20, ticks: { font: { size: 9.5 }, color: '#475569', maxRotation: 0 }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, color: 'var(--tx3)', callback: v => fmtAxisUSD(+v) }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+      },
+      animation: { duration: 400 },
+    },
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
