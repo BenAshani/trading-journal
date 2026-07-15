@@ -211,22 +211,6 @@
   </div>
 </div>
 
-<!-- Add Watchlist Modal -->
-<div class="overlay" id="wl-add-overlay">
-  <div class="wl-add-modal">
-    <div class="modal-title"><i class="ti ti-eye" style="color:var(--blue-t)"></i>הוסף מניה לרשימת מעקב</div>
-    <div class="modal-sec">
-      <div class="modal-label">טיקר *</div>
-      <input type="text" id="wl-add-ticker" placeholder="AAPL" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-    </div>
-    <div class="modal-sec">
-      <div class="modal-label">הערה (אופציונלי)</div>
-      <input type="text" id="wl-add-note" placeholder="למה אתה עוקב אחריה?">
-    </div>
-    <div class="modal-actions"><button class="btn-p" onclick="saveWatchlistItem()">הוסף</button><button class="btn-s" onclick="closeWLAdd()">ביטול</button></div>
-  </div>
-</div>
-
 <!-- FA Overlay -->
 <div class="fa-overlay" id="fa-overlay">
   <div class="fa-modal">
@@ -310,14 +294,6 @@
     <div class="nav-label">תיק השקעות</div>
     <button class="nav-item" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
   </div>
-  <div class="nav-section">
-    <div class="nav-label" style="display:flex;align-items:center;justify-content:space-between">
-      <span>מעקב קבוע</span>
-      <button class="wl-add-mini-btn" onclick="openWLAdd()" title="הוסף מניה" style="margin-bottom:0"><i class="ti ti-plus"></i></button>
-    </div>
-    <button class="nav-item" onclick="nav('watchlist',this)"><i class="ti ti-news"></i>מעקב וחדשות</button>
-    <div id="wl-sidebar-list" style="margin-top:2px"></div>
-  </div>
   <div class="sidebar-bottom">
     <button class="sidebar-new-trade" onclick="nav('add',null)"><i class="ti ti-plus"></i>עסקה חדשה</button>
     <button class="nav-item" onclick="openSettings()" style="justify-content:center;font-size:11px"><i class="ti ti-settings" style="font-size:12px"></i>הגדרות</button>
@@ -349,13 +325,6 @@
       </div>
       <span id="api-status" style="margin-right:auto;font-size:10.5px;color:var(--tx3)"></span>
     </div>
-    <div class="acct-stats">
-      <div class="acct-stats-hdr" onclick="toggleStats()"><span class="acct-stats-title">סקירת חשבון</span><button class="acct-stats-toggle" id="stats-toggle"><i class="ti ti-chevron-down"></i><span id="stats-lbl">כווץ</span></button></div>
-      <div class="acct-stats-body" id="stats-body">
-        <div class="acct-grid" id="acct-grid"></div>
-        <div class="equity-wrap"><div class="equity-lbl" id="equity-lbl-txt">עקומת הון — שווי התיק</div><div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div></div>
-      </div>
-    </div>
     <div class="summary-bar" id="trading-summary-bar" style="grid-template-columns:repeat(3,1fr)">
       <div class="s-card"><div class="s-label">P&L לא ממומש</div><div class="s-val" id="sum-pnl">—</div></div>
       <div class="s-card"><div class="s-label">שווי פוזיציות</div><div class="s-val" id="sum-val">—</div></div>
@@ -366,10 +335,18 @@
         <div class="s-val" id="sum-cash">—</div>
         <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="sum-cash-sub"></div>
       </div>
-      <div class="s-card" id="trading-acct-card" style="display:none">
-        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-wallet" style="font-size:11px;color:var(--blue-t)"></i>שווי חשבון</div>
-        <div class="s-val" id="trading-acct-val">—</div>
-        <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="trading-acct-sub"></div>
+    </div>
+    <div class="equity-card-row">
+      <div class="equity-card">
+        <div class="equity-card-hdr">
+          <div>
+            <div class="equity-card-lbl"><i class="ti ti-wallet" style="font-size:11px;color:var(--blue-t)"></i>שווי החשבון</div>
+            <div class="equity-card-val" id="eq-acct-val">—</div>
+            <div class="equity-card-sub" id="eq-acct-sub"></div>
+          </div>
+          <span class="equity-card-badge" id="eq-pnl-badge" style="display:none"></span>
+        </div>
+        <div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
       </div>
     </div>
     <div id="live-content" style="overflow-y:auto;flex:1"></div>
@@ -511,20 +488,6 @@
     </div>
   </div>
 
-  <!-- Watchlist Page -->
-  <div id="page-watchlist" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">מעקב וחדשות</span></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="refresh-btn" id="wl-ref-btn" onclick="loadWatchlistPage()"><i class="ti ti-refresh"></i>רענן</button>
-        <button class="add-btn" onclick="openWLAdd()"><i class="ti ti-plus"></i>הוסף מניה</button>
-      </div>
-    </div>
-    <div class="page-inner">
-      <div id="wl-hub-stocks"></div>
-    </div>
-  </div>
-
   <!-- Prep Page -->
   <div id="page-prep" class="page">
     <div class="live-header">
@@ -574,9 +537,9 @@
     <i class="ti ti-briefcase"></i>
     <span>תיק</span>
   </button>
-  <button class="mbn-item" id="mbn-watchlist" onclick="nav('watchlist',null);mbnSet('watchlist')">
-    <i class="ti ti-news"></i>
-    <span>מעקב</span>
+  <button class="mbn-item" id="mbn-dashboard" onclick="nav('dashboard',null);mbnSet('dashboard')">
+    <i class="ti ti-layout-dashboard"></i>
+    <span>דאשבורד</span>
   </button>
 </nav>
 
@@ -686,7 +649,7 @@ function toggleTheme() {
 <script>
 // Mobile bottom nav active state
 function mbnSet(page) {
-  var ids = ['live','closed','add','portfolio','watchlist'];
+  var ids = ['live','closed','add','portfolio','dashboard'];
   ids.forEach(function(id) {
     var el = document.getElementById('mbn-' + id);
     if (el) el.classList.toggle('active', id === page);

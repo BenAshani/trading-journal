@@ -228,37 +228,6 @@ const COMPANY_RISKS = {
 };
 
 // ═══════════════════════════════════════════════════════════
-//  WATCHLIST IMPORT DATA
-// ═══════════════════════════════════════════════════════════
-const TV_WATCHLIST_GROUPS = [
-  { group: 'AI & שבבים',          tickers: ['NVDA','ARM','ASML','MRVL','SMCI','NBIS','NVTS','CDNS','INTC','SNDK'] },
-  { group: 'טק גדול',              tickers: ['MSFT','GOOG','AMZN','META','DELL','IBM','ORCL'] },
-  { group: 'תוכנה & SaaS',         tickers: ['PLTR','CRM','NOW','CRWV','PATH','SOUN','MITK','ONDS'] },
-  { group: 'פינטק & ביטוח',        tickers: ['SOFI','AFRM','LMND','OSCR','CRCL'] },
-  { group: 'אנרגיה נקייה + גרעין', tickers: ['SEDG','SMR','FCEL','NXE','FLNC','LTBR','TE'] },
-  { group: 'חלל & ניידות',         tickers: ['TSLA','ACHR','ASTS','ASTC'] },
-  { group: 'קריפטו',               tickers: ['HIVE','HUT'] },
-  { group: 'צרכנות & בידור',       tickers: ['TTWO','BRUN','RDDT'] },
-];
-
-function importTVWatchlist() {
-  let changed = false;
-  TV_WATCHLIST_GROUPS.forEach(({ group, tickers }) => {
-    tickers.forEach(ticker => {
-      if (!watchlist.find(w => w.ticker === ticker)) {
-        watchlist.push({ id: Date.now().toString() + Math.random(), ticker, note: '', group, addedAt: new Date().toISOString() });
-        changed = true;
-      } else {
-        // backfill group on existing items
-        const item = watchlist.find(w => w.ticker === ticker);
-        if (item && !item.group) { item.group = group; changed = true; }
-      }
-    });
-  });
-  if (changed) sv(SK.watchlist, watchlist);
-}
-
-// ═══════════════════════════════════════════════════════════
 //  STORAGE
 // ═══════════════════════════════════════════════════════════
 const SK = {
@@ -299,7 +268,7 @@ let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
 let dashValueChart = null, dashDate = new Date();
-let statsCollapsed = false, autosaveTimeout = null, wlSidebarCollapsed = false;
+let autosaveTimeout = null;
 let faCurrentTicker = null, faCurrentReportId = null, faAutoSaveTimeout = null;
 
 // ═══════════════════════════════════════════════════════════
@@ -311,8 +280,6 @@ const TARGET_CFG  = [
   { badge: 't2', label: 'יעד 2', pct: 25 },
   { badge: 't3', label: 'יעד 3', pct: 25 },
 ];
-const TICKER_LIST = ['SPY', 'QQQ', 'IWM', 'VIXY'];
-const TICKER_DISP = { SPY: 'SPY', QQQ: 'QQQ', IWM: 'IWM', VIXY: 'VIX' };
 const QUARTERS    = ['Q1', 'Q2', 'Q3', 'Q4', 'שנתי'];
 const HL_LABEL    = { pos: 'חיובי', neg: 'שלילי', neu: 'נייטרלי' };
 
@@ -376,29 +343,6 @@ async function fetchPrices(tickers) {
     if (unique.length > 1) await new Promise(r => setTimeout(r, 120));
   }
   return result;
-}
-
-function isMarketOpen() {
-  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const d = et.getDay(), h = et.getHours() * 60 + et.getMinutes();
-  return d >= 1 && d <= 5 && h >= 570 && h < 960;
-}
-
-async function loadTickerTape() {
-  const data = await fetchPrices(TICKER_LIST);
-  const open = isMarketOpen();
-  const statusItem = `<div class="ticker-item"><span class="hdr-badge ${open ? 'badge-green' : 'badge-off'}">${open ? '🟢 שוק פתוח' : '⏸ שוק סגור'}</span></div>`;
-  const items = TICKER_LIST.map(sym => {
-    const q    = data[sym];
-    const disp = TICKER_DISP[sym] || sym;
-    if (!q) return `<div class="ticker-item"><span class="ticker-sym">${disp}</span><span class="ticker-price" style="color:var(--tx3)">—</span></div>`;
-    const col = q.changesPercentage >= 0 ? 'var(--green)' : 'var(--red)';
-    return `<div class="ticker-item"><span class="ticker-sym">${disp}</span><span class="ticker-price">$${q.price.toFixed(2)}</span><span class="ticker-chg" style="color:${col}">${signStr(q.changesPercentage)}${q.changesPercentage.toFixed(2)}%</span></div>`;
-  }).join('');
-  ['ticker-tape', 'port-ticker-tape'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = statusItem + items;
-  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -652,7 +596,6 @@ function nav(page, btn) {
     live:      loadLive,
     closed:    renderClosedTable,
     portfolio: loadPortfolio,
-    watchlist: loadWatchlistPage,
     add:       () => { if (!editTradeId) { resetForm(); loadDraft(); } },
   };
   actions[page]?.();
@@ -717,7 +660,7 @@ function updateLiveCashCard(openCost) {
     sub.textContent = (acctSize > 0 ? (cash / acctSize * 100).toFixed(1) + '% מהחשבון · ' : '') + src.txt;
     sub.style.color = src.stale ? 'var(--amber-t)' : '';
     cashCard.style.display = '';
-    bar.style.gridTemplateColumns = 'repeat(5,1fr)';
+    bar.style.gridTemplateColumns = 'repeat(4,1fr)';
   } else if (cashNeedsMapping('trades')) {
     // המזומן נמשך אבל לא ברור מאיזה חשבון — מציגים הנחיה במקום להסתיר
     document.getElementById('sum-cash').textContent = '—';
@@ -726,226 +669,11 @@ function updateLiveCashCard(openCost) {
     sub.innerHTML = CASH_MAP_CTA;
     sub.style.color = '';
     cashCard.style.display = '';
-    bar.style.gridTemplateColumns = 'repeat(5,1fr)';
+    bar.style.gridTemplateColumns = 'repeat(4,1fr)';
   } else {
     cashCard.style.display = 'none';
-    bar.style.gridTemplateColumns = 'repeat(4,1fr)';
+    bar.style.gridTemplateColumns = 'repeat(3,1fr)';
   }
-}
-
-// שווי חשבון המסחר = מזומן בחשבון + מזומן שתפוס בפוזיציות פתוחות
-function updateTradingAcctCard(totalPnl) {
-  const card = document.getElementById('trading-acct-card');
-  const bar  = document.getElementById('trading-summary-bar');
-  const cash = getTradesCash();
-  if (cash !== null) {
-    const open = openTradesCost();
-    const col  = pnlCol(totalPnl);
-    const src  = cashSourceNote();
-    document.getElementById('trading-acct-val').textContent = '$' + Math.round(cash + open).toLocaleString();
-    document.getElementById('trading-acct-val').style.color = col;
-    document.getElementById('trading-acct-sub').textContent =
-      `מזומן $${Math.round(cash).toLocaleString()} + פתוחות $${Math.round(open).toLocaleString()} · ${src.txt}`;
-    document.getElementById('trading-acct-sub').style.color = src.stale ? 'var(--amber-t)' : 'var(--tx3)';
-    if (card) card.style.display = '';
-    if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
-  } else if (cashNeedsMapping('trades')) {
-    document.getElementById('trading-acct-val').textContent = '—';
-    document.getElementById('trading-acct-val').style.color = 'var(--tx)';
-    document.getElementById('trading-acct-sub').innerHTML = CASH_MAP_CTA;
-    document.getElementById('trading-acct-sub').style.color = '';
-    if (card) card.style.display = '';
-    if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
-  } else {
-    if (card) card.style.display = 'none';
-    if (bar)  bar.style.gridTemplateColumns = 'repeat(4,1fr)';
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  WATCHLIST
-// ═══════════════════════════════════════════════════════════
-function openWLAdd() {
-  document.getElementById('wl-add-ticker').value = '';
-  document.getElementById('wl-add-note').value   = '';
-  document.getElementById('wl-add-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('wl-add-ticker').focus(), 100);
-}
-
-function closeWLAdd() { document.getElementById('wl-add-overlay').classList.remove('open'); }
-
-function saveWatchlistItem() {
-  const ticker = document.getElementById('wl-add-ticker').value.trim().toUpperCase();
-  const note   = document.getElementById('wl-add-note').value.trim();
-  if (!ticker) { toast('⚠ הכנס טיקר'); return; }
-  if (watchlist.find(w => w.ticker === ticker)) { toast(`⚠ ${ticker} כבר ברשימה`); return; }
-  watchlist.push({ id: Date.now().toString(), ticker, note, addedAt: new Date().toISOString() });
-  sv(SK.watchlist, watchlist);
-  closeWLAdd();
-  renderWLSidebar();
-  if (document.getElementById('page-watchlist').classList.contains('active')) loadWatchlistPage();
-  toast(`✓ ${ticker} נוסף לרשימת מעקב`);
-}
-
-function removeWatchlistItem(id) {
-  watchlist = watchlist.filter(w => w.id !== id);
-  sv(SK.watchlist, watchlist);
-  renderWLSidebar();
-  if (document.getElementById('page-watchlist').classList.contains('active')) loadWatchlistPage();
-}
-
-function toggleWLSidebar() { /* removed — sidebar no longer collapsible */ }
-
-function renderWLSidebar() {
-  const el = document.getElementById('wl-sidebar-list');
-  if (!watchlist.length) { el.innerHTML = '<div class="wl-empty-mini">אין מניות עדיין</div>'; return; }
-  // Sort by group order to match the inner watchlist page
-  const knownGroups = TV_WATCHLIST_GROUPS.map(g => g.group);
-  const sorted = [...watchlist].sort((a, b) => {
-    const ai = knownGroups.indexOf(a.group || 'אחר');
-    const bi = knownGroups.indexOf(b.group || 'אחר');
-    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-  });
-  el.innerHTML = sorted.map(w => {
-    const q   = priceCache[w.ticker] || null;
-    const col = q ? (q.changesPercentage >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--tx3)';
-    return `<div class="wl-mini-card" onclick="openFAModal('${w.ticker}')">
-      <div style="display:flex;align-items:center;gap:6px">
-        ${stockLogoImg(w.ticker, 20)}
-        <div class="wl-mini-ticker">${w.ticker}</div>
-      </div>
-      <div style="text-align:left">
-        <div class="wl-mini-price">${q ? '$' + q.price.toFixed(2) : '—'}</div>
-        ${q ? `<div class="wl-mini-chg" style="color:${col}">${signStr(q.changesPercentage)}${q.changesPercentage.toFixed(2)}%</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function buildWLCard(w, q) {
-  const col   = q ? (q.changesPercentage >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--tx3)';
-  const hasFa = !!(faDataStore[w.ticker] && (faDataStore[w.ticker].bizDesc || faDataStore[w.ticker].reports?.length));
-  return `<div class="wl-card" onclick="openFAModal('${w.ticker}')">
-    <button class="wl-card-del" onclick="event.stopPropagation();removeWatchlistItem('${w.id}')"><i class="ti ti-trash"></i></button>
-    <div class="wl-card-hdr">
-      ${stockLogoImg(w.ticker, 32, 'wl-logo')}
-      <div>
-        <div class="wl-card-ticker">${w.ticker}</div>
-        ${w.note ? `<div class="wl-card-note">${w.note}</div>` : ''}
-      </div>
-    </div>
-    <div class="wl-card-price">${q ? '$' + q.price.toFixed(2) : '<span style="color:var(--tx3)">—</span>'}</div>
-    ${q
-      ? `<div class="wl-card-chg" style="color:${col}">${signStr(q.changesPercentage)}${q.changesPercentage.toFixed(2)}% (${signStr(q.change)}${Math.abs(q.change).toFixed(2)}$)</div>`
-      : '<div class="wl-card-chg" style="color:var(--tx3)">אין מחיר</div>'}
-    ${hasFa ? '<div class="wl-card-fa"><i class="ti ti-chart-bar" style="font-size:10px"></i>יש ניתוח FA</div>' : ''}
-  </div>`;
-}
-
-function timeAgo(d) {
-  const diff = Date.now() - d.getTime();
-  if (diff < 36e5)  return Math.round(diff / 6e4) + ' דק׳';
-  if (diff < 864e5) return Math.round(diff / 36e5) + ' שע׳';
-  return Math.round(diff / 864e5) + ' ימים';
-}
-
-async function fetchTickerNews(ticker) {
-  const key = getKey();
-  if (!key) return [];
-  const to   = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
-  try {
-    const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}&token=${key}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const items = await res.json();
-    return items.filter(n => n.source && n.source.toLowerCase().includes('yahoo'));
-  } catch (e) { return []; }
-}
-
-async function toggleWLNews(ticker, el) {
-  const newsEl = document.getElementById(`wl-news-${ticker}`);
-  const icon   = el.querySelector('.wl-news-icon');
-  const isOpen = newsEl.classList.contains('open');
-
-  // Close all others
-  document.querySelectorAll('.wl-news-panel.open').forEach(p => {
-    p.classList.remove('open');
-    const row = document.getElementById('wlrow-' + p.dataset.ticker);
-    if (row) { row.classList.remove('expanded'); row.querySelector('.wl-news-icon').style.transform = ''; }
-  });
-
-  if (isOpen) return;
-
-  el.classList.add('expanded');
-  icon.style.transform = 'rotate(180deg)';
-  newsEl.classList.add('open');
-
-  if (newsEl.dataset.loaded) return;
-  newsEl.innerHTML = '<div class="wl-news-loading"><i class="ti ti-loader"></i> טוען…</div>';
-  newsEl.dataset.loaded = '1';
-
-  const items = await fetchTickerNews(ticker);
-  if (!items.length) {
-    newsEl.innerHTML = '<div class="wl-news-empty">אין חדשות Yahoo Finance ב-14 ימים האחרונים</div>';
-    return;
-  }
-  newsEl.innerHTML = items.slice(0, 8).map(n => {
-    const rel = timeAgo(new Date(n.datetime * 1000));
-    const sum = n.summary ? n.summary.slice(0, 180) + (n.summary.length > 180 ? '…' : '') : '';
-    return `<a class="wl-news-item" href="${n.url}" target="_blank" rel="noopener">
-      <div class="wl-news-meta"><span class="wl-news-time">${rel}</span></div>
-      <div class="wl-news-headline">${n.headline}</div>
-      ${sum ? `<div class="wl-news-summary">${sum}</div>` : ''}
-    </a>`;
-  }).join('');
-}
-
-function buildWLStockRow(w, q) {
-  const col    = q ? (q.changesPercentage >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--tx3)';
-  const hasFa  = !!(faDataStore[w.ticker] && (faDataStore[w.ticker].bizDesc || faDataStore[w.ticker].reports?.length));
-  return `<div class="wl-row-wrap">
-    <div class="wl-stock-row" id="wlrow-${w.ticker}" onclick="toggleWLNews('${w.ticker}', this)">
-      ${stockLogoImg(w.ticker, 28, 'wl-logo')}
-      <div class="wl-stock-info">
-        <div class="wl-stock-ticker">${w.ticker}</div>
-        ${w.note ? `<div class="wl-stock-note">${w.note}</div>` : ''}
-      </div>
-      <div class="wl-stock-price-col">
-        <div class="wl-stock-price">${q ? '$' + q.price.toFixed(2) : '—'}</div>
-        ${q ? `<div class="wl-stock-chg" style="color:${col}">${signStr(q.changesPercentage)}${q.changesPercentage.toFixed(2)}%</div>` : ''}
-      </div>
-      ${hasFa ? `<button class="wl-fa-btn" onclick="event.stopPropagation();openFAModal('${w.ticker}')" title="ניתוח FA"><i class="ti ti-chart-bar"></i></button>` : ''}
-      <button class="wl-stock-del" onclick="event.stopPropagation();removeWatchlistItem('${w.id}')"><i class="ti ti-trash"></i></button>
-      <i class="ti ti-chevron-down wl-news-icon" style="font-size:12px;color:var(--tx3);transition:transform 0.2s;flex-shrink:0"></i>
-    </div>
-    <div class="wl-news-panel" id="wl-news-${w.ticker}" data-ticker="${w.ticker}"></div>
-  </div>`;
-}
-
-async function loadWatchlistPage() {
-  const el = document.getElementById('wl-hub-stocks');
-
-  if (!watchlist.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:2rem"><i class="ti ti-eye"></i><p style="margin-bottom:0.65rem">אין מניות</p><button class="add-btn" style="display:inline-flex" onclick="openWLAdd()"><i class="ti ti-plus"></i>הוסף</button></div>';
-    return;
-  }
-
-  const renderStocks = (prices) => {
-    const knownGroups = TV_WATCHLIST_GROUPS.map(g => g.group);
-    const grouped = {};
-    watchlist.forEach(w => { const g = w.group || 'אחר'; if (!grouped[g]) grouped[g] = []; grouped[g].push(w); });
-    const orderedGroups = [...knownGroups.filter(g => grouped[g]), ...Object.keys(grouped).filter(g => !knownGroups.includes(g))];
-    el.innerHTML = orderedGroups.map(gName =>
-      `<div class="wl-section-label">${gName}</div>` +
-      grouped[gName].map(w => buildWLStockRow(w, prices[w.ticker] || priceCache[w.ticker] || null)).join('')
-    ).join('');
-  };
-
-  renderStocks({});
-  const prices = await fetchPrices(watchlist.map(w => w.ticker));
-  renderStocks(prices);
-  renderWLSidebar();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1394,56 +1122,40 @@ function saveFAData() { sv(SK.faData, faDataStore); }
 // ═══════════════════════════════════════════════════════════
 //  ACCOUNT STATS
 // ═══════════════════════════════════════════════════════════
-function toggleStats() {
-  statsCollapsed = !statsCollapsed;
-  document.getElementById('stats-body').classList.toggle('hidden', statsCollapsed);
-  document.getElementById('stats-toggle').classList.toggle('collapsed', statsCollapsed);
-  document.getElementById('stats-lbl').textContent = statsCollapsed ? 'הרחב' : 'כווץ';
-}
-
 function renderStats() {
   const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
   const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
-  const winners  = closed.filter(t => t.pnl > 0);
-  const losers   = closed.filter(t => t.pnl < 0);
-  const wr       = closed.length ? (winners.length / closed.length * 100) : null;
-  const avgWin   = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : null;
-  const riskUnit = getRiskUnit();
 
-  updateTradingAcctCard(totalPnl);
-
-  // שווי תיק המסחר = מזומן בחשבון (מ-IBKR) + מזומן שתפוס בפוזיציות פתוחות.
-  // הון הבסיס לתשואה נגזר: שווי נוכחי פחות ה-P&L המצטבר.
+  // כותרת כרטיס הגרף: שווי החשבון = מזומן בחשבון (מ-IBKR) + פוזיציות פתוחות
   const tCash    = getTradesCash();
   const openCost = openTradesCost();
   const acctVal  = tCash !== null ? tCash + openCost : null;
-  const base     = acctVal !== null ? acctVal - totalPnl : null;
 
-  const wrColor   = wr === null ? 'var(--tx)' : wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--amber)' : 'var(--red)';
-  const retStr    = base > 0 ? signStr(totalPnl / base * 100) + (totalPnl / base * 100).toFixed(2) + '%' : '—';
-  const portStr   = acctVal !== null ? '$' + Math.round(acctVal).toLocaleString('en') : '—';
-  let pnlRuHtml = '';
-  if (riskUnit > 0) {
-    const ru = totalPnl / riskUnit;
-    pnlRuHtml = `<div class="acct-sub" style="color:${ru >= 0 ? 'var(--amber-t)' : 'var(--red-t)'}">${signStr(ru)}${ru.toFixed(1)}R</div>`;
+  const valEl   = document.getElementById('eq-acct-val');
+  const subEl   = document.getElementById('eq-acct-sub');
+  const badgeEl = document.getElementById('eq-pnl-badge');
+
+  if (acctVal !== null) {
+    const src = cashSourceNote();
+    valEl.textContent = '$' + Math.round(acctVal).toLocaleString('en');
+    valEl.style.color = pnlCol(totalPnl);
+    subEl.innerHTML   = `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${src.txt}`;
+    subEl.style.color = src.stale ? 'var(--amber-t)' : '';
+  } else {
+    valEl.textContent = '—';
+    valEl.style.color = '';
+    subEl.innerHTML   = cashNeedsMapping('trades') ? CASH_MAP_CTA : 'שווי מצטבר לפי עסקאות סגורות';
+    subEl.style.color = '';
   }
 
-  const cards = [
-    { lbl: 'P&L מצטבר',        val: closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toFixed(0) : '—', valColor: closed.length ? pnlCol(totalPnl) : 'var(--tx)', subHtml: pnlRuHtml || (closed.length ? `<div class="acct-sub">${closed.length} עסקאות</div>` : '') },
-    { lbl: 'Win Rate',          val: wr !== null ? wr.toFixed(1) + '%' : '—', valColor: wrColor, sub: closed.length ? winners.length + ' זוכים · ' + losers.length + ' מפסידים' : '' },
-    { lbl: 'תשואה על החשבון',  val: retStr, valColor: base > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: base > 0 ? 'הון בסיס $' + Math.round(base).toLocaleString('en') : '' },
-    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', subHtml: acctVal !== null ? `<div class="acct-sub">מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${cashSourceNote().txt}</div>` : (cashNeedsMapping('trades') ? `<div class="acct-sub">${CASH_MAP_CTA}</div>` : '') },
-  ];
+  if (closed.length) {
+    badgeEl.style.display = '';
+    badgeEl.textContent   = signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 });
+    badgeEl.className     = 'equity-card-badge ' + (totalPnl >= 0 ? 'pos' : 'neg');
+  } else badgeEl.style.display = 'none';
 
-  document.getElementById('acct-grid').innerHTML = cards.map(c => {
-    const sub = c.subHtml !== undefined ? c.subHtml : (c.sub ? `<div class="acct-sub">${c.sub}</div>` : '');
-    return `<div class="acct-card"><div class="acct-lbl">${c.lbl}</div><div class="acct-val" style="color:${c.valColor}">${c.val}</div>${sub}</div>`;
-  }).join('');
-
-  // Equity curve — שווי התיק לאורך זמן (הון בסיס + P&L מצטבר), לא P&L בלבד
+  // הגרף — שווי התיק לאורך זמן (הון בסיס + P&L מצטבר)
   const series = accountValueSeries();
-  const eqLbl = document.getElementById('equity-lbl-txt');
-  if (eqLbl) eqLbl.textContent = series.baseKnown ? 'עקומת הון — שווי התיק' : 'עקומת הון — שינוי בשווי התיק';
   if (equityChart) { equityChart.destroy(); equityChart = null; }
   if (series.n) {
     const lc = totalPnl >= 0 ? '#22C55E' : '#EF4444';
@@ -1504,11 +1216,22 @@ function renderDashStats() {
   const rr       = avgWin !== null && avgLoss ? avgWin / avgLoss : null;
   const wrColor  = wr === null ? 'var(--tx)' : wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--amber)' : 'var(--red)';
 
+  // תשואה על החשבון — הון הבסיס נגזר משווי החשבון (IBKR) פחות ה-P&L המצטבר
+  const series   = accountValueSeries();
+  const base     = series.baseKnown && series.base > 0 ? series.base : null;
+  const ret      = base !== null ? totalPnl / base * 100 : null;
+
+  // P&L ביחידות סיכון (אם הוגדרה יחידת סיכון בהגדרות)
+  const riskUnit = getRiskUnit();
+  const pnlSub   = riskUnit > 0 && closed.length
+    ? `<span style="color:${totalPnl >= 0 ? 'var(--amber-t)' : 'var(--red-t)'}">${signStr(totalPnl / riskUnit)}${(totalPnl / riskUnit).toFixed(1)}R</span>`
+    : 'P&L ממומש';
+
   document.getElementById('dash-stats').innerHTML = `
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-trending-up"></i>סך רווח/הפסד</div>
       <div class="dash-stat-val" style="color:${closed.length ? pnlCol(totalPnl) : 'var(--tx)'}">${closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 }) : '—'}</div>
-      <div class="dash-stat-sub">P&L ממומש</div>
+      <div class="dash-stat-sub">${pnlSub}</div>
     </div>
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-chart-bar"></i>סה"כ עסקאות</div>
@@ -1526,6 +1249,11 @@ function renderDashStats() {
       <div class="dash-stat-lbl"><i class="ti ti-scale"></i>יחס סיכוי/סיכון</div>
       <div class="dash-stat-val" style="color:${rr === null ? 'var(--tx)' : rr >= 1 ? 'var(--green)' : 'var(--red)'}">${rr !== null ? rr.toFixed(2) : '—'}</div>
       <div class="dash-stat-sub">${avgWin !== null && avgLoss ? `רווח ממוצע $${avgWin.toFixed(0)} / הפסד ממוצע $${avgLoss.toFixed(0)}` : 'דרושים רווחים והפסדים'}</div>
+    </div>
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-percentage"></i>תשואה על החשבון</div>
+      <div class="dash-stat-val" style="color:${ret !== null ? pnlCol(totalPnl) : 'var(--tx)'}">${ret !== null ? signStr(ret) + ret.toFixed(2) + '%' : '—'}</div>
+      <div class="dash-stat-sub">${base !== null ? 'הון בסיס $' + Math.round(base).toLocaleString('en') : 'דרוש נתון מזומן מ-IBKR'}</div>
     </div>`;
 }
 
@@ -1778,10 +1506,6 @@ async function loadLive() {
   ae.style.color  = avgPct !== null ? pnlCol(avgPct) : 'var(--tx)';
 
   updateLiveCashCard(totalCost);
-
-  // Sync account card with live unrealized + closed P&L combined
-  const closedPnl = trades.filter(t => t.status === 'closed' && t.pnl !== null).reduce((s, t) => s + (t.pnl || 0), 0);
-  updateTradingAcctCard(closedPnl + (validN ? totalPnl : 0));
 
   document.getElementById('last-upd').textContent  = 'עודכן ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   document.getElementById('api-status').textContent = validN ? `✓ ${validN} מחירים חיים (Finnhub)` : '⚠ לא נטענו מחירים';
@@ -2608,19 +2332,17 @@ async function init() {
   portfolio   = ld(SK.port);
   watchlist   = ld(SK.watchlist);
   faDataStore = ldObj(SK.faData) || {};
-  importTVWatchlist();
   seedTrades();
   migrateBizDescs();
   document.getElementById('f-date').value = today();
   document.getElementById('f-fee').value  = getDefaultFee().toFixed(2);
   updateFeeHint();
   renderTargets();
-  renderWLSidebar();
   fullRefresh();
   setIv(60);
 
   // Close modals on backdrop click
-  ['pm-overlay','sl-overlay','hm-overlay','sell-overlay','settings-overlay','wl-add-overlay','ibkr-preview-overlay'].forEach(id => {
+  ['pm-overlay','sl-overlay','hm-overlay','sell-overlay','settings-overlay','ibkr-preview-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
   });

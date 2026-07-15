@@ -2074,7 +2074,7 @@ tr:last-child td { border-bottom: none; }
 
 /* ── DASHBOARD ── */
 .dash-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
   gap: var(--space-3); margin-bottom: var(--space-4);
 }
 .dash-stat {
@@ -2169,4 +2169,51 @@ tr:last-child td { border-bottom: none; }
   .dash-cal-day, .dash-cal-week { min-height: 46px; padding: 3px 4px; }
   .dash-cal-cnt { display: none; }
   .dash-cal-pnl, .dash-cal-wk-pnl { font-size: 9px; }
+}
+
+/* ── EQUITY CARD (live page) ── */
+.equity-card-row {
+  padding: var(--space-4) var(--space-7);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+}
+.equity-card {
+  background: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  max-width: 640px;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.equity-card:hover { border-color: var(--color-border-default); }
+.equity-card-hdr {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-3); margin-bottom: var(--space-2);
+}
+.equity-card-lbl {
+  font-size: var(--text-xs); color: var(--color-text-tertiary);
+  font-weight: var(--weight-semibold); text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  display: flex; align-items: center; gap: var(--space-1);
+}
+.equity-card-val {
+  font-size: 24px; font-weight: var(--weight-bold);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight); line-height: 1.15;
+  margin-top: 2px;
+}
+.equity-card-sub { font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: 2px; }
+.equity-card-badge {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  font-weight: var(--weight-semibold); padding: 3px 9px;
+  border-radius: var(--radius-full, 999px); white-space: nowrap;
+}
+.equity-card-badge.pos { color: var(--color-success-text); background: var(--color-success-subtle); border: 1px solid rgba(34,197,94,0.18); }
+.equity-card-badge.neg { color: var(--color-danger-text);  background: var(--color-danger-subtle);  border: 1px solid rgba(239,68,68,0.18); }
+
+@media (max-width: 640px) {
+  .equity-card-row { padding: var(--space-3) var(--space-5); }
+  .equity-card { max-width: none; }
+  .equity-card-val { font-size: 20px; }
 }
