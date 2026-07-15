@@ -267,7 +267,8 @@ function ibkrCashIsStale() {
 }
 
 // המזומן של יעד ('trades' | 'port'), לפי סדר עדיפות:
-// בחירה מפורשת בהגדרות → חשבונות שמנותבים ליעד → חשבון יחיד בדוח → null (צריך לבחור)
+// בחירה מפורשת בהגדרות → חשבונות שמשויכים ליעד → חשבון יחיד בדוח →
+// שני חשבונות שרק אחד מהם משויך (השני שייך ליעד השני מכללא) → null (צריך לבחור)
 function ibkrCashFor(dest) {
   const data = ibkrLastCash || ibkrGetCash();
   if (!data || !data.byAccount) return null;
@@ -279,7 +280,39 @@ function ibkrCashFor(dest) {
   if (accs.length) return +accs.reduce((s, a) => s + data.byAccount[a], 0).toFixed(2);
   const all = Object.keys(data.byAccount);
   if (all.length === 1) return +data.byAccount[all[0]].toFixed(2);
+  if (all.length === 2) {
+    const other = dest === 'trades' ? 'port' : 'trades';
+    const otherAccs = all.filter(a => destMap[a] === other || (cfg.cashAccounts || {})[other] === a);
+    if (otherAccs.length === 1) return +data.byAccount[all.find(a => a !== otherAccs[0])].toFixed(2);
+  }
   return null;
+}
+
+// יש נתוני מזומן מכמה חשבונות אבל אי אפשר להכריע לאיזה תיק — חסר שיוך בהגדרות
+function ibkrCashUnmapped(dest) {
+  const data = ibkrLastCash || ibkrGetCash();
+  if (!data || !data.byAccount || Object.keys(data.byAccount).length < 2) return false;
+  return ibkrCashFor(dest) === null;
+}
+
+// החשבון שממנו נלקח בפועל המזומן של היעד (לתצוגה בהגדרות) — '' אם לא הוכרע
+function ibkrCashAccountOf(dest) {
+  const data = ibkrLastCash || ibkrGetCash();
+  if (!data || !data.byAccount) return '';
+  const cfg = ibkrGetCfg();
+  const chosen = (cfg.cashAccounts || {})[dest];
+  if (chosen) return chosen in data.byAccount ? chosen : '';
+  const destMap = cfg.accountDest || {};
+  const accs = Object.keys(destMap).filter(a => destMap[a] === dest && a in data.byAccount);
+  if (accs.length) return accs.join(' + ');
+  const all = Object.keys(data.byAccount);
+  if (all.length === 1) return all[0];
+  if (all.length === 2) {
+    const other = dest === 'trades' ? 'port' : 'trades';
+    const otherAccs = all.filter(a => destMap[a] === other || (cfg.cashAccounts || {})[other] === a);
+    if (otherAccs.length === 1) return all.find(a => a !== otherAccs[0]);
+  }
+  return '';
 }
 
 // שמירת המזומן + עדכון התצוגות. מזומן ה"תיק" נשמר גם ב-SK.investCash (לענן).
@@ -294,9 +327,9 @@ function ibkrApplyCash() {
     if (Math.abs(current - portCash) > 0.005) _pushSetting(SK.investCash, portCash);
   }
 
-  // כמה חשבונות ואין בחירה — מבקשים מהמשתמש לבחור בהגדרות
+  // כמה חשבונות ואין שיוך — מבקשים מהמשתמש לשייך בהגדרות
   if ((portCash === null || ibkrCashFor('trades') === null) && Object.keys(data.byAccount).length > 1)
-    toast('⚠ יש כמה חשבונות IBKR — בחר בהגדרות מאיזה חשבון למשוך מזומן');
+    toast('⚠ יש כמה חשבונות IBKR — שייך בהגדרות כל חשבון לתיק (מסחר / השקעות)');
 
   ibkrRefreshCashViews();
 }
@@ -733,7 +766,8 @@ function ibkrFillSettings() {
   ibkrFillDebugPanel();
 }
 
-// מיפוי חשבונות: לאן מנותבות עסקאות מכל חשבון + מאיזה חשבון נמשך מזומן לכל יעד
+// שיוך חשבונות: כל חשבון IBKR משויך לתיק — מסחר או השקעות.
+// השיוך קובע גם לאן מנותבות עסקאות וגם מאיזה חשבון נלקח המזומן של כל תיק.
 function ibkrRenderAccountMap() {
   const wrap = document.getElementById('ibkr-accounts');
   if (!wrap) return;
@@ -742,46 +776,40 @@ function ibkrRenderAccountMap() {
   if (!accounts.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   const dest = cfg.accountDest || {};
-  const cashAcc = cfg.cashAccounts || {};
 
-  const cashSelect = (d, lbl) => `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-      <span style="font-size:11px;flex:1">${lbl}</span>
-      <select class="settings-input" style="width:150px;font-size:11px;padding:4px 8px" onchange="ibkrSetCashAccount('${d}', this.value)">
-        <option value="" ${!cashAcc[d] ? 'selected' : ''}>אוטומטי (לפי ניתוב)</option>
-        ${accounts.map(a => `<option value="${a}" ${cashAcc[d] === a ? 'selected' : ''}>${a}</option>`).join('')}
-      </select>
-    </div>`;
+  // שורת סטטוס: מאיפה נלקח בפועל המזומן של כל תיק כרגע
+  const cashData = ibkrLastCash || ibkrGetCash();
+  const fmtUsd = v => '$' + Math.round(v).toLocaleString('en');
+  const statusLine = d => {
+    const cash = ibkrCashFor(d);
+    const acc  = ibkrCashAccountOf(d);
+    const lbl  = d === 'trades' ? 'מזומן תיק מסחר' : 'מזומן תיק השקעות';
+    if (cash !== null) return `<span style="color:var(--tx2)">${lbl}: <b>${fmtUsd(cash)}</b>${acc ? ` <span style="font-family:var(--font-mono);direction:ltr;unicode-bidi:embed">(${acc})</span>` : ''}</span>`;
+    return `<span style="color:var(--amber-t)">${lbl}: לא משויך — בחר חשבון למעלה</span>`;
+  };
 
   wrap.innerHTML =
-    '<div style="font-size:10.5px;color:var(--tx3);margin-bottom:5px">ניתוב לפי חשבון — לאן נכנסות עסקאות מכל חשבון:</div>' +
+    '<div style="font-size:10.5px;color:var(--tx3);margin-bottom:5px">שיוך חשבונות — איזה חשבון שייך לכל תיק (קובע ניתוב עסקאות ומזומן):</div>' +
     accounts.map(acc => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
         <span style="font-size:11px;font-family:var(--font-mono);direction:ltr;flex:1">${acc}</span>
         <select class="settings-input" style="width:150px;font-size:11px;padding:4px 8px" onchange="ibkrSetAccountDest('${acc}', this.value)">
           <option value=""       ${!dest[acc] ? 'selected' : ''}>זיהוי אוטומטי</option>
-          <option value="trades" ${dest[acc] === 'trades' ? 'selected' : ''}>יומן מסחר (סווינג)</option>
+          <option value="trades" ${dest[acc] === 'trades' ? 'selected' : ''}>תיק מסחר (יומן)</option>
           <option value="port"   ${dest[acc] === 'port' ? 'selected' : ''}>תיק השקעות</option>
         </select>
       </div>`).join('') +
-    '<div style="font-size:10.5px;color:var(--tx3);margin:9px 0 5px;padding-top:7px;border-top:0.5px solid var(--br)">מזומן — מאיזה חשבון נמשכת יתרת המזומן:</div>' +
-    cashSelect('trades', 'יומן מסחר (סווינג)') +
-    cashSelect('port',   'תיק השקעות');
+    (cashData ? `<div style="font-size:10.5px;display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:7px;border-top:0.5px solid var(--br)">${statusLine('trades')}${statusLine('port')}</div>` : '');
 }
 function ibkrSetAccountDest(acc, dest) {
   const cfg = ibkrGetCfg();
   if (!cfg.accountDest) cfg.accountDest = {};
   if (dest) cfg.accountDest[acc] = dest; else delete cfg.accountDest[acc];
+  delete cfg.cashAccounts;   // השיוך הידני החדש הוא מקור האמת — מבטל עקיפות מזומן ישנות
   ibkrSaveCfg(cfg);
-  toast('✓ ניתוב חשבון ' + acc + ' נשמר');
-}
-function ibkrSetCashAccount(dest, acc) {
-  const cfg = ibkrGetCfg();
-  if (!cfg.cashAccounts) cfg.cashAccounts = {};
-  if (acc) cfg.cashAccounts[dest] = acc; else delete cfg.cashAccounts[dest];
-  ibkrSaveCfg(cfg);
-  toast('✓ חשבון המזומן נשמר');
-  ibkrApplyCash();   // עדכון מיידי של התצוגות לפי הבחירה
+  toast('✓ שיוך חשבון ' + acc + ' נשמר');
+  ibkrApplyCash();           // עדכון מיידי של שווי התיקים לפי השיוך
+  ibkrRenderAccountMap();    // רענון שורת הסטטוס בהגדרות
 }
 function ibkrSaveSettings() {
   const val = id => (document.getElementById(id)?.value || '').trim();

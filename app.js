@@ -689,6 +689,12 @@ function cashSourceNote() {
   return { txt: age ? `IBKR • ${age}` : 'נמשך מ-IBKR', stale };
 }
 
+// המזומן נמשך מכמה חשבונות אבל אף אחד לא שויך לתיק הזה — צריך לבחור בהגדרות
+function cashNeedsMapping(dest) {
+  return (typeof ibkrCashUnmapped === 'function') && ibkrCashUnmapped(dest);
+}
+const CASH_MAP_CTA = '<span onclick="openSettings()" style="color:var(--amber-t);cursor:pointer;text-decoration:underline">שייך חשבון לתיק בהגדרות ←</span>';
+
 // כרטיס "מזומן פנוי — מסחר" בעמוד העסקאות החיות
 function updateLiveCashCard(openCost) {
   const cash = getTradesCash();
@@ -702,6 +708,15 @@ function updateLiveCashCard(openCost) {
     const sub = document.getElementById('sum-cash-sub');
     sub.textContent = (acctSize > 0 ? (cash / acctSize * 100).toFixed(1) + '% מהחשבון · ' : '') + src.txt;
     sub.style.color = src.stale ? 'var(--amber-t)' : '';
+    cashCard.style.display = '';
+    bar.style.gridTemplateColumns = 'repeat(5,1fr)';
+  } else if (cashNeedsMapping('trades')) {
+    // המזומן נמשך אבל לא ברור מאיזה חשבון — מציגים הנחיה במקום להסתיר
+    document.getElementById('sum-cash').textContent = '—';
+    document.getElementById('sum-cash').style.color = '';
+    const sub = document.getElementById('sum-cash-sub');
+    sub.innerHTML = CASH_MAP_CTA;
+    sub.style.color = '';
     cashCard.style.display = '';
     bar.style.gridTemplateColumns = 'repeat(5,1fr)';
   } else {
@@ -724,6 +739,13 @@ function updateTradingAcctCard(totalPnl) {
     document.getElementById('trading-acct-sub').textContent =
       `מזומן $${Math.round(cash).toLocaleString()} + פתוחות $${Math.round(open).toLocaleString()} · ${src.txt}`;
     document.getElementById('trading-acct-sub').style.color = src.stale ? 'var(--amber-t)' : 'var(--tx3)';
+    if (card) card.style.display = '';
+    if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
+  } else if (cashNeedsMapping('trades')) {
+    document.getElementById('trading-acct-val').textContent = '—';
+    document.getElementById('trading-acct-val').style.color = 'var(--tx)';
+    document.getElementById('trading-acct-sub').innerHTML = CASH_MAP_CTA;
+    document.getElementById('trading-acct-sub').style.color = '';
     if (card) card.style.display = '';
     if (bar)  bar.style.gridTemplateColumns = 'repeat(5,1fr)';
   } else {
@@ -1402,7 +1424,7 @@ function renderStats() {
     { lbl: 'P&L מצטבר',        val: closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toFixed(0) : '—', valColor: closed.length ? pnlCol(totalPnl) : 'var(--tx)', subHtml: pnlRuHtml || (closed.length ? `<div class="acct-sub">${closed.length} עסקאות</div>` : '') },
     { lbl: 'Win Rate',          val: wr !== null ? wr.toFixed(1) + '%' : '—', valColor: wrColor, sub: closed.length ? winners.length + ' זוכים · ' + losers.length + ' מפסידים' : '' },
     { lbl: 'תשואה על החשבון',  val: retStr, valColor: base > 0 ? pnlCol(totalPnl) : 'var(--tx)', sub: base > 0 ? 'הון בסיס $' + Math.round(base).toLocaleString('en') : '' },
-    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', sub: acctVal !== null ? `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${cashSourceNote().txt}` : '' },
+    { lbl: 'שווי תיק',          val: portStr, valColor: acctVal !== null ? pnlCol(totalPnl) : 'var(--tx)', subHtml: acctVal !== null ? `<div class="acct-sub">מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${cashSourceNote().txt}</div>` : (cashNeedsMapping('trades') ? `<div class="acct-sub">${CASH_MAP_CTA}</div>` : '') },
   ];
 
   document.getElementById('acct-grid').innerHTML = cards.map(c => {
@@ -2201,10 +2223,15 @@ function syncCashCard(investCash) {
   if (src) {
     const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
     const stale = (typeof ibkrCashIsStale === 'function') && ibkrCashIsStale();
-    src.innerHTML = ic
-      ? '<i class="ti ti-building-bank" style="font-size:9px"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
-      : 'יתרת מזומן בחשבון';
-    src.style.color = ic && stale ? 'var(--amber-t)' : '';
+    if (!investCash && cashNeedsMapping('port')) {
+      src.innerHTML = CASH_MAP_CTA;
+      src.style.color = '';
+    } else {
+      src.innerHTML = ic
+        ? '<i class="ti ti-building-bank" style="font-size:9px"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
+        : 'יתרת מזומן בחשבון';
+      src.style.color = ic && stale ? 'var(--amber-t)' : '';
+    }
   }
 }
 
