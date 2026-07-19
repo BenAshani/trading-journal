@@ -249,7 +249,13 @@ const sv    = (k, v) => {
   if (typeof dbPush === 'function') dbPush(k, v);
 };
 
-const getKey        = ()  => localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '';
+// ניקוי גרשיים שנוספו למפתח בסנכרוני ענן ישנים (JSON.stringify כפול)
+const _cleanScalar = s => {
+  s = String(s || '').trim();
+  while (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
+  return s;
+};
+const getKey        = ()  => _cleanScalar(localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '');
 const setKey        = k   => _pushSetting(SK.key, k);
 const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)); return isNaN(v) ? 2.50 : v; };
 const setDefaultFee = v   => _pushSetting(SK.fee, v);
@@ -1123,8 +1129,8 @@ function saveFAData() { sv(SK.faData, faDataStore); }
 //  ACCOUNT STATS
 // ═══════════════════════════════════════════════════════════
 function renderStats() {
-  const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
-  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const totalPnl = totalRealizedPnl();
+  const hasPnl   = trades.some(t => (t.status === 'closed' && t.pnl !== null) || (t.realizations || []).length);
 
   // כותרת כרטיס הגרף: שווי החשבון = מזומן בחשבון (מ-IBKR) + פוזיציות פתוחות
   const tCash    = getTradesCash();
@@ -1148,7 +1154,7 @@ function renderStats() {
     subEl.style.color = '';
   }
 
-  if (closed.length) {
+  if (hasPnl) {
     badgeEl.style.display = '';
     badgeEl.textContent   = signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 });
     badgeEl.className     = 'equity-card-badge ' + (totalPnl >= 0 ? 'pos' : 'neg');
@@ -1185,16 +1191,18 @@ function renderStats() {
 // ועליו כל עסקה סגורה מוסיפה/גורעת. אם אין נתון מזומן מ-IBKR —
 // הבסיס 0 והגרף מציג שינוי מצטבר בלבד (אותה צורה, ללא רמת שווי אמיתית).
 function accountValueSeries() {
-  const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
-  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  // נבנה מאותם אירועי מימוש יומיים כמו לוח השנה — כולל מימושים חלקיים
+  // של עסקאות פתוחות — כך שכל המסכים מציגים את אותו רווח ממומש
+  const map      = dailyPnlMap();
+  const dates    = Object.keys(map).sort();
+  const totalPnl = dates.reduce((s, d) => s + map[d].pnl, 0);
   const cash     = getTradesCash();
   const acctVal  = cash !== null ? cash + openTradesCost() : null;
   const base     = acctVal !== null ? acctVal - totalPnl : 0;
-  const sorted   = [...closed].sort((a, b) => a.date.localeCompare(b.date));
   let cum = base;
   const pts = [{ x: 'התחלה', y: +base.toFixed(2) }];
-  sorted.forEach(t => { cum += t.pnl; pts.push({ x: t.date, y: +cum.toFixed(2) }); });
-  return { pts, baseKnown: acctVal !== null, base, acctVal, totalPnl, n: sorted.length };
+  dates.forEach(d => { cum += map[d].pnl; pts.push({ x: d, y: +cum.toFixed(2) }); });
+  return { pts, baseKnown: acctVal !== null, base, acctVal, totalPnl, n: dates.length };
 }
 
 function loadDashboard() {
@@ -1205,7 +1213,7 @@ function loadDashboard() {
 
 function renderDashStats() {
   const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
-  const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const totalPnl = totalRealizedPnl();
   const winners  = closed.filter(t => t.pnl > 0);
   const losers   = closed.filter(t => t.pnl < 0);
   const wr       = closed.length ? winners.length / closed.length * 100 : null;
@@ -1222,15 +1230,16 @@ function renderDashStats() {
   const ret      = base !== null ? totalPnl / base * 100 : null;
 
   // P&L ביחידות סיכון (אם הוגדרה יחידת סיכון בהגדרות)
+  const hasPnl   = trades.some(t => (t.status === 'closed' && t.pnl !== null) || (t.realizations || []).length);
   const riskUnit = getRiskUnit();
-  const pnlSub   = riskUnit > 0 && closed.length
+  const pnlSub   = riskUnit > 0 && hasPnl
     ? `<span style="color:${totalPnl >= 0 ? 'var(--amber-t)' : 'var(--red-t)'}">${signStr(totalPnl / riskUnit)}${(totalPnl / riskUnit).toFixed(1)}R</span>`
     : 'P&L ממומש';
 
   document.getElementById('dash-stats').innerHTML = `
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-trending-up"></i>סך רווח/הפסד</div>
-      <div class="dash-stat-val" style="color:${closed.length ? pnlCol(totalPnl) : 'var(--tx)'}">${closed.length ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 }) : '—'}</div>
+      <div class="dash-stat-val" style="color:${hasPnl ? pnlCol(totalPnl) : 'var(--tx)'}">${hasPnl ? signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 }) : '—'}</div>
       <div class="dash-stat-sub">${pnlSub}</div>
     </div>
     <div class="dash-stat">
@@ -1257,6 +1266,16 @@ function renderDashStats() {
     </div>`;
 }
 
+// רווח ממומש של עסקה: עסקה סגורה — לפי ה-P&L הסופי שלה (כולל עמלה);
+// עסקה פתוחה עם מימושים חלקיים — סך המימושים שבוצעו עד כה
+function realizedPnlOf(t) {
+  if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) return t.pnl;
+  return (t.realizations || []).reduce((s, r) => s + (r.pnl || 0), 0);
+}
+function totalRealizedPnl() {
+  return trades.reduce((s, t) => s + realizedPnlOf(t), 0);
+}
+
 // P&L יומי: כל מימוש נזקף ליום שבו בוצע; עסקה סגורה בלי מימושים — ליום הכניסה
 function dailyPnlMap() {
   const map = {};
@@ -1268,7 +1287,15 @@ function dailyPnlMap() {
   };
   trades.forEach(t => {
     const reals = t.realizations || [];
-    if (reals.length) reals.forEach(r => add(r.date, r.pnl || 0, t.id));
+    if (reals.length) {
+      reals.forEach(r => add(r.date, r.pnl || 0, t.id));
+      // בעסקה סגורה ה-P&L הסופי כולל עמלה שאינה בשורות המימוש —
+      // ההפרש נזקף ליום המימוש האחרון כדי שסך הלוח יתאים ל-P&L הממומש
+      if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) {
+        const resid = t.pnl - reals.reduce((s, r) => s + (r.pnl || 0), 0);
+        if (Math.abs(resid) > 0.005) add(reals[reals.length - 1].date, resid, t.id);
+      }
+    }
     else if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) add(t.date, t.pnl, t.id);
   });
   return map;
@@ -1527,8 +1554,24 @@ function saveTrade() {
   const fee    = parseFloat(document.getElementById('f-fee').value) || 0;
   const dir    = document.getElementById('f-dir').value;
   const status = document.getElementById('f-status').value;
-  const pnl    = exit ? (dir === 'Long' ? (exit - entry) * qty : (entry - exit) * qty) - fee : null;
   const existing = editTradeId ? trades.find(t => t.id === editTradeId) : null;
+
+  // מימושים קיימים הם מקור האמת לרווח הממומש — עריכה דרך הטופס לא דורסת אותם.
+  // הכמות הנותרת נגזרת מהכמות פחות מה שכבר מומש; בסגירה היתרה יוצאת במחיר היציאה.
+  const reals        = existing?.realizations || [];
+  const realizedQty  = reals.reduce((s, r) => s + (r.qty || 0), 0);
+  const realizedPnl  = reals.reduce((s, r) => s + (r.pnl || 0), 0);
+  let   remainingQty = Math.max(0, qty - realizedQty);
+  let   pnl          = null;
+  if (status === 'closed') {
+    if (exit || reals.length) {
+      const closePart = exit && remainingQty > 0
+        ? (dir === 'Long' ? (exit - entry) * remainingQty : (entry - exit) * remainingQty)
+        : 0;
+      pnl = +(realizedPnl + closePart - fee).toFixed(2);
+    }
+    remainingQty = 0;
+  }
 
   const trade = {
     id: editTradeId || Date.now().toString(), ticker, date, dir, status, entry, exit, qty, fee, pnl,
@@ -1537,8 +1580,8 @@ function saveTrade() {
     scenario:     document.getElementById('f-scenario').value,
     sl:           parseFloat(document.getElementById('f-sl').value) || null,
     targets:      JSON.parse(JSON.stringify(targetItems)),
-    realizations: existing?.realizations || [],
-    remainingQty: existing?.remainingQty || qty,
+    realizations: reals,
+    remainingQty,
   };
 
   if (editTradeId) { trades = trades.map(t => t.id === editTradeId ? trade : t); toast('✓ עסקה עודכנה'); }
@@ -1748,7 +1791,8 @@ function confirmPM() {
   t.remainingQty = rem - qty;
   if (t.remainingQty <= 0) {
     t.status = 'closed';
-    t.pnl    = +t.realizations.reduce((s, r) => s + r.pnl, 0).toFixed(2);
+    // P&L סופי = סך המימושים פחות העמלה (כמו בסגירה ידנית דרך הטופס)
+    t.pnl    = +(t.realizations.reduce((s, r) => s + r.pnl, 0) - (t.fee || 0)).toFixed(2);
     t.exit   = price;
     toast('✓ עסקה נסגרה!');
   } else { toast(`✓ מימוש: ${qty} × $${price}`); }
@@ -1798,7 +1842,7 @@ function confirmSL() {
   if (!t.realizations) t.realizations = [];
   t.realizations.push({ date: today(), price, qty: rem, pnl: +p.toFixed(2), isSl: true });
   t.status       = 'closed';
-  t.pnl          = +t.realizations.reduce((s, r) => s + r.pnl, 0).toFixed(2);
+  t.pnl          = +(t.realizations.reduce((s, r) => s + r.pnl, 0) - (t.fee || 0)).toFixed(2);
   t.exit         = price;
   t.remainingQty = 0;
   trades[idx]    = t;
@@ -1861,8 +1905,8 @@ function renderClosedTable() {
         const pct  = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
         const pnlC = t.pnl === null ? 'var(--tx3)' : pnlCol(t.pnl);
         const pctC = pct === null ? 'var(--tx3)' : pnlCol(parseFloat(pct));
-        const borderCol = t.pnl === null ? '' : t.pnl >= 0 ? 'var(--green)' : 'var(--red)';
-        return `<div class="pos-card" style="border-color:${borderCol}">
+        const resCls = t.pnl === null ? '' : t.pnl >= 0 ? ' closed-win' : ' closed-loss';
+        return `<div class="pos-card${resCls}">
           <div class="pos-top">
             <div class="pos-hdr">
               <div style="display:flex;align-items:center;gap:8px">
@@ -1908,7 +1952,8 @@ function renderClosedTable() {
       const pct    = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
       const pnlC   = t.pnl === null ? 'var(--tx3)' : pnlCol(t.pnl);
       const pctC   = pct === null ? 'var(--tx3)' : pnlCol(parseFloat(pct));
-      return `<tr>
+      const rowCls = t.pnl === null ? '' : t.pnl >= 0 ? 'row-win' : 'row-loss';
+      return `<tr class="${rowCls}">
         <td style="color:var(--tx2)">${t.date}</td>
         <td class="mono" style="font-weight:600">${t.ticker}</td>
         <td><span class="badge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span></td>
@@ -2249,7 +2294,7 @@ function seedTrades() {
   if (localStorage.getItem('seed_trades_v1')) return;
   const seed = [
     {
-      id: 'seed_nvdl_may27', ticker: 'NVDL', date: '2026-05-27', dir: 'Long', status: 'סגורה',
+      id: 'seed_nvdl_may27', ticker: 'NVDL', date: '2026-05-27', dir: 'Long', status: 'closed',
       entry: 103.22, exit: 110.36, qty: 30, fee: 0, sl: 101.35,
       realizations: [
         { date: '2026-06-02', price: 118.61, qty: 15, pnl: 230.85 },
@@ -2262,7 +2307,7 @@ function seedTrades() {
       targets: [],
     },
     {
-      id: 'seed_mstr_jun1', ticker: 'MSTR', date: '2026-06-01', dir: 'Long', status: 'סגורה',
+      id: 'seed_mstr_jun1', ticker: 'MSTR', date: '2026-06-01', dir: 'Long', status: 'closed',
       entry: 149.70, exit: 141.76, qty: 22, fee: 0, sl: 146,
       realizations: [
         { date: '2026-06-04', price: 141.76, qty: 22, pnl: -174.68 },
@@ -2274,7 +2319,7 @@ function seedTrades() {
       targets: [],
     },
     {
-      id: 'seed_ugl_jun3', ticker: 'UGL', date: '2026-06-03', dir: 'Long', status: 'סגורה',
+      id: 'seed_ugl_jun3', ticker: 'UGL', date: '2026-06-03', dir: 'Long', status: 'closed',
       entry: 54.50, exit: 54.08, qty: 120, fee: 0, sl: 54.08,
       realizations: [
         { date: '2026-06-03', price: 54.08, qty: 120, pnl: -50.40 },
@@ -2284,7 +2329,7 @@ function seedTrades() {
       strategy: '', mood: '', notes: '', targets: [],
     },
     {
-      id: 'seed_nvdl_jun4', ticker: 'NVDL', date: '2026-06-04', dir: 'Long', status: 'סגורה',
+      id: 'seed_nvdl_jun4', ticker: 'NVDL', date: '2026-06-04', dir: 'Long', status: 'closed',
       entry: 106.53, exit: 104.07, qty: 45, fee: 0, sl: 104.08,
       realizations: [
         { date: '2026-06-05', price: 104.07, qty: 45, pnl: -110.70 },
@@ -2304,6 +2349,27 @@ function seedTrades() {
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
+// תיקון נתונים היסטוריים: סטטוסים בעברית ('סגורה'/'פתוחה') שלא זוהו ע"י
+// המסננים (t.status === 'closed'), ו-P&L שגוי בעסקאות שמומשו במלואן
+// (עריכה דרך הטופס דרסה בעבר את סכום המימושים)
+function migrateTrades() {
+  let changed = false;
+  trades.forEach(t => {
+    if (t.status === 'סגורה') { t.status = 'closed'; changed = true; }
+    if (t.status === 'פתוחה') { t.status = 'open';   changed = true; }
+    const reals = t.realizations || [];
+    if (t.status === 'closed' && reals.length) {
+      const realizedQty = reals.reduce((s, r) => s + (r.qty || 0), 0);
+      if (realizedQty >= (t.qty || 0)) {
+        const correct = +(reals.reduce((s, r) => s + (r.pnl || 0), 0) - (t.fee || 0)).toFixed(2);
+        if (t.pnl !== correct)     { t.pnl = correct;  changed = true; }
+        if (t.remainingQty !== 0)  { t.remainingQty = 0; changed = true; }
+      }
+    }
+  });
+  if (changed) sv(SK.trades, trades);
+}
+
 function migrateBizDescs() {
   const isOldTemplate = s => !s || s.includes('(מלא כאן') || s.includes('💡 מה עושה');
   let changed = false;
@@ -2333,6 +2399,7 @@ async function init() {
   watchlist   = ld(SK.watchlist);
   faDataStore = ldObj(SK.faData) || {};
   seedTrades();
+  migrateTrades();
   migrateBizDescs();
   document.getElementById('f-date').value = today();
   document.getElementById('f-fee').value  = getDefaultFee().toFixed(2);

@@ -907,6 +907,19 @@ th {
 }
 td { padding: var(--space-4) var(--space-4); border-bottom: 1px solid var(--color-border-subtle); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
+
+/* עסקאות סגורות — צביעת שורה לפי רווח/הפסד */
+tr.row-win  td { background: var(--green-100); }
+tr.row-loss td { background: var(--red-100); }
+/* פס צבע בקצה הימני (RTL) של השורה */
+tr.row-win  td:first-child { box-shadow: inset -3px 0 0 var(--green-500); }
+tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
+
+/* עסקאות סגורות — כרטיסים לפי רווח/הפסד */
+.pos-card.closed-win  { border-color: var(--green-500); background: linear-gradient(180deg, var(--green-100), transparent 55%), var(--color-bg-elevated); }
+.pos-card.closed-loss { border-color: var(--red-500);   background: linear-gradient(180deg, var(--red-100),   transparent 55%), var(--color-bg-elevated); }
+.pos-card.closed-win:hover  { border-color: var(--green-500); }
+.pos-card.closed-loss:hover { border-color: var(--red-500); }
 .badge {
   font-size: var(--text-xs); padding: 2px var(--space-3);
   border-radius: var(--radius-full); font-weight: var(--weight-semibold);

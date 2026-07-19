@@ -65,7 +65,11 @@ async function dbPullAll() {
     if (error) throw error;
     if (data && data.length) {
       data.forEach(row => {
-        localStorage.setItem(row.data_key, JSON.stringify(row.value));
+        // ערכים סקלריים (API key וכו') נשמרים ב-localStorage כמחרוזת גולמית —
+        // JSON.stringify עליהם מוסיף גרשיים והורס את הערך (מפתח Finnhub שבור = אין מחירים)
+        if (row.value === null || row.value === undefined) { localStorage.removeItem(row.data_key); return; }
+        localStorage.setItem(row.data_key,
+          typeof row.value === 'string' ? row.value : JSON.stringify(row.value));
       });
       console.log(`[db] Pulled ${data.length} keys from cloud`);
     }
