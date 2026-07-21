@@ -249,13 +249,14 @@ const sv    = (k, v) => {
   if (typeof dbPush === 'function') dbPush(k, v);
 };
 
-// ניקוי גרשיים שנוספו למפתח בסנכרוני ענן ישנים (JSON.stringify כפול)
-const _cleanScalar = s => {
-  s = String(s || '').trim();
-  while (s.length > 1 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).trim();
-  return s;
-};
-const getKey        = ()  => _cleanScalar(localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '');
+// ניקוי מפתח API: מסיר כל מה ש"נדבק" למפתח — גרשיים (מסנכרון ענן ישן שהרס
+// אותו), רווחים/טאבים/שורות חדשות מהעתקה-הדבקה, ותווים נסתרים (zero-width / BOM
+// / רווח קשיח). מפתח Finnhub הוא אלפאנומרי בלבד, אז חיתוך התווים האלה תמיד בטוח.
+const _cleanKey = s => String(s || '')
+  .replace(/[​-‍﻿ ]/g, '')  // zero-width / BOM / non-breaking space
+  .replace(/["'`\s]/g, '')                       // גרשיים + כל תו רווח (כולל \n \t)
+  .trim();
+const getKey        = ()  => _cleanKey(localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '');
 const setKey        = k   => _pushSetting(SK.key, k);
 const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)); return isNaN(v) ? 2.50 : v; };
 const setDefaultFee = v   => _pushSetting(SK.fee, v);
@@ -555,8 +556,8 @@ function saveSettings() {
 }
 
 function saveApiKey() {
-  const k = document.getElementById('settings-key').value.trim();
-  if (k) { setKey(k); toast('✓ Finnhub API Key עודכן'); closeSettings(); fullRefresh(); }
+  const k = _cleanKey(document.getElementById('settings-key').value);
+  if (k) { setKey(k); document.getElementById('settings-key').value = k; toast('✓ Finnhub API Key עודכן'); closeSettings(); fullRefresh(); }
   else   { toast('⚠ הכנס API Key תחילה'); }
 }
 
@@ -2414,6 +2415,14 @@ async function init() {
     if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
   });
   document.getElementById('fa-overlay').addEventListener('click', function(e) { if (e.target === this) closeFAModal(); });
+
+  // ניקוי מיידי של שדה מפתח ה-API — כשמדביקים מפתח, גרשיים/רווחים/תווים נסתרים
+  // נחתכים על המקום כדי שהמשתמש יראה שהמפתח נשאר נקי ולא "נוספים לו דברים".
+  const keyInput = document.getElementById('settings-key');
+  if (keyInput) keyInput.addEventListener('input', () => {
+    const cleaned = _cleanKey(keyInput.value);
+    if (cleaned !== keyInput.value) keyInput.value = cleaned;
+  });
 
   if (!getKey()) setTimeout(() => { openSettings(); toast('⚠ הגדר API Key של Finnhub בהגדרות'); }, 400);
 
