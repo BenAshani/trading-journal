@@ -258,6 +258,15 @@ const _cleanKey = s => String(s || '')
   .trim();
 const getKey        = ()  => _cleanKey(localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '');
 const setKey        = k   => _pushSetting(SK.key, k);
+// ריפוי מקור: אם המפתח השמור (מקומי/ענן) מלוכלך, כותבים חזרה גרסה נקייה —
+// גם ל-localStorage וגם ל-Supabase — כדי שהגרשיים לא יימשכו שוב בכל רענון.
+function normalizeStoredKey() {
+  const raw = localStorage.getItem(SK.key);
+  if (raw === null) return;
+  const clean = _cleanKey(raw);
+  if (clean && clean !== raw) setKey(clean);        // מעדכן מקומי + דוחף נקי לענן
+  else if (!clean) localStorage.removeItem(SK.key); // ערך ריק/זבל בלבד
+}
 const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)); return isNaN(v) ? 2.50 : v; };
 const setDefaultFee = v   => _pushSetting(SK.fee, v);
 const getRiskUnit   = ()  => { const v = parseFloat(localStorage.getItem(SK.risk)); return isNaN(v) ? 0 : v; };
@@ -2394,6 +2403,8 @@ async function init() {
   } else {
     if (typeof dbSetSyncStatus === 'function') dbSetSyncStatus('local');
   }
+
+  normalizeStoredKey();   // מנקה מפתח מלוכלך שנמשך מהענן, פעם אחת, ומרפא את המקור
 
   trades      = ld(SK.trades);
   portfolio   = ld(SK.port);
