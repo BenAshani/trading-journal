@@ -294,6 +294,10 @@
     <div class="nav-label">תיק השקעות</div>
     <button class="nav-item" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
   </div>
+  <div class="nav-section">
+    <div class="nav-label">מחקר</div>
+    <button class="nav-item" onclick="nav('analysis',this)"><i class="ti ti-file-analytics"></i>ניתוח חברות</button>
+  </div>
   <div class="sidebar-bottom">
     <button class="sidebar-new-trade" onclick="nav('add',null)"><i class="ti ti-plus"></i>עסקה חדשה</button>
     <button class="nav-item" onclick="openSettings()" style="justify-content:center;font-size:11px"><i class="ti ti-settings" style="font-size:12px"></i>הגדרות</button>
@@ -515,6 +519,17 @@
     </div>
   </div>
 
+  <!-- Company Analysis Page -->
+  <div id="page-analysis" class="page">
+    <div class="live-header">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font-size:14.5px;font-weight:500">ניתוח חברות</span>
+      </div>
+    </div>
+    <div id="analysis-grid" class="page-inner"></div>
+    <div id="analysis-doc" style="display:none"></div>
+  </div>
+
 </main>
 
 <!-- Mobile Bottom Nav -->
@@ -571,6 +586,7 @@
 <script src="db.js?v=20260721"></script>
 <script src="app.js?v=20260721"></script>
 <script src="prep.js?v=20260721"></script>
+<script src="analysis.js?v=20260722"></script>
 <script src="ibkr.js?v=20260721"></script>
 <script>
 // render prep page when navigating to it

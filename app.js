@@ -612,6 +612,7 @@ function nav(page, btn) {
     live:      loadLive,
     closed:    renderClosedTable,
     portfolio: loadPortfolio,
+    analysis:  () => { if (typeof caRender === 'function') caRender(); },
     add:       () => { if (!editTradeId) { resetForm(); loadDraft(); } },
   };
   actions[page]?.();
