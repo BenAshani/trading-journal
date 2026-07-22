@@ -1172,21 +1172,42 @@ function renderStats() {
 
   // הגרף — שווי התיק לאורך זמן (הון בסיס + P&L מצטבר)
   const series = accountValueSeries();
+
+  // תאריך בסרגל הצדדי: הנקודה האחרונה בסדרה (או היום אם אין תאריכים)
+  const dateEl = document.getElementById('eq-acct-date');
+  if (dateEl) {
+    const lastX = series.pts.length ? series.pts[series.pts.length - 1].x : null;
+    dateEl.textContent = (lastX && lastX !== 'התחלה') ? 'נכון ל־' + lastX : '';
+  }
+
   if (equityChart) { equityChart.destroy(); equityChart = null; }
   if (series.n) {
     const lc = totalPnl >= 0 ? '#22C55E' : '#EF4444';
+    // באנר מלא-רוחב ונקי: ספארקליין בלי צירים/רשת — התאריך והשווי בסרגל,
+    // ובריחוף מעל העקומה טולטיפ מציג תאריך + שווי (כמו סרגל מחוונים).
     equityChart = new Chart(document.getElementById('equity-chart'), {
       type: 'line',
       data: {
         labels: series.pts.map(p => p.x),
-        datasets: [{ data: series.pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: series.pts.length <= 10 ? 3 : 0, fill: true, backgroundColor: lc === '#22C55E' ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.07)', tension: 0.3 }],
+        datasets: [{ data: series.pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, backgroundColor: lc === '#22C55E' ? 'rgba(34,197,94,0.09)' : 'rgba(239,68,68,0.09)', tension: 0.35 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
+        layout: { padding: 0 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            displayColors: false,
+            callbacks: {
+              title: items => items[0]?.label === 'התחלה' ? 'התחלה' : items[0]?.label,
+              label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }),
+            },
+          },
+        },
         scales: {
-          x: { display: series.pts.length <= 15, ticks: { font: { size: 9.5 }, color: '#475569', maxRotation: 0 }, grid: { display: false } },
-          y: { ticks: { font: { size: 9.5 }, color: 'var(--tx3)', callback: v => fmtAxisUSD(+v) }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+          x: { display: false, grid: { display: false } },
+          y: { display: false, grid: { display: false }, border: { display: false } },
         },
         animation: { duration: 400 },
       },
