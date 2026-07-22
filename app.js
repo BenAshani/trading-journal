@@ -1152,17 +1152,13 @@ function renderStats() {
   const badgeEl = document.getElementById('eq-pnl-badge');
 
   if (acctVal !== null) {
-    const src = cashSourceNote();
     valEl.textContent = '$' + Math.round(acctVal).toLocaleString('en');
     valEl.style.color = pnlCol(totalPnl);
-    subEl.innerHTML   = `מזומן $${Math.round(tCash).toLocaleString('en')} + פתוחות $${Math.round(openCost).toLocaleString('en')} · ${src.txt}`;
-    subEl.style.color = src.stale ? 'var(--amber-t)' : '';
   } else {
     valEl.textContent = '—';
     valEl.style.color = '';
-    subEl.innerHTML   = cashNeedsMapping('trades') ? CASH_MAP_CTA : 'שווי מצטבר לפי עסקאות סגורות';
-    subEl.style.color = '';
   }
+  if (subEl) subEl.innerHTML = '';
 
   if (hasPnl) {
     badgeEl.style.display = '';
@@ -1170,21 +1166,13 @@ function renderStats() {
     badgeEl.className     = 'equity-card-badge ' + (totalPnl >= 0 ? 'pos' : 'neg');
   } else badgeEl.style.display = 'none';
 
-  // הגרף — שווי התיק לאורך זמן (הון בסיס + P&L מצטבר)
+  // הגרף — שווי החשבון לאורך זמן: תאריכים על ציר X, שווי החשבון ($) על ציר Y
   const series = accountValueSeries();
-
-  // תאריך בסרגל הצדדי: הנקודה האחרונה בסדרה (או היום אם אין תאריכים)
-  const dateEl = document.getElementById('eq-acct-date');
-  if (dateEl) {
-    const lastX = series.pts.length ? series.pts[series.pts.length - 1].x : null;
-    dateEl.textContent = (lastX && lastX !== 'התחלה') ? 'נכון ל־' + lastX : '';
-  }
 
   if (equityChart) { equityChart.destroy(); equityChart = null; }
   if (series.n) {
     const lc = totalPnl >= 0 ? '#22C55E' : '#EF4444';
-    // באנר מלא-רוחב ונקי: ספארקליין בלי צירים/רשת — התאריך והשווי בסרגל,
-    // ובריחוף מעל העקומה טולטיפ מציג תאריך + שווי (כמו סרגל מחוונים).
+    const axisCol = 'var(--tx3)';
     equityChart = new Chart(document.getElementById('equity-chart'), {
       type: 'line',
       data: {
@@ -1193,21 +1181,27 @@ function renderStats() {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        layout: { padding: 0 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
             displayColors: false,
-            callbacks: {
-              title: items => items[0]?.label === 'התחלה' ? 'התחלה' : items[0]?.label,
-              label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }),
-            },
+            callbacks: { label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) },
           },
         },
         scales: {
-          x: { display: false, grid: { display: false } },
-          y: { display: false, grid: { display: false }, border: { display: false } },
+          x: {
+            display: true,
+            grid: { display: false },
+            ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          },
+          y: {
+            display: true,
+            position: 'right',
+            grid: { color: 'rgba(148,160,180,0.12)' },
+            border: { display: false },
+            ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => fmtAxisUSD(+v) },
+          },
         },
         animation: { duration: 400 },
       },
