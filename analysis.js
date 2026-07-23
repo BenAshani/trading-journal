@@ -27,7 +27,8 @@ function caUID() { return Math.random().toString(36).slice(2, 9); }
 function caEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
 let caCurrentId = null;
-let caSaveTimeout = null;
+let caSaveTimeout = null;     // טיימר לתווית "נשמר" (ויזואלי בלבד)
+let caPersistTimer = null;    // debounce לדחיפה לענן
 let caLastEditable = null;
 
 // ═══════════════════════════════════════════════════════════
@@ -37,6 +38,7 @@ function caRender() {
   const grid = document.getElementById('analysis-grid');
   const docView = document.getElementById('analysis-doc');
   if (!grid) return;
+  if (caPersistTimer) caFlushCloud();   // דחיפה ממתינה לא תלך לאיבוד ביציאה מהמסמך
   // כשחוזרים לרשת — מציגים אותה ומסתירים את המסמך
   grid.style.display = '';
   if (docView) docView.style.display = 'none';
@@ -85,6 +87,13 @@ function caAddCompany() {
   const symbol = (prompt('סימבול החברה (למשל MSFT):') || '').trim().toUpperCase();
   if (!symbol) return;
   const data = caLoad();
+  // מניעת כפילות — אם החברה כבר קיימת, פותחים אותה במקום ליצור כפולה
+  const existing = data.find(c => (c.symbol || '').trim().toUpperCase() === symbol);
+  if (existing) {
+    alert(`כבר קיים ניתוח עבור ${symbol} — פותח אותו.`);
+    caOpen(existing.id);
+    return;
+  }
   const id = caUID();
   data.unshift({
     id, symbol,
@@ -121,7 +130,7 @@ function caOpen(id) {
     <section class="doc-section">
       <h2 class="doc-h2"><i class="ti ${s.icon}"></i>${s.title}</h2>
       <div class="doc-editable" contenteditable="true" data-field="${s.key}" data-ph="${caEsc(s.hint)}"
-        onfocus="caLastEditable=this" oninput="caFieldInput()">${c.fields?.[s.key] || ''}</div>
+        onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.[s.key] || ''}</div>
     </section>`).join('');
 
   docView.innerHTML = `
@@ -191,32 +200,49 @@ function caQuartersHTML(c) {
 // ═══════════════════════════════════════════════════════════
 //  שמירה
 // ═══════════════════════════════════════════════════════════
+// שמירה: כתיבה מקומית מיידית (בטיחות מול רענון) + דחיפה לענן מדובאונסת
+// כדי לא להציף את Supabase בכתיבה על כל הקשה.
 function caTouch(mutate) {
   const data = caLoad();
   const c = data.find(x => x.id === caCurrentId);
   if (!c) return;
   mutate(c);
   c.updatedAt = Date.now();
-  caSave(data);
-  caFlashSaved();
+  localStorage.setItem(CA_KEY, JSON.stringify(data));   // מקומי — מיידי
+  caSetSaveLbl('saving');
+  clearTimeout(caPersistTimer);
+  caPersistTimer = setTimeout(caFlushCloud, 600);        // ענן — מדובאונס
 }
 
-function caFlashSaved() {
+// דוחף לענן את המצב העדכני ומעדכן תווית ל"נשמר"
+function caFlushCloud() {
+  clearTimeout(caPersistTimer);
+  caPersistTimer = null;
+  if (typeof dbPush === 'function') { try { dbPush(CA_KEY, caLoad()); } catch (e) { /* silent */ } }
+  caSetSaveLbl('saved');
+}
+
+function caSetSaveLbl(state) {
   const lbl = document.getElementById('doc-save-lbl');
   if (!lbl) return;
-  lbl.innerHTML = '<i class="ti ti-check"></i>נשמר';
   clearTimeout(caSaveTimeout);
-  caSaveTimeout = setTimeout(() => {
-    lbl.innerHTML = '<i class="ti ti-device-floppy"></i>נשמר אוטומטית';
-  }, 1400);
+  if (state === 'saving') {
+    lbl.innerHTML = '<i class="ti ti-loader-2"></i>שומר…';
+  } else {  // 'saved'
+    lbl.innerHTML = '<i class="ti ti-check"></i>נשמר';
+    caSaveTimeout = setTimeout(() => {
+      lbl.innerHTML = '<i class="ti ti-device-floppy"></i>נשמר אוטומטית';
+    }, 1600);
+  }
 }
 
 function caMetaInput(field, value) {
   caTouch(c => { c[field] = value; });
 }
 
-function caFieldInput() {
-  const el = caLastEditable;
+// el מגיע ישירות מ-oninput (this) — לא מסתמכים על משתנה גלובלי
+function caFieldInput(el) {
+  el = el || caLastEditable;
   if (!el || !el.dataset.field) return;
   const field = el.dataset.field;
   const html = el.innerHTML;
@@ -252,7 +278,7 @@ function caFmt(cmd) {
   document.execCommand(cmd, false, null);
   // שמירה מחדש אחרי שינוי עיצוב
   if (caLastEditable) {
-    if (caLastEditable.dataset.field) caFieldInput();
+    if (caLastEditable.dataset.field) caFieldInput(caLastEditable);
     else {
       const q = caLastEditable.closest('.doc-quarter');
       if (q) caQuarterBodyInput(q.dataset.qid, caLastEditable);
@@ -275,4 +301,57 @@ function caExportPDF() {
   };
   window.addEventListener('afterprint', cleanup);
   setTimeout(() => window.print(), 60);
+}
+
+// מכניס טקסט רגיל במיקום הסמן, כשמעברי שורה הופכים ל-<br>. אם אין סמן
+// בתוך האלמנט (למשל הדבקה בלי מיקוד) — מוסיף בסופו.
+function caInsertPlainText(el, text) {
+  const sel = window.getSelection();
+  const frag = document.createDocumentFragment();
+  text.split(/\r\n|\r|\n/).forEach((line, i) => {
+    if (i > 0) frag.appendChild(document.createElement('br'));
+    frag.appendChild(document.createTextNode(line));
+  });
+  const last = frag.lastChild;
+  let range;
+  if (sel && sel.rangeCount && el.contains(sel.anchorNode)) {
+    range = sel.getRangeAt(0);
+    range.deleteContents();
+  } else {
+    range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+  }
+  range.insertNode(frag);
+  if (last && sel) {                 // מזיז את הסמן לסוף הטקסט שהודבק
+    range.setStartAfter(last);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  מאזינים גלובליים (נרשמים פעם אחת)
+// ═══════════════════════════════════════════════════════════
+if (!window._caBound) {
+  window._caBound = true;
+
+  // ניקוי הדבקה: מדביקים טקסט בלבד, בלי HTML/עיצוב מוורד או מהאינטרנט
+  // ששוברים את מראה ה"נייר". מכניסים דרך Range (לא execCommand) כדי שיהיה
+  // אמין בכל דפדפן, ומפעילים ידנית אירוע input כדי שהשמירה האוטומטית תרוץ.
+  document.addEventListener('paste', function (e) {
+    const node = e.target && e.target.nodeType === 3 ? e.target.parentElement : e.target;
+    const el = node && node.closest && node.closest('.doc-editable');
+    if (!el) return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
+    caInsertPlainText(el, text);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, true);
+
+  // דחיפה ממתינה לענן — לא לאבד אותה בסגירת/רענון הדף
+  window.addEventListener('beforeunload', function () {
+    if (caPersistTimer) caFlushCloud();
+  });
 }

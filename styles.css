@@ -2452,5 +2452,9 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   body.ca-printing .doc-add-q,
   body.ca-printing .doc-editable:empty:before { display: none !important; }
   body.ca-printing .doc-editable, body.ca-printing .doc-q-label { border-color: transparent !important; background: transparent !important; }
+  /* לא לחתוך סעיף/דיווח באמצע בין עמודים, ולא להשאיר כותרת יתומה בתחתית עמוד */
+  body.ca-printing .doc-section,
+  body.ca-printing .doc-quarter { break-inside: avoid; page-break-inside: avoid; }
+  body.ca-printing .doc-h2 { break-after: avoid; page-break-after: avoid; }
   @page { size: A4; margin: 14mm; }
 }
