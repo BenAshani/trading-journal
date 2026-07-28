@@ -639,14 +639,30 @@ function setDot(which, state, lbl) {
 // ═══════════════════════════════════════════════════════════
 //  TRADING ACCOUNT CARD  (shared: live page + stats panel)
 // ═══════════════════════════════════════════════════════════
-// מזומן בחשבון המסחר (נמשך מ-IBKR) — null אם אין נתון
+// מזומן בחשבון המסחר. מתחילים מהיתרה שנמשכה מ-IBKR ומקזזים ממנה את עלות
+// הפוזיציות שנפתחו ידנית *אחרי* תצלום המזומן האחרון — כי IBKR עדיין לא "יודע"
+// עליהן, אז בלי הקיזוז המזומן הפנוי היה מוצג גבוה מדי עד הסנכרון הבא.
+// null אם אין נתון מ-IBKR כלל.
 function getTradesCash() {
-  return (typeof ibkrCashFor === 'function') ? ibkrCashFor('trades') : null;
+  const raw = (typeof ibkrCashFor === 'function') ? ibkrCashFor('trades') : null;
+  if (raw === null) return null;
+  return +(raw - unreflectedTradesCost()).toFixed(2);
 }
 
 // עלות הפוזיציות הפתוחות ביומן — "מזומן שתפוס בעסקאות"
 function openTradesCost() {
   return trades.filter(t => t.status === 'open')
+    .reduce((s, t) => s + (t.entry || 0) * (t.remainingQty ?? t.qty ?? 0), 0);
+}
+
+// עלות הפוזיציות הפתוחות שנפתחו ידנית אחרי תצלום המזומן האחרון של IBKR —
+// אלה שעדיין לא מקוזזות ביתרת המזומן שנמשכה. מזוהות לפי מזהה העסקה (חותמת
+// זמן היצירה במ"ש) שגדול מחותמת התצלום. עסקאות שיובאו מ-IBKR כבר מקוזזות ולכן מדולגות.
+function unreflectedTradesCost() {
+  const ts = (typeof ibkrCashTs === 'function') ? ibkrCashTs() : null;
+  if (!ts) return 0;
+  return trades
+    .filter(t => t.status === 'open' && t.source !== 'ibkr' && +t.id > ts)
     .reduce((s, t) => s + (t.entry || 0) * (t.remainingQty ?? t.qty ?? 0), 0);
 }
 
@@ -1613,6 +1629,14 @@ function saveTrade() {
   if (editTradeId) { trades = trades.map(t => t.id === editTradeId ? trade : t); toast('✓ עסקה עודכנה'); }
   else             { trades.unshift(trade); toast('✓ עסקה נשמרה!'); }
   sv(SK.trades, trades);
+
+  // המזומן הפנוי מתעדכן מיד: getTradesCash() מקזז את עלות הפוזיציה החדשה.
+  // אם אין בכלל נתון מזומן מ-IBKR — מפעילים משיכה אוטומטית ברקע כדי לקבל בסיס.
+  if (!editTradeId && status === 'open' && typeof getTradesCash === 'function' && getTradesCash() === null
+      && typeof ibkrIsConfigured === 'function' && ibkrIsConfigured() && typeof ibkrSync === 'function') {
+    ibkrSync();
+  }
+
   clearDraft();
   editTradeId = null;
   resetForm();

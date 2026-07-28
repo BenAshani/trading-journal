@@ -69,7 +69,10 @@ function caRender() {
       const date = d ? new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
       return `<div class="ca-card" onclick="caOpen('${c.id}')">
         <button class="ca-card-del" onclick="caDeleteCompany('${c.id}',event)" title="מחק"><i class="ti ti-trash"></i></button>
-        <div class="ca-card-sym">${sym}</div>
+        <div class="ca-card-sym-row">
+          ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 28, 'ca-card-logo') : ''}
+          <div class="ca-card-sym">${sym}</div>
+        </div>
         ${name ? `<div class="ca-card-name">${name}</div>` : ''}
         <div class="ca-card-foot">
           ${cap ? `<span class="ca-card-cap"><i class="ti ti-scale"></i>${cap}</span>` : '<span></span>'}
@@ -151,6 +154,7 @@ function caOpen(id) {
       <article class="doc-page" id="doc-page">
         <header class="doc-titleblock">
           <div class="doc-symbol-row">
+            ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 40, 'doc-symbol-logo') : ''}
             <input class="doc-symbol" value="${caEsc(c.symbol)}" placeholder="SYMBOL"
               oninput="caMetaInput('symbol',this.value)">
             <span class="doc-badge">ניתוח חברה</span>

@@ -2278,6 +2278,8 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 }
 .ca-card:hover .ca-card-del { opacity: 1; }
 .ca-card-del:hover { background: var(--color-danger-subtle); color: var(--color-danger); }
+.ca-card-sym-row { display: flex; align-items: center; gap: 9px; }
+.ca-card-logo { width: 28px; height: 28px; }
 .ca-card-sym {
   font-family: var(--font-mono);
   font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
@@ -2350,6 +2352,7 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 }
 .doc-titleblock { border-bottom: 2px solid #1e1e28; padding-bottom: 18px; margin-bottom: 30px; }
 .doc-symbol-row { display: flex; align-items: center; gap: 12px; }
+.doc-symbol-logo { width: 40px; height: 40px; }
 .doc-symbol {
   font-family: var(--font-mono); font-size: 34px; font-weight: 700; letter-spacing: -0.02em;
   color: #1e1e28; background: transparent; border: none; padding: 0; width: auto; min-width: 60px;
