@@ -2144,7 +2144,7 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .dash-cal-nav button:hover { color: var(--color-text-primary); background: var(--color-bg-elevated); }
 .dash-cal-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 
-.dash-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr) 1.25fr; gap: 4px; overflow-x: auto; }
+.dash-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr) 1.25fr; gap: 4px; overflow-x: auto; padding: 2px 2px 5px; }
 .dash-cal-hdr {
   font-size: 9.5px; color: var(--color-text-tertiary); text-align: center;
   font-weight: var(--weight-semibold); padding: 2px 0 5px;
