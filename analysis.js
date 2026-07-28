@@ -154,18 +154,18 @@ function caOpen(id) {
       <article class="doc-page" id="doc-page">
         <header class="doc-titleblock">
           <div class="doc-symbol-row">
-            ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 40, 'doc-symbol-logo') : ''}
+            <span id="doc-logo-slot">${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 40, 'doc-symbol-logo') : ''}</span>
             <input class="doc-symbol" value="${caEsc(c.symbol)}" placeholder="SYMBOL"
-              oninput="caMetaInput('symbol',this.value)">
+              oninput="caMetaInput('symbol',this.value)" onchange="caSymbolChanged(this.value)">
             <span class="doc-badge">ניתוח חברה</span>
           </div>
-          <input class="doc-company" value="${caEsc(c.name)}" placeholder="שם החברה"
+          <input id="doc-name" class="doc-company" value="${caEsc(c.name)}" placeholder="שם החברה"
             oninput="caMetaInput('name',this.value)">
           <div class="doc-meta-row">
             <label class="doc-meta"><i class="ti ti-scale"></i>
-              <input value="${caEsc(c.marketCap)}" placeholder="שווי שוק (למשל 2.86T)" oninput="caMetaInput('marketCap',this.value)"></label>
+              <input id="doc-mktcap" value="${caEsc(c.marketCap)}" placeholder="שווי שוק (למשל 2.86T)" oninput="caMetaInput('marketCap',this.value)"></label>
             <label class="doc-meta"><i class="ti ti-category"></i>
-              <input value="${caEsc(c.sector)}" placeholder="סקטור / תחום" oninput="caMetaInput('sector',this.value)"></label>
+              <input id="doc-sector" value="${caEsc(c.sector)}" placeholder="סקטור / תחום" oninput="caMetaInput('sector',this.value)"></label>
           </div>
         </header>
 
@@ -182,6 +182,9 @@ function caOpen(id) {
     </div>`;
 
   docView.querySelector('.doc-scroll').scrollTop = 0;
+
+  // מילוי אוטומטי של שדות ריקים (סקטור/שם/שווי שוק) מ-Finnhub — גם לניתוחים ותיקים
+  caAutoProfile(id);
 }
 
 function caQuartersHTML(c) {
@@ -242,6 +245,62 @@ function caSetSaveLbl(state) {
 
 function caMetaInput(field, value) {
   caTouch(c => { c[field] = value; });
+}
+
+// שווי שוק ממיליוני דולר (כפי ש-Finnhub מחזיר) למחרוזת קריאה: 2.86T / 850B / 120M
+function caFmtCap(millions) {
+  const v = (+millions || 0) * 1e6;
+  if (!isFinite(v) || v <= 0) return '';
+  const trim = s => s.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  if (v >= 1e12) return trim((v / 1e12).toFixed(2)) + 'T';
+  if (v >= 1e9)  return trim((v / 1e9).toFixed(2)) + 'B';
+  if (v >= 1e6)  return Math.round(v / 1e6) + 'M';
+  return String(Math.round(v));
+}
+
+// משיכה אוטומטית של פרופיל החברה מ-Finnhub (סקטור/תחום, שם, שווי שוק) —
+// ממלא רק שדות ריקים כדי לא לדרוס מה שהמשתמש הזין. שקט אם אין מפתח או שהמשיכה נכשלה.
+async function caAutoProfile(id, force = false) {
+  const key = (typeof getKey === 'function') ? getKey() : '';
+  const c = caGet(id);
+  if (!key || !c || !c.symbol) return;
+  if (!force && c.sector && c.name && c.marketCap) return;   // כבר מלא — אין מה למשוך
+  try {
+    const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(c.symbol.trim().toUpperCase())}&token=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const p = await res.json();
+    if (!p || (!p.finnhubIndustry && !p.name && !p.marketCapitalization)) return;
+    let changed = false;
+    if (!c.name && p.name)                    { c.name = p.name; changed = true; }
+    if (!c.sector && p.finnhubIndustry)       { c.sector = p.finnhubIndustry; changed = true; }
+    if (!c.marketCap && p.marketCapitalization) { const cap = caFmtCap(p.marketCapitalization); if (cap) { c.marketCap = cap; changed = true; } }
+    if (!changed) return;
+    // שמירה דרך caTouch (מקומי + ענן) — פועל על החברה הפתוחה כעת
+    if (caCurrentId === id) {
+      caTouch(cc => { cc.name = c.name; cc.sector = c.sector; cc.marketCap = c.marketCap; });
+      const nameEl = document.getElementById('doc-name');
+      const secEl  = document.getElementById('doc-sector');
+      const capEl  = document.getElementById('doc-mktcap');
+      if (nameEl && !nameEl.value) nameEl.value = c.name || '';
+      if (secEl  && !secEl.value)  secEl.value  = c.sector || '';
+      if (capEl  && !capEl.value)  capEl.value  = c.marketCap || '';
+    } else {
+      const data = caLoad();
+      const t = data.find(x => x.id === id);
+      if (t) { t.name = c.name; t.sector = c.sector; t.marketCap = c.marketCap; t.updatedAt = Date.now();
+               localStorage.setItem(CA_KEY, JSON.stringify(data));
+               if (typeof dbPush === 'function') { try { dbPush(CA_KEY, data); } catch {} } }
+    }
+  } catch { /* silent */ }
+}
+
+// שינוי הסימבול במסמך פתוח — מרענן את הלוגו ומושך פרופיל מחדש לשדות הריקים
+function caSymbolChanged(val) {
+  const slot = document.getElementById('doc-logo-slot');
+  const sym  = (val || '').trim().toUpperCase();
+  if (slot) slot.innerHTML = (sym && typeof stockLogoImg === 'function') ? stockLogoImg(sym, 40, 'doc-symbol-logo') : '';
+  if (caCurrentId) caAutoProfile(caCurrentId);
 }
 
 // el מגיע ישירות מ-oninput (this) — לא מסתמכים על משתנה גלובלי
