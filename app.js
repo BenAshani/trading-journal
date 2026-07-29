@@ -1850,6 +1850,7 @@ function confirmPM() {
   sv(SK.trades, trades);
   closePM();
   loadLive();
+  renderClosedTable();   // המימוש מופיע מיד ב"עסקאות שנסגרו"
 }
 
 function closePM() { document.getElementById('pm-overlay').classList.remove('open'); }
@@ -1900,6 +1901,7 @@ function confirmSL() {
   closeSL();
   toast('✗ Stop Loss — עסקה נסגרה');
   loadLive();
+  renderClosedTable();
 }
 
 function closeSL() { document.getElementById('sl-overlay').classList.remove('open'); }
@@ -1916,29 +1918,102 @@ function setClosedView(mode) {
   renderClosedTable();
 }
 
+// "שקופיות סגירה": כל מימוש חלקי וכל סגירה = שורה נפרדת ב"עסקאות שנסגרו".
+// כך שברגע שמממשים חלק מפוזיציה הוא מופיע כאן מיד, וסגירת היתרה מוסיפה שורה
+// נוספת לאותו מקום. סך ה-P&L של כל השקופיות שווה בדיוק ל-totalRealizedPnl().
+function closedSlices() {
+  const out = [];
+  trades.forEach(t => {
+    const reals = t.realizations || [];
+    let accQty = 0, accPnl = 0;
+    reals.forEach((r, i) => {
+      out.push({
+        parentId: t.id, kind: 'real', realIndex: i,
+        ticker: t.ticker, dir: t.dir, entry: t.entry,
+        date: r.date, exit: r.price, qty: r.qty || 0, pnl: r.pnl || 0, isSl: !!r.isSl,
+        parentOpen: t.status !== 'closed', parentRemaining: t.remainingQty ?? 0,
+        grade: t.grade, reason: t.reason, scenario: t.scenario,
+      });
+      accQty += r.qty || 0;
+      accPnl += r.pnl || 0;
+    });
+    if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) {
+      if (!reals.length) {
+        // סגירה ישירה דרך הטופס — שורה אחת לכל העסקה
+        out.push({
+          parentId: t.id, kind: 'close',
+          ticker: t.ticker, dir: t.dir, entry: t.entry,
+          date: t.date, exit: t.exit, qty: t.qty || 0, pnl: t.pnl, isSl: false,
+          parentOpen: false, parentRemaining: 0,
+          grade: t.grade, reason: t.reason, scenario: t.scenario,
+        });
+      } else {
+        const residQty = +(((t.qty || 0) - accQty)).toFixed(6);
+        const residPnl = +((t.pnl - accPnl)).toFixed(2);
+        if (residQty > 0.0001) {
+          // יתרה שנסגרה דרך הטופס (חלק אחרון שאינו רשום כשורת מימוש)
+          out.push({
+            parentId: t.id, kind: 'close',
+            ticker: t.ticker, dir: t.dir, entry: t.entry,
+            date: reals[reals.length - 1].date || t.date, exit: t.exit, qty: residQty, pnl: residPnl, isSl: false,
+            parentOpen: false, parentRemaining: 0,
+            grade: t.grade, reason: t.reason, scenario: t.scenario,
+          });
+        } else if (Math.abs(residPnl) > 0.005 && out.length) {
+          // אין כמות שיורית — רק הפרש עמלה: מצרפים לשורה האחרונה כדי שהסכום יתאים
+          out[out.length - 1].pnl = +(out[out.length - 1].pnl + residPnl).toFixed(2);
+        }
+      }
+    }
+  });
+  out.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return out;
+}
+
+// מחיקת מימוש חלקי בודד — הכמות חוזרת לפוזיציה והעסקה נפתחת מחדש אם נסגרה
+function deleteRealization(id, idx) {
+  const t = trades.find(x => x.id === id);
+  if (!t || !t.realizations || idx < 0 || idx >= t.realizations.length) return;
+  if (!confirm('למחוק את המימוש החלקי? הכמות תוחזר לפוזיציה הפתוחה.')) return;
+  const r = t.realizations[idx];
+  t.realizations.splice(idx, 1);
+  t.remainingQty = (t.remainingQty ?? 0) + (r.qty || 0);
+  t.status = 'open';
+  t.exit   = null;
+  t.pnl    = null;
+  sv(SK.trades, trades);
+  renderClosedTable();
+  toast('המימוש נמחק — הכמות הוחזרה לפוזיציה');
+}
+
 function renderClosedTable() {
   const fD = document.getElementById('fc-dir').value;
   const fR = document.getElementById('fc-res').value;
   const fT = document.getElementById('fc-ticker').value.toLowerCase();
-  const f  = trades.filter(t => {
-    if (t.status !== 'closed')                        return false;
-    if (fD && t.dir !== fD)                           return false;
-    if (fR === 'win'  && !(t.pnl > 0))               return false;
-    if (fR === 'loss' && !(t.pnl < 0))               return false;
-    if (fT && !t.ticker.toLowerCase().includes(fT))  return false;
+  const f  = closedSlices().filter(s => {
+    if (fD && s.dir !== fD)                           return false;
+    if (fR === 'win'  && !(s.pnl > 0))               return false;
+    if (fR === 'loss' && !(s.pnl < 0))               return false;
+    if (fT && !s.ticker.toLowerCase().includes(fT))  return false;
     return true;
   });
 
-  const totalPnl = f.reduce((s, t) => s + (t.pnl || 0), 0);
-  const winners  = f.filter(t => t.pnl > 0).length;
+  const totalPnl = f.reduce((s, x) => s + (x.pnl || 0), 0);
+  const winners  = f.filter(x => x.pnl > 0).length;
   const wr       = f.length ? (winners / f.length * 100) : 0;
 
   document.getElementById('closed-stats').innerHTML = [
-    { l: 'עסקאות',         v: f.length,                                                          c: 'var(--tx)' },
+    { l: 'מימושים',        v: f.length,                                                          c: 'var(--tx)' },
     { l: 'P&L',            v: (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(0),    c: pnlCol(totalPnl) },
     { l: 'Win Rate',       v: f.length ? wr.toFixed(1) + '%' : '—',                              c: wr >= 50 ? 'var(--green)' : 'var(--red)' },
     { l: 'זוכים/מפסידים', v: winners + '/' + (f.length - winners),                              c: 'var(--tx)' },
   ].map(s => `<div class="s-card"><div class="s-label">${s.l}</div><div class="s-val" style="color:${s.c}">${s.v}</div></div>`).join('');
+
+  // תגית "חלקי" לשקופית של פוזיציה שעדיין פתוחה, ופעולת המחיקה המתאימה
+  const partialTag = s => s.parentOpen
+    ? ` <span class="badge-amber" style="font-size:9px;padding:1px 5px;border-radius:5px">חלקי · נותרו ${s.parentRemaining}</span>` : '';
+  const delAction  = s => s.kind === 'real'
+    ? `deleteRealization('${s.parentId}',${s.realIndex})` : `deleteTrade('${s.parentId}')`;
 
   const el = document.getElementById('closed-ct');
   if (!f.length) {
@@ -1953,9 +2028,9 @@ function renderClosedTable() {
     el.innerHTML = `<div class="positions-grid" style="padding:0">` +
       f.map(t => {
         const pct  = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
-        const pnlC = t.pnl === null ? 'var(--tx3)' : pnlCol(t.pnl);
+        const pnlC = pnlCol(t.pnl);
         const pctC = pct === null ? 'var(--tx3)' : pnlCol(parseFloat(pct));
-        const resCls = t.pnl === null ? '' : t.pnl >= 0 ? ' closed-win' : ' closed-loss';
+        const resCls = t.pnl >= 0 ? ' closed-win' : ' closed-loss';
         return `<div class="pos-card${resCls}">
           <div class="pos-top">
             <div class="pos-hdr">
@@ -1963,29 +2038,30 @@ function renderClosedTable() {
                 ${stockLogoImg(t.ticker, 30)}
                 <div>
                   <div style="display:flex;align-items:center;gap:6px">
-                    <span class="pos-tkr">${t.ticker}</span>
+                    <span class="pos-tkr">${t.ticker}${t.isSl ? ' 🛑' : ''}</span>
                     <span class="dbadge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span>
+                    ${partialTag(t)}
                   </div>
                   <div class="pos-nm">${t.date}</div>
                 </div>
               </div>
               <div style="text-align:left">
-                <div class="pnl-val" style="color:${pnlC};font-size:18px">${t.pnl === null ? '—' : (t.pnl >= 0 ? '+' : '') + '$' + Math.abs(t.pnl).toFixed(2)}</div>
+                <div class="pnl-val" style="color:${pnlC};font-size:18px">${(t.pnl >= 0 ? '+' : '') + '$' + Math.abs(t.pnl).toFixed(2)}</div>
                 ${pct !== null ? `<div class="day-c" style="color:${pctC}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%</div>` : ''}
               </div>
             </div>
           </div>
           <div class="pos-bot">
             <div class="d-row"><span class="d-lbl">כניסה</span><span class="d-val">$${Number(t.entry).toFixed(2)}</span></div>
-            <div class="d-row"><span class="d-lbl">יציאה</span><span class="d-val">${t.exit ? '$' + Number(t.exit).toFixed(2) : '—'}</span></div>
-            <div class="d-row"><span class="d-lbl">כמות</span><span class="d-val">${t.qty}</span></div>
+            <div class="d-row"><span class="d-lbl">יציאה</span><span class="d-val">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</span></div>
+            <div class="d-row"><span class="d-lbl">כמות שמומשה</span><span class="d-val">${t.qty}</span></div>
             ${t.grade ? `<div class="d-row"><span class="d-lbl">סיווג</span><span class="d-val">סיווג ${t.grade}</span></div>` : ''}
             ${t.reason ? `<div class="d-row-text"><span class="d-lbl">סיבה לכניסה</span><span class="d-val">${t.reason}</span></div>` : ''}
             ${t.scenario ? `<div class="d-row-text"><span class="d-lbl">תרחיש</span><span class="d-val">${t.scenario}</span></div>` : ''}
           </div>
           <div class="pos-actions">
-            <button class="action-btn neutral" onclick="editTrade('${t.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
-            <button class="action-btn danger"  onclick="deleteTrade('${t.id}')"><i class="ti ti-trash" style="font-size:11px"></i>מחק</button>
+            <button class="action-btn neutral" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
+            <button class="action-btn danger"  onclick="${delAction(t)}"><i class="ti ti-trash" style="font-size:11px"></i>מחק</button>
           </div>
         </div>`;
       }).join('') + `</div>`;
@@ -2000,21 +2076,21 @@ function renderClosedTable() {
   </tr></thead><tbody>` +
     f.map(t => {
       const pct    = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
-      const pnlC   = t.pnl === null ? 'var(--tx3)' : pnlCol(t.pnl);
+      const pnlC   = pnlCol(t.pnl);
       const pctC   = pct === null ? 'var(--tx3)' : pnlCol(parseFloat(pct));
-      const rowCls = t.pnl === null ? '' : t.pnl >= 0 ? 'row-win' : 'row-loss';
+      const rowCls = t.pnl >= 0 ? 'row-win' : 'row-loss';
       return `<tr class="${rowCls}">
         <td style="color:var(--tx2)">${t.date}</td>
-        <td class="mono" style="font-weight:600">${t.ticker}</td>
+        <td class="mono" style="font-weight:600">${t.ticker}${t.isSl ? ' 🛑' : ''}${partialTag(t)}</td>
         <td><span class="badge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span></td>
         <td class="mono">$${Number(t.entry).toFixed(2)}</td>
-        <td class="mono">${t.exit ? '$' + Number(t.exit).toFixed(2) : '—'}</td>
+        <td class="mono">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</td>
         <td>${t.qty}</td>
-        <td class="mono" style="font-weight:600;color:${pnlC}">${t.pnl === null ? '—' : (t.pnl >= 0 ? '+' : '') + ' $' + Math.abs(t.pnl).toFixed(2)}</td>
+        <td class="mono" style="font-weight:600;color:${pnlC}">${(t.pnl >= 0 ? '+' : '') + ' $' + Math.abs(t.pnl).toFixed(2)}</td>
         <td class="mono" style="color:${pctC}">${pct !== null ? (parseFloat(pct) >= 0 ? '+' : '') + pct + '%' : '—'}</td>
         <td style="display:flex;gap:2px">
-          <button class="icon-btn edit" onclick="editTrade('${t.id}')"><i class="ti ti-edit"></i></button>
-          <button class="icon-btn"      onclick="deleteTrade('${t.id}')"><i class="ti ti-trash"></i></button>
+          <button class="icon-btn edit" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit"></i></button>
+          <button class="icon-btn"      onclick="${delAction(t)}"><i class="ti ti-trash"></i></button>
         </td>
       </tr>`;
     }).join('') + '</tbody></table>';
