@@ -283,6 +283,8 @@ let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = nul
 let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
+let equityMode = 'value';   // 'value' = שווי תיק ($) · 'pct' = תשואה באחוזים
+let equityRange = 'all';    // 'week' | 'month' | 'year' | 'all'
 let dashValueChart = null, dashDate = new Date();
 let autosaveTimeout = null;
 let faCurrentTicker = null, faCurrentReportId = null, faAutoSaveTimeout = null;
@@ -1183,47 +1185,113 @@ function renderStats() {
     badgeEl.className     = 'equity-card-badge ' + (totalPnl >= 0 ? 'pos' : 'neg');
   } else badgeEl.style.display = 'none';
 
-  // הגרף — שווי החשבון לאורך זמן: תאריכים על ציר X, שווי החשבון ($) על ציר Y
-  const series = accountValueSeries();
+  // הגרף — שווי החשבון לאורך זמן, עם מתגי מצב (ערך/אחוזים) וטווח זמן
+  renderEquityChart();
+}
 
-  if (equityChart) { equityChart.destroy(); equityChart = null; }
-  if (series.n) {
-    const lc = totalPnl >= 0 ? '#22C55E' : '#EF4444';
-    const axisCol = 'var(--tx3)';
-    equityChart = new Chart(document.getElementById('equity-chart'), {
-      type: 'line',
-      data: {
-        labels: series.pts.map(p => p.x),
-        datasets: [{ data: series.pts.map(p => p.y), borderColor: lc, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, backgroundColor: lc === '#22C55E' ? 'rgba(34,197,94,0.09)' : 'rgba(239,68,68,0.09)', tension: 0.35 }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            displayColors: false,
-            callbacks: { label: c => '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) },
-          },
-        },
-        scales: {
-          x: {
-            display: true,
-            grid: { display: false },
-            ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
-          },
-          y: {
-            display: true,
-            position: 'right',
-            grid: { color: 'rgba(148,160,180,0.12)' },
-            border: { display: false },
-            ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => fmtAxisUSD(+v) },
-          },
-        },
-        animation: { duration: 400 },
-      },
-    });
+function setEquityMode(mode) {
+  equityMode = mode;
+  document.querySelectorAll('#eq-mode-seg .eq-seg-btn').forEach(b =>
+    b.classList.toggle('on', b.getAttribute('onclick').includes(`'${mode}'`)));
+  renderEquityChart();
+}
+
+function setEquityRange(range) {
+  equityRange = range;
+  document.querySelectorAll('#eq-range-seg .eq-seg-btn').forEach(b =>
+    b.classList.toggle('on', b.getAttribute('onclick').includes(`'${range}'`)));
+  renderEquityChart();
+}
+
+// סדרת שווי יומית רציפה (forward-fill) — כדי שאפשר לחתוך לפי טווח זמן אמיתי
+function accountDailyPoints() {
+  const s        = accountValueSeries();
+  const eventPts = s.pts.filter(p => p.x !== 'התחלה');   // נקודות עם תאריך אמיתי
+  if (!eventPts.length) return { days: [], baseKnown: s.baseKnown };
+  const valByDate = {};
+  eventPts.forEach(p => { valByDate[p.x] = p.y; });
+  // מתחילים יום לפני האירוע הראשון ברמת הבסיס, ואז ממלאים קדימה עד היום
+  const start = new Date(eventPts[0].x + 'T00:00:00');
+  start.setDate(start.getDate() - 1);
+  const end   = new Date(today() + 'T00:00:00');
+  const days  = [];
+  let cur = s.base;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().split('T')[0];
+    if (valByDate[key] !== undefined) cur = valByDate[key];
+    days.push({ date: key, val: cur });
   }
+  return { days, baseKnown: s.baseKnown };
+}
+
+function renderEquityChart() {
+  const canvas = document.getElementById('equity-chart');
+  if (!canvas) return;
+  if (equityChart) { equityChart.destroy(); equityChart = null; }
+
+  const { days } = accountDailyPoints();
+  if (!days.length) return;
+
+  // חיתוך לפי טווח זמן
+  const spanDays = { week: 7, month: 30, year: 365, all: Infinity }[equityRange];
+  let view = days;
+  if (spanDays !== Infinity) {
+    const cutoff = new Date(today() + 'T00:00:00');
+    cutoff.setDate(cutoff.getDate() - spanDays);
+    const cutKey = cutoff.toISOString().split('T')[0];
+    const sliced = days.filter(p => p.date >= cutKey);
+    view = sliced.length ? sliced : days.slice(-1);   // לפחות נקודה אחת
+  }
+
+  const startVal = view[0].val;
+  const pct      = equityMode === 'pct';
+  // ערכי ציר Y: או שווי דולרי, או תשואה באחוזים מתחילת הטווח הנבחר
+  const data = view.map(p => pct
+    ? (startVal !== 0 ? +(((p.val - startVal) / Math.abs(startVal)) * 100).toFixed(2) : 0)
+    : +p.val.toFixed(2));
+
+  const net    = data[data.length - 1] - data[0];
+  const up     = net >= 0;
+  const lc     = up ? '#22C55E' : '#EF4444';
+  const axisCol = 'var(--tx3)';
+
+  equityChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: view.map(p => p.date),
+      datasets: [{ data, borderColor: lc, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, backgroundColor: up ? 'rgba(34,197,94,0.09)' : 'rgba(239,68,68,0.09)', tension: 0.3 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            label: c => pct
+              ? (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
+              : '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }),
+          },
+        },
+      },
+      scales: {
+        x: {
+          display: true,
+          grid: { display: false },
+          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+        },
+        y: {
+          display: true,
+          position: 'right',
+          grid: { color: 'rgba(148,160,180,0.12)' },
+          border: { display: false },
+          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => pct ? (+v).toFixed(Math.abs(+v) < 10 ? 1 : 0) + '%' : fmtAxisUSD(+v) },
+        },
+      },
+      animation: { duration: 400 },
+    },
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
