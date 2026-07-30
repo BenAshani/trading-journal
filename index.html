@@ -211,6 +211,21 @@
   </div>
 </div>
 
+<!-- Add-to-position (strengthen) Overlay -->
+<div class="overlay" id="add-overlay">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--blue-t)"><i class="ti ti-arrow-up-right"></i>חיזוק פוזיציה — <span id="add-tkr-lbl"></span></div>
+    <div class="sell-info"><i class="ti ti-info-circle"></i><span id="add-info-txt"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+      <div class="modal-sec"><div class="modal-label">מחיר קנייה ($)</div><input type="number" id="add-price" placeholder="0.00" step="0.01" oninput="calcAdd()"></div>
+      <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="add-qty" placeholder="0" step="1" min="1" oninput="calcAdd()"></div>
+    </div>
+    <div class="modal-sec"><div class="modal-label">תאריך קנייה</div><input type="date" id="add-date"></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">עלות ממוצעת חדשה</div><div style="font-size:10.5px;color:var(--tx3)" id="add-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="add-avg">—</div></div>
+    <div class="modal-actions"><button class="btn-p" style="background:var(--blue-t);color:#0b1020" onclick="confirmAdd()">בצע קנייה</button><button class="btn-s" onclick="closeAdd()">ביטול</button></div>
+  </div>
+</div>
+
 <!-- FA Overlay -->
 <div class="fa-overlay" id="fa-overlay">
   <div class="fa-modal">
@@ -584,7 +599,7 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20260729"></script>
+<script src="app.js?v=20260730"></script>
 <script src="prep.js?v=20260728"></script>
 <script src="analysis.js?v=20260728"></script>
 <script src="ibkr.js?v=20260728"></script>

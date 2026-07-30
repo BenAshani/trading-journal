@@ -279,7 +279,7 @@ const getInvestCash = ()  => parseFloat(localStorage.getItem(SK.investCash)) || 
 let trades = [], portfolio = [], watchlist = [], faDataStore = {};
 let priceCache = {}, prevPrices = {};
 let editTradeId = null, editHoldingId = null;
-let activePMId = null, activeSLId = null, activeSellId = null;
+let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = null;
 let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
@@ -2132,12 +2132,18 @@ function saveHolding() {
   const avgCost = parseFloat(document.getElementById('hm-cost').value);
   if (!ticker || !qty || !avgCost) { toast('⚠ מלא: טיקר, כמות, מחיר'); return; }
   const existing = editHoldingId ? portfolio.find(h => h.id === editHoldingId) : null;
+  const date = document.getElementById('hm-date').value || today();
+  // רשומת הרכישות: פוזיציה שחוזקה (יותר מלוט אחד) נשמרת כמו שהיא;
+  // פוזיציה עם רכישה אחת מסונכרנת מחדש לפי הערכים שנערכו.
+  const buys = (existing?.buys && existing.buys.length > 1)
+    ? existing.buys
+    : [{ date, price: avgCost, qty }];
   const h = {
-    id: editHoldingId || Date.now().toString(), ticker, qty, avgCost,
-    date:         document.getElementById('hm-date').value   || today(),
+    id: editHoldingId || Date.now().toString(), ticker, qty, avgCost, date,
     sector:       document.getElementById('hm-sector').value,
     notes:        document.getElementById('hm-notes').value,
     sales:        existing?.sales || [],
+    buys,
     remainingQty: existing?.remainingQty || qty,
   };
   if (editHoldingId) { portfolio = portfolio.map(p => p.id === editHoldingId ? h : p); toast('✓ עודכן'); }
@@ -2219,6 +2225,64 @@ function confirmSell() {
 
 function closeSell() { document.getElementById('sell-overlay').classList.remove('open'); activeSellId = null; }
 
+// רשימת הרכישות של החזקה — כולל תמיכה לאחור בהחזקות ישנות ללא שדה buys
+function holdingBuys(h) {
+  return (h.buys && h.buys.length) ? h.buys : [{ date: h.date, price: h.avgCost, qty: h.qty }];
+}
+
+// ── חיזוק פוזיציה: קניית עוד מאותה מניה ──
+function openAdd(id) {
+  activeAddId = id;
+  const h = portfolio.find(x => x.id === id);
+  if (!h) return;
+  const rem = h.remainingQty || h.qty;
+  document.getElementById('add-tkr-lbl').textContent  = h.ticker;
+  document.getElementById('add-info-txt').textContent = `${rem} מניות · עלות ממוצעת $${h.avgCost.toFixed(2)}`;
+  document.getElementById('add-price').value = '';
+  document.getElementById('add-qty').value   = '';
+  document.getElementById('add-date').value  = today();
+  document.getElementById('add-avg').textContent = '—';
+  document.getElementById('add-det').textContent = '—';
+  document.getElementById('add-overlay').classList.add('open');
+}
+
+function calcAdd() {
+  const price = parseFloat(document.getElementById('add-price').value);
+  const qty   = parseFloat(document.getElementById('add-qty').value);
+  const h     = activeAddId ? portfolio.find(x => x.id === activeAddId) : null;
+  if (!h || !price || !qty) { document.getElementById('add-avg').textContent = '—'; document.getElementById('add-det').textContent = '—'; return; }
+  const rem    = h.remainingQty || h.qty;
+  const newAvg = (h.avgCost * rem + price * qty) / (rem + qty);
+  document.getElementById('add-avg').textContent = '$' + newAvg.toFixed(2);
+  document.getElementById('add-det').textContent = `${rem + qty} מניות · תוספת $${(price * qty).toLocaleString('en', { maximumFractionDigits: 0 })}`;
+}
+
+function confirmAdd() {
+  const price = parseFloat(document.getElementById('add-price').value);
+  const qty   = parseFloat(document.getElementById('add-qty').value);
+  const date  = document.getElementById('add-date').value || today();
+  if (!price || !qty) { toast('⚠ הכנס מחיר וכמות'); return; }
+  const idx = portfolio.findIndex(h => h.id === activeAddId);
+  if (idx === -1) return;
+  const h      = portfolio[idx];
+  const rem    = h.remainingQty || h.qty;
+  const oldAvg = h.avgCost;
+  // רשומת הרכישה המקורית — נגזרת מהעלות הישנה לפני השקלול מחדש
+  if (!h.buys || !h.buys.length) h.buys = [{ date: h.date, price: oldAvg, qty: rem }];
+  h.buys.push({ date, price, qty });
+  // עלות ממוצעת משוקללת מחדש על פני היתרה הקיימת + הרכישה החדשה
+  h.avgCost      = +(((oldAvg * rem) + (price * qty)) / (rem + qty)).toFixed(4);
+  h.remainingQty = rem + qty;
+  h.qty          = (h.qty || rem) + qty;   // סך הכל שנקנה אי־פעם
+  portfolio[idx] = h;
+  sv(SK.port, portfolio);
+  closeAdd();
+  loadPortfolio();
+  toast(`✓ חוזקה פוזיציה: ${qty} × $${price} · ממוצע $${h.avgCost.toFixed(2)}`);
+}
+
+function closeAdd() { document.getElementById('add-overlay').classList.remove('open'); activeAddId = null; }
+
 function buildHoldingCard(h, i, allocData, allocTotal) {
   const pnlC    = h.pnl === null ? 'var(--tx3)' : pnlCol(h.pnl);
   const dayC    = h.q && h.q.change >= 0 ? 'var(--green)' : 'var(--red)';
@@ -2229,6 +2293,14 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
     ? `<div style="border-top:0.5px solid var(--br);padding:0.55rem 0.9rem">
         <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px">מכירות</div>
         <div class="real-log">${sales.map(s => `<div class="real-row"><span>${s.date}</span><span>${s.qty}×$${s.price}</span><span style="color:${pnlCol(s.pnl)}">$${s.pnl.toFixed(0)}</span></div>`).join('')}</div>
+      </div>`
+    : '';
+  // יומן רכישות — מוצג רק כשהפוזיציה חוזקה (יותר מרכישה אחת)
+  const buys    = holdingBuys(h);
+  const buysLog = buys.length > 1
+    ? `<div style="border-top:0.5px solid var(--br);padding:0.55rem 0.9rem">
+        <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px">רכישות</div>
+        <div class="real-log">${buys.map(b => `<div class="real-row"><span>${b.date}</span><span>${b.qty}×$${(+b.price).toFixed(2)}</span><span style="color:var(--tx2)">$${Math.round(b.price * b.qty).toLocaleString()}</span></div>`).join('')}</div>
       </div>`
     : '';
 
@@ -2262,11 +2334,13 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
       <div class="ph-stat"><div class="ph-stat-lbl">שווי נוכחי</div><div class="ph-stat-val">${h.val ? '$' + Math.round(h.val).toLocaleString() : '—'}</div></div>
       ${h.date ? `<div class="ph-stat"><div class="ph-stat-lbl">תאריך קנייה</div><div class="ph-stat-val">${h.date}</div></div>` : ''}
       <div class="ph-actions">
+        <button class="action-btn primary" onclick="openAdd('${h.id}')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
         <button class="action-btn success" onclick="openSell('${h.id}')"><i class="ti ti-coin" style="font-size:11px"></i>מכור</button>
         <button class="action-btn neutral" onclick="openHM('${h.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
         <button class="action-btn danger"  onclick="deleteHolding('${h.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button>
       </div>
     </div>
+    ${buysLog}
     ${salesLog}
     ${h.notes ? `<div style="padding:0 0.9rem 0.65rem;font-size:11.5px;color:var(--tx3)"><i class="ti ti-notes" style="font-size:11px;margin-left:3px"></i>${h.notes}</div>` : ''}
   </div>`;
