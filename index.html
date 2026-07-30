@@ -17,8 +17,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<link rel="stylesheet" href="tokens.css">
-<link rel="stylesheet" href="styles.css?v=20260730b">
+<link rel="stylesheet" href="tokens.css?v=20260730d">
+<link rel="stylesheet" href="styles.css?v=20260730d">
 </head>
 <body>
 <div id="toast"></div>
@@ -188,7 +188,7 @@
       <div class="modal-sec"><div class="modal-label">כמות *</div><input type="number" id="hm-qty" placeholder="0" min="1" step="1" oninput="calcHC()"></div>
       <div class="modal-sec"><div class="modal-label">מחיר קנייה ($) *</div><input type="number" id="hm-cost" placeholder="0.00" step="0.01" oninput="calcHC()"></div>
       <div class="modal-sec"><div class="modal-label">תאריך קנייה</div><input type="date" id="hm-date"></div>
-      <div class="modal-sec"><div class="modal-label">סקטור</div><select id="hm-sector"><option value="">בחר...</option><option>טכנולוגיה</option><option>פיננסים</option><option>בריאות</option><option>צרכנות</option><option>אנרגיה</option><option>תעשייה</option><option>תקשורת</option><option>נדל"ן</option><option>מדד / ETF</option><option>אחר</option></select></div>
+      <div class="modal-sec"><div class="modal-label">סקטור</div><select id="hm-sector"><option value="">בחר...</option><option>טכנולוגיה</option><option>פיננסים</option><option>בריאות</option><option>צרכנות</option><option>אנרגיה</option><option>תעשייה</option><option>תקשורת</option><option>נדל"ן</option><option>חלל</option><option>מדד / ETF</option><option>אחר</option></select></div>
     </div>
     <div class="modal-sec"><div class="modal-label">הערות</div><input type="text" id="hm-notes" placeholder="למה קנית?"></div>
     <div class="modal-pnl" id="hm-cost-preview" style="display:none">
@@ -356,26 +356,23 @@
       </div>
     </div>
     <div class="equity-card-row">
-      <div class="equity-hdr">
-        <div class="equity-card-lbl"><i class="ti ti-wallet" style="font-size:11px;color:var(--blue-t)"></i>שווי החשבון</div>
-        <div class="equity-hdr-val">
-          <span class="equity-card-val" id="eq-acct-val">—</span>
-          <span class="equity-card-badge" id="eq-pnl-badge" style="display:none"></span>
-        </div>
+      <div class="eq-mode-tabs">
+        <button class="eq-mode-tab on" id="eq-tab-value" onclick="setEquityMode('value')">ערך תיק</button>
+        <span class="eq-mode-div"></span>
+        <button class="eq-mode-tab" id="eq-tab-pct" onclick="setEquityMode('pct')">ביצועים</button>
       </div>
-      <div class="equity-controls">
-        <div class="eq-seg" id="eq-mode-seg">
-          <button class="eq-seg-btn on" onclick="setEquityMode('value')">ערך תיק</button>
-          <button class="eq-seg-btn"    onclick="setEquityMode('pct')">אחוזים</button>
-        </div>
-        <div class="eq-seg" id="eq-range-seg">
-          <button class="eq-seg-btn" onclick="setEquityRange('week')">שבוע</button>
-          <button class="eq-seg-btn" onclick="setEquityRange('month')">חודש</button>
-          <button class="eq-seg-btn" onclick="setEquityRange('year')">שנה</button>
-          <button class="eq-seg-btn on" onclick="setEquityRange('all')">הכל</button>
-        </div>
-      </div>
+      <div class="equity-big" id="eq-big">—</div>
+      <div class="equity-sub" id="eq-sub"></div>
       <div class="equity-chart-wrap"><canvas id="equity-chart"></canvas></div>
+      <div class="eq-range-row" id="eq-range-seg">
+        <button class="eq-range-btn on" onclick="setEquityRange('1w')">שבוע</button>
+        <button class="eq-range-btn" onclick="setEquityRange('mtd')">החודש</button>
+        <button class="eq-range-btn" onclick="setEquityRange('1m')">חודש</button>
+        <button class="eq-range-btn" onclick="setEquityRange('3m')">3 ח׳</button>
+        <button class="eq-range-btn" onclick="setEquityRange('ytd')">השנה</button>
+        <button class="eq-range-btn" onclick="setEquityRange('1y')">שנה</button>
+        <button class="eq-range-btn" onclick="setEquityRange('all')">הכל</button>
+      </div>
     </div>
     <div id="live-content" style="overflow-y:auto;flex:1"></div>
   </div>
@@ -611,7 +608,7 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20260730b"></script>
+<script src="app.js?v=20260730d"></script>
 <script src="prep.js?v=20260728"></script>
 <script src="analysis.js?v=20260728"></script>
 <script src="ibkr.js?v=20260728"></script>

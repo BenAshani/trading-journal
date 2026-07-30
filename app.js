@@ -283,8 +283,8 @@ let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = nul
 let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
-let equityMode = 'value';   // 'value' = שווי תיק ($) · 'pct' = תשואה באחוזים
-let equityRange = 'all';    // 'week' | 'month' | 'year' | 'all'
+let equityMode = 'value';   // 'value' = שווי תיק ($) · 'pct' = ביצועים באחוזים
+let equityRange = '1w';     // 1w | mtd | 1m | 3m | ytd | 1y | all
 let dashValueChart = null, dashDate = new Date();
 let autosaveTimeout = null;
 let faCurrentTicker = null, faCurrentReportId = null, faAutoSaveTimeout = null;
@@ -1158,47 +1158,41 @@ function saveFAData() { sv(SK.faData, faDataStore); }
 //  ACCOUNT STATS
 // ═══════════════════════════════════════════════════════════
 function renderStats() {
-  const totalPnl = totalRealizedPnl();
-  const hasPnl   = trades.some(t => (t.status === 'closed' && t.pnl !== null) || (t.realizations || []).length);
-
-  // כותרת כרטיס הגרף: שווי החשבון = מזומן בחשבון (מ-IBKR) + פוזיציות פתוחות
-  const tCash    = getTradesCash();
-  const openCost = openTradesCost();
-  const acctVal  = tCash !== null ? tCash + openCost : null;
-
-  const valEl   = document.getElementById('eq-acct-val');
-  const subEl   = document.getElementById('eq-acct-sub');
-  const badgeEl = document.getElementById('eq-pnl-badge');
-
-  if (acctVal !== null) {
-    valEl.textContent = '$' + Math.round(acctVal).toLocaleString('en');
-    valEl.style.color = pnlCol(totalPnl);
-  } else {
-    valEl.textContent = '—';
-    valEl.style.color = '';
-  }
-  if (subEl) subEl.innerHTML = '';
-
-  if (hasPnl) {
-    badgeEl.style.display = '';
-    badgeEl.textContent   = signStr(totalPnl) + '$' + Math.abs(totalPnl).toLocaleString('en', { maximumFractionDigits: 0 });
-    badgeEl.className     = 'equity-card-badge ' + (totalPnl >= 0 ? 'pos' : 'neg');
-  } else badgeEl.style.display = 'none';
-
-  // הגרף — שווי החשבון לאורך זמן, עם מתגי מצב (ערך/אחוזים) וטווח זמן
+  // כל תצוגת הכרטיס (מספר גדול, תת-כותרת וגרף) נגזרת מהמצב והטווח הנבחרים
   renderEquityChart();
+}
+
+// טווחי הזמן של גרף הסטטוס — תווית + מספר ימים אחורה (או mtd/ytd)
+const EQ_RANGES = {
+  '1w':  { lbl: 'השבוע האחרון',   span: 7 },
+  'mtd': { lbl: 'מתחילת החודש',   span: 'mtd' },
+  '1m':  { lbl: 'החודש האחרון',   span: 30 },
+  '3m':  { lbl: 'שלושת החודשים',  span: 91 },
+  'ytd': { lbl: 'מתחילת השנה',    span: 'ytd' },
+  '1y':  { lbl: 'השנה האחרונה',   span: 365 },
+  'all': { lbl: 'כל התקופה',      span: Infinity },
+};
+
+function eqRangeCutoff(key) {
+  const span = (EQ_RANGES[key] || EQ_RANGES.all).span;
+  if (span === Infinity) return null;
+  const now = new Date(today() + 'T00:00:00');
+  if (span === 'mtd') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  if (span === 'ytd') return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+  const c = new Date(now); c.setDate(c.getDate() - span);
+  return c.toISOString().split('T')[0];
 }
 
 function setEquityMode(mode) {
   equityMode = mode;
-  document.querySelectorAll('#eq-mode-seg .eq-seg-btn').forEach(b =>
-    b.classList.toggle('on', b.getAttribute('onclick').includes(`'${mode}'`)));
+  document.getElementById('eq-tab-value')?.classList.toggle('on', mode === 'value');
+  document.getElementById('eq-tab-pct')?.classList.toggle('on', mode === 'pct');
   renderEquityChart();
 }
 
 function setEquityRange(range) {
   equityRange = range;
-  document.querySelectorAll('#eq-range-seg .eq-seg-btn').forEach(b =>
+  document.querySelectorAll('#eq-range-seg .eq-range-btn').forEach(b =>
     b.classList.toggle('on', b.getAttribute('onclick').includes(`'${range}'`)));
   renderEquityChart();
 }
@@ -1226,41 +1220,66 @@ function accountDailyPoints() {
 
 function renderEquityChart() {
   const canvas = document.getElementById('equity-chart');
+  const bigEl  = document.getElementById('eq-big');
+  const subEl  = document.getElementById('eq-sub');
   if (!canvas) return;
   if (equityChart) { equityChart.destroy(); equityChart = null; }
 
+  const pct = equityMode === 'pct';
   const { days } = accountDailyPoints();
-  if (!days.length) return;
-
-  // חיתוך לפי טווח זמן
-  const spanDays = { week: 7, month: 30, year: 365, all: Infinity }[equityRange];
-  let view = days;
-  if (spanDays !== Infinity) {
-    const cutoff = new Date(today() + 'T00:00:00');
-    cutoff.setDate(cutoff.getDate() - spanDays);
-    const cutKey = cutoff.toISOString().split('T')[0];
-    const sliced = days.filter(p => p.date >= cutKey);
-    view = sliced.length ? sliced : days.slice(-1);   // לפחות נקודה אחת
+  if (!days.length) {
+    if (bigEl) { bigEl.textContent = '—'; bigEl.style.color = ''; }
+    if (subEl) subEl.textContent = '';
+    return;
   }
 
-  const startVal = view[0].val;
-  const pct      = equityMode === 'pct';
-  // ערכי ציר Y: או שווי דולרי, או תשואה באחוזים מתחילת הטווח הנבחר
+  // חיתוך לפי הטווח הנבחר (לפחות שתי נקודות כדי לצייר קו)
+  const cutKey = eqRangeCutoff(equityRange);
+  let view = cutKey ? days.filter(p => p.date >= cutKey) : days;
+  if (view.length < 2) view = days.slice(-Math.max(2, view.length));
+
+  const startVal  = view[0].val;
+  const lastVal   = view[view.length - 1].val;
+  const changeAbs = lastVal - startVal;
+  const changePct = startVal !== 0 ? (changeAbs / Math.abs(startVal)) * 100 : 0;
+  const rangeLbl  = (EQ_RANGES[equityRange] || {}).lbl || '';
+
+  // עוזרי פורמט עם סימן +/- מלא (כמו במסכי הייחוס)
+  const fMoney = v => (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString('en', { maximumFractionDigits: 0 });
+  const fPct   = v => (v >= 0 ? '+' : '-') + Math.abs(v).toFixed(2) + '%';
+
+  // מספר גדול + תת-כותרת לפי המצב
+  if (pct) {
+    if (bigEl) { bigEl.textContent = fPct(changePct); bigEl.style.color = pnlCol(changeAbs); }
+    if (subEl) subEl.textContent = 'תשואה כוללת · ' + rangeLbl;
+  } else {
+    if (bigEl) { bigEl.textContent = '$' + lastVal.toLocaleString('en', { maximumFractionDigits: 0 }); bigEl.style.color = ''; }
+    if (subEl) subEl.innerHTML = `<span style="color:${pnlCol(changeAbs)}">${fMoney(changeAbs)} (${fPct(changePct)})</span> · ${rangeLbl}`;
+  }
+
+  // ערכי ציר Y: שווי דולרי, או תשואה באחוזים מתחילת הטווח
   const data = view.map(p => pct
-    ? (startVal !== 0 ? +(((p.val - startVal) / Math.abs(startVal)) * 100).toFixed(2) : 0)
+    ? (startVal !== 0 ? +(((p.val - startVal) / Math.abs(startVal)) * 100).toFixed(3) : 0)
     : +p.val.toFixed(2));
 
-  const net    = data[data.length - 1] - data[0];
-  const up     = net >= 0;
-  const lc     = up ? '#22C55E' : '#EF4444';
   const axisCol = 'var(--tx3)';
+  const GREEN = '#22C55E', RED = '#EF4444', BLUE = '#3B82F6';
+
+  const dataset = pct
+    ? {  // ביצועים: קו ושטח ירוקים מעל האפס, אדומים מתחתיו, עם קו בסיס באפס
+        data, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25,
+        borderColor: changeAbs >= 0 ? GREEN : RED,
+        segment: { borderColor: ctx => (ctx.p1.parsed.y < 0 ? RED : GREEN) },
+        fill: { target: { value: 0 }, above: 'rgba(34,197,94,0.14)', below: 'rgba(239,68,68,0.14)' },
+      }
+    : {  // ערך תיק: קו כחול עם שטח עדין
+        data, borderColor: BLUE, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25,
+        fill: true, backgroundColor: 'rgba(59,130,246,0.10)',
+      };
 
   equityChart = new Chart(canvas, {
     type: 'line',
-    data: {
-      labels: view.map(p => p.date),
-      datasets: [{ data, borderColor: lc, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, backgroundColor: up ? 'rgba(34,197,94,0.09)' : 'rgba(239,68,68,0.09)', tension: 0.3 }],
-    },
+    data: { labels: view.map(p => p.date), datasets: [dataset] },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
@@ -1269,9 +1288,7 @@ function renderEquityChart() {
         tooltip: {
           displayColors: false,
           callbacks: {
-            label: c => pct
-              ? (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
-              : '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }),
+            label: c => pct ? fPct(c.parsed.y) : '$' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }),
           },
         },
       },
@@ -1279,12 +1296,12 @@ function renderEquityChart() {
         x: {
           display: true,
           grid: { display: false },
-          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 },
         },
         y: {
           display: true,
           position: 'right',
-          grid: { color: 'rgba(148,160,180,0.12)' },
+          grid: { color: ctx => (pct && ctx.tick.value === 0) ? 'rgba(148,160,180,0.4)' : 'rgba(148,160,180,0.1)' },
           border: { display: false },
           ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => pct ? (+v).toFixed(Math.abs(+v) < 10 ? 1 : 0) + '%' : fmtAxisUSD(+v) },
         },
@@ -2038,6 +2055,42 @@ function closedSlices() {
   return out;
 }
 
+// קיבוץ כל המימושים של אותה עסקה לכרטיס אחד — כך שמימוש חלקי וסגירת
+// היתרה מופיעים יחד תחת אותה שקופית, במקום כרטיס נפרד לכל מימוש.
+function closedGroups() {
+  const map = new Map();
+  closedSlices().forEach(s => {
+    let g = map.get(s.parentId);
+    if (!g) {
+      g = {
+        parentId: s.parentId, ticker: s.ticker, dir: s.dir, entry: s.entry,
+        grade: s.grade, reason: s.reason, scenario: s.scenario,
+        slices: [], qty: 0, pnl: 0, isSl: false,
+        parentOpen: s.parentOpen, parentRemaining: s.parentRemaining,
+      };
+      map.set(s.parentId, g);
+    }
+    g.slices.push(s);
+    g.qty += s.qty || 0;
+    g.pnl += s.pnl || 0;
+    if (s.isSl) g.isSl = true;
+    g.parentOpen = s.parentOpen;
+    g.parentRemaining = s.parentRemaining;
+  });
+  const groups = [...map.values()];
+  groups.forEach(g => {
+    g.pnl = +g.pnl.toFixed(2);
+    const totQ = g.slices.reduce((a, s) => a + (s.qty || 0), 0);
+    g.exit = totQ ? +(g.slices.reduce((a, s) => a + (s.exit || 0) * (s.qty || 0), 0) / totQ).toFixed(2) : null;
+    g.slices.sort((a, b) => (a.date || '').localeCompare(b.date || ''));  // מוקדם→מאוחר בתוך הכרטיס
+    g.firstDate = g.slices[0]?.date;
+    g.lastDate  = g.slices[g.slices.length - 1]?.date;
+    g.date = g.lastDate;
+  });
+  groups.sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || ''));
+  return groups;
+}
+
 // מחיקת מימוש חלקי בודד — הכמות חוזרת לפוזיציה והעסקה נפתחת מחדש אם נסגרה
 function deleteRealization(id, idx) {
   const t = trades.find(x => x.id === id);
@@ -2058,7 +2111,7 @@ function renderClosedTable() {
   const fD = document.getElementById('fc-dir').value;
   const fR = document.getElementById('fc-res').value;
   const fT = document.getElementById('fc-ticker').value.toLowerCase();
-  const f  = closedSlices().filter(s => {
+  const f  = closedGroups().filter(s => {
     if (fD && s.dir !== fD)                           return false;
     if (fR === 'win'  && !(s.pnl > 0))               return false;
     if (fR === 'loss' && !(s.pnl < 0))               return false;
@@ -2071,7 +2124,7 @@ function renderClosedTable() {
   const wr       = f.length ? (winners / f.length * 100) : 0;
 
   document.getElementById('closed-stats').innerHTML = [
-    { l: 'מימושים',        v: f.length,                                                          c: 'var(--tx)' },
+    { l: 'עסקאות',         v: f.length,                                                          c: 'var(--tx)' },
     { l: 'P&L',            v: (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(0),    c: pnlCol(totalPnl) },
     { l: 'Win Rate',       v: f.length ? wr.toFixed(1) + '%' : '—',                              c: wr >= 50 ? 'var(--green)' : 'var(--red)' },
     { l: 'זוכים/מפסידים', v: winners + '/' + (f.length - winners),                              c: 'var(--tx)' },
@@ -2080,8 +2133,21 @@ function renderClosedTable() {
   // תגית "חלקי" לשקופית של פוזיציה שעדיין פתוחה, ופעולת המחיקה המתאימה
   const partialTag = s => s.parentOpen
     ? ` <span class="badge-amber" style="font-size:9px;padding:1px 5px;border-radius:5px">חלקי · נותרו ${s.parentRemaining}</span>` : '';
-  const delAction  = s => s.kind === 'real'
-    ? `deleteRealization('${s.parentId}',${s.realIndex})` : `deleteTrade('${s.parentId}')`;
+  const delAction  = s => `deleteTrade('${s.parentId}')`;
+  // פירוט המימושים בתוך הכרטיס — מוצג כשיש יותר ממימוש אחד לאותה עסקה
+  const realLog = t => t.slices.length > 1
+    ? `<div class="closed-real-log">
+        <div class="crl-title">מימושים · ${t.slices.length}</div>
+        ${t.slices.map(s => `<div class="real-row">
+          <span>${s.date}${s.isSl ? ' 🛑' : ''}</span>
+          <span>${s.qty}×$${Number(s.exit).toFixed(2)}</span>
+          <span style="color:${pnlCol(s.pnl)}">${signStr(s.pnl)}$${Math.abs(s.pnl).toFixed(0)}</span>
+          ${s.kind === 'real'
+            ? `<button class="crl-del" title="מחק מימוש" onclick="deleteRealization('${t.parentId}',${s.realIndex})"><i class="ti ti-x"></i></button>`
+            : '<span class="crl-del-ph"></span>'}
+        </div>`).join('')}
+      </div>`
+    : '';
 
   const el = document.getElementById('closed-ct');
   if (!f.length) {
@@ -2121,12 +2187,13 @@ function renderClosedTable() {
           </div>
           <div class="pos-bot">
             <div class="d-row"><span class="d-lbl">כניסה</span><span class="d-val">$${Number(t.entry).toFixed(2)}</span></div>
-            <div class="d-row"><span class="d-lbl">יציאה</span><span class="d-val">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</span></div>
+            <div class="d-row"><span class="d-lbl">${t.slices.length > 1 ? 'יציאה ממוצעת' : 'יציאה'}</span><span class="d-val">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</span></div>
             <div class="d-row"><span class="d-lbl">כמות שמומשה</span><span class="d-val">${t.qty}</span></div>
             ${t.grade ? `<div class="d-row"><span class="d-lbl">סיווג</span><span class="d-val">סיווג ${t.grade}</span></div>` : ''}
             ${t.reason ? `<div class="d-row-text"><span class="d-lbl">סיבה לכניסה</span><span class="d-val">${t.reason}</span></div>` : ''}
             ${t.scenario ? `<div class="d-row-text"><span class="d-lbl">תרחיש</span><span class="d-val">${t.scenario}</span></div>` : ''}
           </div>
+          ${realLog(t)}
           <div class="pos-actions">
             <button class="action-btn neutral" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
             <button class="action-btn danger"  onclick="${delAction(t)}"><i class="ti ti-trash" style="font-size:11px"></i>מחק</button>
@@ -2149,7 +2216,7 @@ function renderClosedTable() {
       const rowCls = t.pnl >= 0 ? 'row-win' : 'row-loss';
       return `<tr class="${rowCls}">
         <td style="color:var(--tx2)">${t.date}</td>
-        <td class="mono" style="font-weight:600">${t.ticker}${t.isSl ? ' 🛑' : ''}${partialTag(t)}</td>
+        <td class="mono" style="font-weight:600">${t.ticker}${t.isSl ? ' 🛑' : ''}${t.slices.length > 1 ? ` <span class="crl-count">×${t.slices.length}</span>` : ''}${partialTag(t)}</td>
         <td><span class="badge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span></td>
         <td class="mono">$${Number(t.entry).toFixed(2)}</td>
         <td class="mono">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</td>
