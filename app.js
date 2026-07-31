@@ -304,7 +304,8 @@ const HL_LABEL    = { pos: 'חיובי', neg: 'שלילי', neu: 'נייטרלי
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════════════
-const today   = () => new Date().toISOString().split('T')[0];
+// תאריך מקומי (לא UTC) — toISOString עלול להחזיר יום קודם/הבא בערב
+const today   = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const escHtml = s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const pnlCol  = v  => v >= 0 ? 'var(--green)' : 'var(--red)';
 const signStr = v  => v >= 0 ? '+' : '';
