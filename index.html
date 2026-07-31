@@ -21,8 +21,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<link rel="stylesheet" href="tokens.css?v=20260730e">
-<link rel="stylesheet" href="styles.css?v=20260730e">
+<link rel="stylesheet" href="tokens.css?v=20260731a">
+<link rel="stylesheet" href="styles.css?v=20260731a">
 </head>
 <body>
 <div id="toast"></div>
@@ -404,6 +404,7 @@
             <button onclick="dashShiftMonth(1)" aria-label="חודש הבא"><i class="ti ti-chevron-left"></i></button>
           </div>
           <div class="dash-cal-grid" id="dash-cal-grid"></div>
+          <div class="dash-cal-summary" id="dash-cal-summary"></div>
         </div>
       </div>
     </div>
@@ -611,7 +612,7 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20260730e"></script>
+<script src="app.js?v=20260731a"></script>
 <script src="prep.js?v=20260728"></script>
 <script src="analysis.js?v=20260728"></script>
 <script src="ibkr.js?v=20260728"></script>
@@ -675,6 +676,14 @@ function toggleTheme() {
     document.getElementById('theme-icon').className = 'ti ti-moon';
     document.getElementById('theme-label').textContent = 'מצב כהה';
   }
+  // רענון צבעי הגרפים למצב החדש + ציור מחדש של הגרפים בעמוד הפעיל
+  if (typeof applyChartTheme === 'function') applyChartTheme();
+  try {
+    if (typeof renderStats === 'function') renderStats();
+    var active = document.querySelector('.page.active');
+    if (active && active.id === 'page-dashboard' && typeof loadDashboard === 'function') loadDashboard();
+    if (active && active.id === 'page-portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
+  } catch (e) {}
 }
 // Sync button label with saved theme on load
 (function() {

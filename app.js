@@ -322,6 +322,24 @@ const fmtAxisUSD = v => {
   return (v < 0 ? '-$' : '$') + (a >= 1000 ? (a / 1000).toFixed(1) + 'K' : a.toFixed(0));
 };
 
+// צבעים לגרפי Chart.js — הקנבס לא יודע לפענח var(--...) של CSS, ולכן
+// חייבים ערכי צבע אמיתיים לפי מצב התצוגה (בהיר/כהה), אחרת הטקסט נופל
+// לברירת המחדל הכהה של Chart.js ולא נקרא במצב כהה.
+function chartInk() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark
+    ? { tick: '#A6A6B2', grid: 'rgba(255,255,255,0.08)', zero: 'rgba(255,255,255,0.32)' }
+    : { tick: '#6B6B76', grid: 'rgba(0,0,0,0.08)',       zero: 'rgba(0,0,0,0.30)' };
+}
+
+// ברירות מחדל גלובליות (טולטיפ/מקרא/טקסט) — מתעדכן גם בהחלפת מצב תצוגה
+function applyChartTheme() {
+  if (typeof Chart === 'undefined') return;
+  const ink = chartInk();
+  Chart.defaults.color = ink.tick;
+  Chart.defaults.borderColor = ink.grid;
+}
+
 const toast = msg => {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -1262,7 +1280,8 @@ function renderEquityChart() {
     ? (startVal !== 0 ? +(((p.val - startVal) / Math.abs(startVal)) * 100).toFixed(3) : 0)
     : +p.val.toFixed(2));
 
-  const axisCol = 'var(--tx3)';
+  const ink = chartInk();
+  const axisCol = ink.tick;
   const GREEN = '#22C55E', RED = '#EF4444', BLUE = '#3B82F6';
 
   const dataset = pct
@@ -1301,7 +1320,7 @@ function renderEquityChart() {
         y: {
           display: true,
           position: 'right',
-          grid: { color: ctx => (pct && ctx.tick.value === 0) ? 'rgba(148,160,180,0.4)' : 'rgba(148,160,180,0.1)' },
+          grid: { color: ctx => (pct && ctx.tick.value === 0) ? ink.zero : ink.grid },
           border: { display: false },
           ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => pct ? (+v).toFixed(Math.abs(+v) < 10 ? 1 : 0) + '%' : fmtAxisUSD(+v) },
         },
@@ -1470,6 +1489,30 @@ function renderDashCalendar() {
       : '<div class="dash-cal-week"><div class="dash-cal-wk-pnl" style="color:var(--tx3)">—</div></div>');
   }
   document.getElementById('dash-cal-grid').innerHTML = html;
+
+  // ── סיכום חודשי + רבעוני עבור החודש/הרבעון המוצג ──
+  const mm      = String(m + 1).padStart(2, '0');
+  const q       = Math.floor(m / 3);                          // 0..3
+  const qMonths = [q * 3, q * 3 + 1, q * 3 + 2].map(x => String(x + 1).padStart(2, '0'));
+  let moPnl = 0, moIds = new Set(), qPnl = 0, qIds = new Set();
+  Object.keys(map).forEach(k => {
+    const [ky, km] = k.split('-');
+    if (+ky !== y) return;
+    const d = map[k];
+    if (km === mm)              { moPnl += d.pnl; d.ids.forEach(id => moIds.add(id)); }
+    if (qMonths.includes(km))   { qPnl  += d.pnl; d.ids.forEach(id => qIds.add(id)); }
+  });
+  const monthName = dashDate.toLocaleDateString('he-IL', { month: 'long' });
+  const qLabels   = ['רבעון 1 · ינו–מרץ', 'רבעון 2 · אפר–יונ', 'רבעון 3 · יול–ספט', 'רבעון 4 · אוק–דצמ'];
+  const tile = (lbl, pnl, n) => `
+    <div class="dash-sum-tile">
+      <div class="dash-sum-lbl">${lbl}</div>
+      <div class="dash-sum-val" style="color:${n ? pnlCol(pnl) : 'var(--tx3)'}">${n ? fmtD(pnl) : '—'}</div>
+      <div class="dash-sum-sub">${n} עסקאות</div>
+    </div>`;
+  document.getElementById('dash-cal-summary').innerHTML =
+    tile(`סיכום חודשי · ${monthName}`, moPnl, moIds.size) +
+    tile(`סיכום רבעוני · ${qLabels[q]} ${y}`, qPnl, qIds.size);
 }
 
 function renderDashChart() {
@@ -1493,6 +1536,7 @@ function renderDashChart() {
     : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
 
   const lc = s.totalPnl >= 0 ? '#22C55E' : '#EF4444';
+  const ink = chartInk();
   dashValueChart = new Chart(cnv, {
     type: 'line',
     data: {
@@ -1503,8 +1547,8 @@ function renderDashChart() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'שווי תיק: $' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
       scales: {
-        x: { display: s.pts.length <= 20, ticks: { font: { size: 9.5 }, color: '#475569', maxRotation: 0 }, grid: { display: false } },
-        y: { ticks: { font: { size: 10 }, color: 'var(--tx3)', callback: v => fmtAxisUSD(+v) }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+        x: { display: s.pts.length <= 20, ticks: { font: { size: 9.5 }, color: ink.tick, maxRotation: 0 }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, color: ink.tick, callback: v => fmtAxisUSD(+v) }, grid: { color: ink.grid }, border: { display: false } },
       },
       animation: { duration: 400 },
     },
@@ -2588,6 +2632,7 @@ async function loadPortfolio() {
 
   if (perfChart) { perfChart.destroy(); perfChart = null; }
   const perfData = enriched.map(h => h.pnlPct !== null ? +h.pnlPct.toFixed(2) : 0);
+  const pink = chartInk();
   perfChart = new Chart(document.getElementById('perf-chart'), {
     type: 'bar',
     data: { labels: enriched.map(h => h.ticker), datasets: [{ data: perfData, backgroundColor: perfData.map(v => v >= 0 ? '#2DD4A0' : '#F87171'), borderRadius: 5, maxBarThickness: 56 }] },
@@ -2595,8 +2640,8 @@ async function loadPortfolio() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%' } } },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, family: "'IBM Plex Mono'" }, color: 'var(--tx3)' } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: 'var(--tx3)', callback: v => (+v).toFixed(1) + '%' } },
+        x: { grid: { display: false }, ticks: { font: { size: 11, family: "'IBM Plex Mono'" }, color: pink.tick } },
+        y: { grid: { color: pink.grid }, border: { display: false }, ticks: { font: { size: 10 }, color: pink.tick, callback: v => (+v).toFixed(1) + '%' } },
       },
     },
   });
@@ -2729,6 +2774,7 @@ async function init() {
     if (typeof dbSetSyncStatus === 'function') dbSetSyncStatus('local');
   }
 
+  applyChartTheme();      // צבעי טקסט/רשת לגרפים לפי מצב התצוגה הנוכחי
   normalizeStoredKey();   // מנקה מפתח מלוכלך שנמשך מהענן, פעם אחת, ומרפא את המקור
 
   trades      = ld(SK.trades);
