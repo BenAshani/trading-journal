@@ -963,6 +963,10 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .filter-row { display: flex; gap: var(--space-3); margin-bottom: var(--space-5); align-items: center; flex-wrap: wrap; }
 .filter-row select, .filter-row input[type=text] { width: auto; max-width: 148px; padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
 
+/* בורר יומן מסחר לפי יחידת סיכון */
+.journal-select-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.journal-select { width: auto; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); font-weight: 500; }
+
 /* ────────────────────────────────────────────
    PORTFOLIO
 ──────────────────────────────────────────── */

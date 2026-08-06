@@ -384,7 +384,10 @@
   <div id="page-dashboard" class="page">
     <div class="live-header">
       <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">דאשבורד</span></div>
-      <div style="display:flex;align-items:center;gap:8px"><button class="refresh-btn" onclick="loadDashboard()"><i class="ti ti-refresh"></i>רענן</button></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="journal-select-wrap" style="display:none"><i class="ti ti-book" style="font-size:13px;color:var(--tx2)"></i><select id="dash-journal" class="journal-select" onchange="setJournal(this.value)"></select></div>
+        <button class="refresh-btn" onclick="loadDashboard()"><i class="ti ti-refresh"></i>רענן</button>
+      </div>
     </div>
     <div class="page-inner">
       <div class="dash-stats" id="dash-stats"></div>
@@ -484,7 +487,7 @@
           <button class="view-toggle-btn" id="vtb-cards" onclick="setClosedView('cards')"><i class="ti ti-layout-grid"></i>כרטיסיות</button>
         </div>
       </div>
-      <div class="filter-row"><span style="font-size:11.5px;color:var(--tx2)">סינון:</span><select id="fc-dir" onchange="renderClosedTable()"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()"><option value="">הכל</option><option value="win">רווח</option><option value="loss">הפסד</option></select><input type="text" id="fc-ticker" placeholder="חיפוש טיקר..." oninput="renderClosedTable()"></div>
+      <div class="filter-row"><span style="font-size:11.5px;color:var(--tx2)">סינון:</span><span class="journal-select-wrap" style="display:none"><i class="ti ti-book" style="font-size:13px;color:var(--tx2)"></i><select id="closed-journal" class="journal-select" onchange="setJournal(this.value)"></select></span><select id="fc-dir" onchange="renderClosedTable()"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()"><option value="">הכל</option><option value="win">רווח</option><option value="loss">הפסד</option></select><input type="text" id="fc-ticker" placeholder="חיפוש טיקר..." oninput="renderClosedTable()"></div>
       <div id="closed-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:0.9rem"></div>
       <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto" id="closed-ct"></div></div>
     </div>

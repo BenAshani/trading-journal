@@ -277,6 +277,7 @@ const getInvestCash = ()  => parseFloat(localStorage.getItem(SK.investCash)) || 
 //  STATE
 // ═══════════════════════════════════════════════════════════
 let trades = [], portfolio = [], watchlist = [], faDataStore = {};
+let journalRU = 'all';   // יומן המסחר המוצג: 'all' = הכל, או ערך יחידת סיכון מספרי
 let priceCache = {}, prevPrices = {};
 let editTradeId = null, editHoldingId = null;
 let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = null;
@@ -1337,13 +1338,14 @@ function renderEquityChart() {
 // סדרת שווי התיק לאורך זמן: הון הבסיס (שווי נוכחי פחות P&L מצטבר)
 // ועליו כל עסקה סגורה מוסיפה/גורעת. אם אין נתון מזומן מ-IBKR —
 // הבסיס 0 והגרף מציג שינוי מצטבר בלבד (אותה צורה, ללא רמת שווי אמיתית).
-function accountValueSeries() {
+// pnlOnly = מציג רווח מצטבר מ-0 (ליומן בודד), בלי בסיס שווי החשבון הכולל
+function accountValueSeries(src = trades, pnlOnly = false) {
   // נבנה מאותם אירועי מימוש יומיים כמו לוח השנה — כולל מימושים חלקיים
   // של עסקאות פתוחות — כך שכל המסכים מציגים את אותו רווח ממומש
-  const map      = dailyPnlMap();
+  const map      = dailyPnlMap(src);
   const dates    = Object.keys(map).sort();
   const totalPnl = dates.reduce((s, d) => s + map[d].pnl, 0);
-  const cash     = getTradesCash();
+  const cash     = pnlOnly ? null : getTradesCash();
   const acctVal  = cash !== null ? cash + openTradesCost() : null;
   const base     = acctVal !== null ? acctVal - totalPnl : 0;
   let cum = base;
@@ -1352,33 +1354,85 @@ function accountValueSeries() {
   return { pts, baseKnown: acctVal !== null, base, acctVal, totalPnl, n: dates.length };
 }
 
+// ── יומני מסחר לפי יחידת סיכון ──────────────────────────────
+// כל עסקה נושאת את יחידת הסיכון שהייתה פעילה בעת פתיחתה (trade.riskUnit).
+// journalRU קובע איזה יומן מוצג — כך שהחלפת יחידת הסיכון בהגדרות פותחת
+// יומן ודאשבורד חדש, ואפשר לעבור בין היומן של $100, $200 וכן הלאה.
+function tradeRU(t) { const r = +t.riskUnit; return r > 0 ? r : 0; }
+
+// כל ערכי יחידת הסיכון שמופיעים בעסקאות + ההגדרה הנוכחית, ממוינים
+function journalUnits() {
+  const set = new Set();
+  trades.forEach(t => { const r = tradeRU(t); if (r > 0) set.add(r); });
+  const cur = getRiskUnit(); if (cur > 0) set.add(cur);
+  return [...set].sort((a, b) => a - b);
+}
+
+// העסקאות של היומן המוצג בלבד
+function journalTrades() {
+  if (journalRU === 'all') return trades;
+  const ru = +journalRU;
+  return trades.filter(t => tradeRU(t) === ru);
+}
+
+// יחידת הסיכון של היומן המוצג — לחישוב R
+function journalRiskUnit() {
+  return journalRU === 'all' ? getRiskUnit() : +journalRU;
+}
+
+function setJournal(val) {
+  journalRU = val;
+  loadDashboard();
+  renderClosedTable();
+}
+
+// ממלא את שני בוררי היומן (דאשבורד + עסקאות שנסגרו) באותן אפשרויות
+function renderJournalSelectors() {
+  const units = journalUnits();
+  if (journalRU !== 'all' && !units.includes(+journalRU)) journalRU = 'all';   // היומן נמחק → חזרה להכל
+  const opts = ['<option value="all">כל היומנים</option>']
+    .concat(units.map(u => `<option value="${u}">יחידת סיכון $${u.toLocaleString('en')}</option>`))
+    .join('');
+  ['dash-journal', 'closed-journal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = opts;
+    el.value = journalRU;
+    const wrap = el.closest('.journal-select-wrap');
+    if (wrap) wrap.style.display = units.length > 1 ? '' : 'none';   // בורר מוצג רק כשיש יותר מיומן אחד
+  });
+}
+
 function loadDashboard() {
+  renderJournalSelectors();
   renderDashStats();
   renderDashCalendar();
   renderDashChart();
 }
 
 function renderDashStats() {
-  const closed   = trades.filter(t => t.status === 'closed' && t.pnl !== null);
-  const totalPnl = totalRealizedPnl();
+  const jt       = journalTrades();
+  const closed   = jt.filter(t => t.status === 'closed' && t.pnl !== null);
+  const totalPnl = totalRealizedPnl(jt);
   const winners  = closed.filter(t => t.pnl > 0);
   const losers   = closed.filter(t => t.pnl < 0);
   const wr       = closed.length ? winners.length / closed.length * 100 : null;
-  const longs    = trades.filter(t => t.dir === 'Long').length;
-  const shorts   = trades.filter(t => t.dir === 'Short').length;
+  const longs    = jt.filter(t => t.dir === 'Long').length;
+  const shorts   = jt.filter(t => t.dir === 'Short').length;
   const avgWin   = winners.length ? winners.reduce((s, t) => s + t.pnl, 0) / winners.length : null;
   const avgLoss  = losers.length ? Math.abs(losers.reduce((s, t) => s + t.pnl, 0) / losers.length) : null;
   const rr       = avgWin !== null && avgLoss ? avgWin / avgLoss : null;
   const wrColor  = wr === null ? 'var(--tx)' : wr >= 55 ? 'var(--green)' : wr >= 45 ? 'var(--amber)' : 'var(--red)';
 
-  // תשואה על החשבון — הון הבסיס נגזר משווי החשבון (IBKR) פחות ה-P&L המצטבר
-  const series   = accountValueSeries();
+  // תשואה על החשבון — הון הבסיס תמיד ברמת החשבון המלא (IBKR); ביומן בודד
+  // מוצגת התרומה של אותו יומן לתשואת החשבון
+  const series   = accountValueSeries(trades);
   const base     = series.baseKnown && series.base > 0 ? series.base : null;
   const ret      = base !== null ? totalPnl / base * 100 : null;
 
-  // P&L ביחידות סיכון (אם הוגדרה יחידת סיכון בהגדרות)
-  const hasPnl   = trades.some(t => (t.status === 'closed' && t.pnl !== null) || (t.realizations || []).length);
-  const riskUnit = getRiskUnit();
+  // P&L ביחידות סיכון — לפי יחידת הסיכון של היומן המוצג
+  const hasPnl   = jt.some(t => (t.status === 'closed' && t.pnl !== null) || (t.realizations || []).length);
+  const riskUnit = journalRiskUnit();
   const pnlSub   = riskUnit > 0 && hasPnl
     ? `<span style="color:${totalPnl >= 0 ? 'var(--amber-t)' : 'var(--red-t)'}">${signStr(totalPnl / riskUnit)}${(totalPnl / riskUnit).toFixed(1)}R</span>`
     : 'P&L ממומש';
@@ -1391,7 +1445,7 @@ function renderDashStats() {
     </div>
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-chart-bar"></i>סה"כ עסקאות</div>
-      <div class="dash-stat-val">${trades.length}</div>
+      <div class="dash-stat-val">${jt.length}</div>
       <div class="dash-stat-sub">${longs} לונגים / ${shorts} שורטים</div>
     </div>
     <div class="dash-stat">
@@ -1419,12 +1473,12 @@ function realizedPnlOf(t) {
   if (t.status === 'closed' && t.pnl !== null && t.pnl !== undefined) return t.pnl;
   return (t.realizations || []).reduce((s, r) => s + (r.pnl || 0), 0);
 }
-function totalRealizedPnl() {
-  return trades.reduce((s, t) => s + realizedPnlOf(t), 0);
+function totalRealizedPnl(src = trades) {
+  return src.reduce((s, t) => s + realizedPnlOf(t), 0);
 }
 
 // P&L יומי: כל מימוש נזקף ליום שבו בוצע; עסקה סגורה בלי מימושים — ליום הכניסה
-function dailyPnlMap() {
+function dailyPnlMap(src = trades) {
   const map = {};
   const add = (date, pnl, id) => {
     if (!date) return;
@@ -1432,7 +1486,7 @@ function dailyPnlMap() {
     d.pnl += pnl;
     d.ids.add(id);
   };
-  trades.forEach(t => {
+  src.forEach(t => {
     const reals = t.realizations || [];
     if (reals.length) {
       reals.forEach(r => add(r.date, r.pnl || 0, t.id));
@@ -1457,7 +1511,7 @@ function renderDashCalendar() {
   const y = dashDate.getFullYear(), m = dashDate.getMonth();
   document.getElementById('dash-cal-title').textContent = dashDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
 
-  const map         = dailyPnlMap();
+  const map         = dailyPnlMap(journalTrades());
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const startDow    = new Date(y, m, 1).getDay();
   const todayKey    = today();
@@ -1517,7 +1571,10 @@ function renderDashCalendar() {
 }
 
 function renderDashChart() {
-  const s     = accountValueSeries();
+  // ביומן בודד מוצג רווח מצטבר מ-0 (שווי החשבון והון הבסיס הם ברמת החשבון
+  // המלא ולא ניתנים לפיצול ליומן); בתצוגת "הכל" מוצג שווי התיק כרגיל
+  const isJournal = journalRU !== 'all';
+  const s     = isJournal ? accountValueSeries(journalTrades(), true) : accountValueSeries(trades);
   const note  = document.getElementById('dash-chart-note');
   const empty = document.getElementById('dash-chart-empty');
   const cnv   = document.getElementById('dash-value-chart');
@@ -1532,9 +1589,11 @@ function renderDashChart() {
   }
   cnv.style.display = '';
   empty.style.display = 'none';
-  note.textContent = s.baseKnown
-    ? `שווי נוכחי $${Math.round(s.acctVal).toLocaleString('en')} · הון בסיס $${Math.round(s.base).toLocaleString('en')} · ${cashSourceNote().txt}`
-    : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
+  note.textContent = isJournal
+    ? `רווח מצטבר ביומן יחידת סיכון $${(+journalRU).toLocaleString('en')} · ${signStr(s.totalPnl)}$${Math.abs(Math.round(s.totalPnl)).toLocaleString('en')}`
+    : s.baseKnown
+      ? `שווי נוכחי $${Math.round(s.acctVal).toLocaleString('en')} · הון בסיס $${Math.round(s.base).toLocaleString('en')} · ${cashSourceNote().txt}`
+      : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
 
   const lc = s.totalPnl >= 0 ? '#22C55E' : '#EF4444';
   const ink = chartInk();
@@ -1546,7 +1605,7 @@ function renderDashChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'שווי תיק: $' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (isJournal ? 'רווח מצטבר: $' : 'שווי תיק: $') + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
       scales: {
         x: { display: s.pts.length <= 20, ticks: { font: { size: 9.5 }, color: ink.tick, maxRotation: 0 }, grid: { display: false } },
         y: { ticks: { font: { size: 10 }, color: ink.tick, callback: v => fmtAxisUSD(+v) }, grid: { color: ink.grid }, border: { display: false } },
@@ -1747,6 +1806,9 @@ function saveTrade() {
 
   const trade = {
     id: editTradeId || Date.now().toString(), ticker, date, dir, status, entry, exit, qty, fee, pnl,
+    // יחידת הסיכון "ננעלת" על העסקה בעת הפתיחה — עריכה משמרת אותה — כדי
+    // שכל עסקה תשתייך ליומן הנכון גם אחרי שמחליפים יחידת סיכון בהגדרות
+    riskUnit:     existing ? (existing.riskUnit ?? getRiskUnit()) : getRiskUnit(),
     grade:        document.getElementById('f-grade-1')?.classList.contains('active') ? '1' : '2',
     reason:       document.getElementById('f-reason').value,
     scenario:     document.getElementById('f-scenario').value,
@@ -2051,9 +2113,9 @@ function setClosedView(mode) {
 // "שקופיות סגירה": כל מימוש חלקי וכל סגירה = שורה נפרדת ב"עסקאות שנסגרו".
 // כך שברגע שמממשים חלק מפוזיציה הוא מופיע כאן מיד, וסגירת היתרה מוסיפה שורה
 // נוספת לאותו מקום. סך ה-P&L של כל השקופיות שווה בדיוק ל-totalRealizedPnl().
-function closedSlices() {
+function closedSlices(src = trades) {
   const out = [];
-  trades.forEach(t => {
+  src.forEach(t => {
     const reals = t.realizations || [];
     let accQty = 0, accPnl = 0;
     reals.forEach((r, i) => {
@@ -2102,9 +2164,9 @@ function closedSlices() {
 
 // קיבוץ כל המימושים של אותה עסקה לכרטיס אחד — כך שמימוש חלקי וסגירת
 // היתרה מופיעים יחד תחת אותה שקופית, במקום כרטיס נפרד לכל מימוש.
-function closedGroups() {
+function closedGroups(src = trades) {
   const map = new Map();
-  closedSlices().forEach(s => {
+  closedSlices(src).forEach(s => {
     let g = map.get(s.parentId);
     if (!g) {
       g = {
@@ -2153,10 +2215,11 @@ function deleteRealization(id, idx) {
 }
 
 function renderClosedTable() {
+  renderJournalSelectors();
   const fD = document.getElementById('fc-dir').value;
   const fR = document.getElementById('fc-res').value;
   const fT = document.getElementById('fc-ticker').value.toLowerCase();
-  const f  = closedGroups().filter(s => {
+  const f  = closedGroups(journalTrades()).filter(s => {
     if (fD && s.dir !== fD)                           return false;
     if (fR === 'win'  && !(s.pnl > 0))               return false;
     if (fR === 'loss' && !(s.pnl < 0))               return false;
@@ -2751,6 +2814,19 @@ function migrateTrades() {
   if (changed) sv(SK.trades, trades);
 }
 
+// עסקאות ותיקות שנוצרו לפני שהיו יומנים לפי יחידת סיכון — משייכים אותן
+// ליחידת הסיכון המוגדרת כרגע, כך שהיומן הקיים ממשיך תחת היחידה הנוכחית
+// והחלפה עתידית של היחידה פותחת יומן חדש. עסקה שכבר נושאת ערך לא נוגעים בה.
+function migrateRiskUnits() {
+  const cur = getRiskUnit();
+  if (cur <= 0) return;
+  let changed = false;
+  trades.forEach(t => {
+    if (t.riskUnit === undefined || t.riskUnit === null) { t.riskUnit = cur; changed = true; }
+  });
+  if (changed) sv(SK.trades, trades);
+}
+
 function migrateBizDescs() {
   const isOldTemplate = s => !s || s.includes('(מלא כאן') || s.includes('💡 מה עושה');
   let changed = false;
@@ -2784,6 +2860,7 @@ async function init() {
   faDataStore = ldObj(SK.faData) || {};
   seedTrades();
   migrateTrades();
+  migrateRiskUnits();
   migrateBizDescs();
   document.getElementById('f-date').value = today();
   document.getElementById('f-fee').value  = getDefaultFee().toFixed(2);
