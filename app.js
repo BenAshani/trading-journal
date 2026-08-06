@@ -915,24 +915,7 @@ function faEffRatio(opex, rev) {
   return o / r * 100;
 }
 
-// שדות רווח נקי לפי המקטע (רבעוני/שנתי) — אותו דפוס נגזרת כמו ב-faIncField
-function faNiFields(sfx) {
-  return sfx === 'annual' ? ['niAnnualCurr', 'niAnnualPrev'] : ['niQCurr', 'niQPrev'];
-}
-
-// הפרש רווח נקי בדולרים — משכפל בדיוק את נוסחת האקסל E18=C17-D17 / H18=F17-G17
-// (הפרש דולרי, לא אחוזי; ירוק אם השתפר, אדום אם הורע — כמו הצביעה המותנית בקובץ)
-function faNiDiff(curr, prev) {
-  const c = parseFloat(curr), p = parseFloat(prev);
-  if (isNaN(c) || isNaN(p)) return { text: '—', cls: '' };
-  const d = +(c - p).toFixed(2);
-  const cls = d > 0 ? 'inc-pos' : d < 0 ? 'inc-neg' : '';
-  // ללא סיומת M — היחידה כבר מצוינת בכותרת העמודה ("($M)"); שלם בלי עשרוני כדי שהתג יישאר בגבולות התא
-  return { text: (d > 0 ? '+' : d < 0 ? '-' : '') + '$' + Math.round(Math.abs(d)).toLocaleString('en'), cls };
-}
-
 function faIncSectionHTML(r, sfx, revC, revP, opC, opP, hdrCurr, hdrPrev) {
-  const [niC, niP] = faNiFields(sfx);
   const yoyPct = (curr, prev, invert) => {
     const c = parseFloat(curr), p = parseFloat(prev);
     if (isNaN(c) || isNaN(p) || p === 0) return { text: '—', cls: '' };
@@ -956,13 +939,12 @@ function faIncSectionHTML(r, sfx, revC, revP, opC, opP, hdrCurr, hdrPrev) {
   };
   const revYoy  = yoyPct(r[revC], r[revP], false);
   const opexYoy = yoyPct(r[opC],  r[opP],  true);
-  const niRes   = faNiDiff(r[niC], r[niP]);
   return `
     <div class="fai-header">
       <div class="fai-lbl"></div>
       <div class="fai-col-hdr">${hdrCurr}</div>
       <div class="fai-col-hdr">${hdrPrev}</div>
-      <div class="fai-col-hdr">שינוי</div>
+      <div class="fai-col-hdr">שינוי %</div>
     </div>
     <div class="fai-row">
       <div class="fai-lbl">הכנסות</div>
@@ -978,7 +960,7 @@ function faIncSectionHTML(r, sfx, revC, revP, opC, opP, hdrCurr, hdrPrev) {
       </div>
       <div class="fai-pct ${revYoy.cls}" id="fai-pct-${r.id}-${revC}">${revYoy.text}</div>
     </div>
-    <div class="fai-row">
+    <div class="fai-row" style="border-bottom:none">
       <div class="fai-lbl">הוצאות תפעוליות</div>
       <input class="fai-inp" type="number" step="0.01" placeholder="—" value="${escHtml(r[opC]||'')}"
         oninput="faIncField('${r.id}','${opC}',this.value,'${sfx}')">
@@ -989,25 +971,7 @@ function faIncSectionHTML(r, sfx, revC, revP, opC, opP, hdrCurr, hdrPrev) {
     <div class="fai-eff-footer">
       <span class="fai-eff-footer-lbl">יחס הוצ׳/הכנ׳ (התייעלות)</span>
       ${effDelta(`fai-eff-delta-${r.id}-${sfx}`, r[opC], r[revC], r[opP], r[revP])}
-    </div>
-    <div class="fai-row" style="border-bottom:none;margin-top:6px;grid-template-columns:120px 1fr 1fr 92px">
-      <div class="fai-lbl">רווח נקי</div>
-      <input class="fai-inp" type="number" step="0.01" placeholder="—" value="${escHtml(r[niC]||'')}"
-        oninput="faIncField('${r.id}','${niC}',this.value,'${sfx}')">
-      <input class="fai-inp" type="number" step="0.01" placeholder="—" value="${escHtml(r[niP]||'')}"
-        oninput="faIncField('${r.id}','${niP}',this.value,'${sfx}')">
-      <div class="fai-pct fai-ni-diff ${niRes.cls}" id="fai-ni-diff-${r.id}-${sfx}">${niRes.text}</div>
     </div>`;
-}
-
-// מכפיל רווח עתידי (Forward P/E) — ערך יחיד שהמשתמש מזין ידנית לדוח כולו,
-// בדיוק כמו התא הכחול הבודד תחת "מכפיל רווח עתידי" באקסל (אין נוסחה — קלט חופשי)
-function faForwardPEHTML(r) {
-  return `<div class="fai-pe-row">
-    <div class="fa-field-lbl" style="margin-bottom:0">מכפיל רווח עתידי (Forward P/E)</div>
-    <input class="fai-inp" style="max-width:120px" type="text" placeholder="לדוגמה 24x" value="${escHtml(r.forwardPE||'')}"
-      oninput="faUpdateField('${r.id}','forwardPE',this.value)">
-  </div>`;
 }
 
 function faIncStmtHTML(r) {
@@ -1021,11 +985,10 @@ function faIncStmtHTML(r) {
         <div class="fai-section-title">שנתי</div>
         ${section('annual','revAnnualCurr','revAnnualPrev','opexAnnualCurr','opexAnnualPrev','שנה נוכחית ($M)','שנה קודמת ($M)')}
       </div>
-      ${faForwardPEHTML(r)}
     </div>`;
   }
 
-  const hasAnnual = r.revAnnualCurr || r.revAnnualPrev || r.opexAnnualCurr || r.opexAnnualPrev || r.niAnnualCurr || r.niAnnualPrev;
+  const hasAnnual = r.revAnnualCurr || r.revAnnualPrev || r.opexAnnualCurr || r.opexAnnualPrev;
   const annualOpen = !!(hasAnnual || r._annualOpen);
 
   return `<div class="fai-wrap">
@@ -1047,7 +1010,6 @@ function faIncStmtHTML(r) {
           </button>`
       }
     </div>
-    ${faForwardPEHTML(r)}
   </div>`;
 }
 
@@ -1065,7 +1027,6 @@ function faToggleAnnual(rid, open) {
   if (!open) {
     r.revAnnualCurr = ''; r.revAnnualPrev = '';
     r.opexAnnualCurr = ''; r.opexAnnualPrev = '';
-    r.niAnnualCurr = ''; r.niAnnualPrev = '';
   }
   saveFAData();
   const wrap = document.querySelector(`.fa-report-panel[data-rid="${rid}"] .fai-annual-wrap`);
@@ -1093,15 +1054,6 @@ function faIncField(rid, field, value, sfx) {
   const revP  = isAnnual ? 'revAnnualPrev'  : 'revQPrev';
   const opC   = isAnnual ? 'opexAnnualCurr' : 'opexQCurr';
   const opP   = isAnnual ? 'opexAnnualPrev' : 'opexQPrev';
-  const [niC, niP] = faNiFields(sfx);
-
-  // הפרש רווח נקי בדולרים (=curr-prev, כמו E18/H18 באקסל)
-  const elNi = document.getElementById(`fai-ni-diff-${rid}-${sfx}`);
-  if (elNi) {
-    const ni = faNiDiff(r[niC], r[niP]);
-    elNi.textContent = ni.text;
-    elNi.className = 'fai-pct fai-ni-diff ' + ni.cls;
-  }
 
   // YoY % for each row
   [[revC, revP, false],[opC, opP, true]].forEach(([cf, pf, invert]) => {
@@ -1146,9 +1098,9 @@ function faAddReport() {
   const d   = faDataStore[faCurrentTicker];
   const rid = Date.now().toString();
   d.reports.push({ id: rid, quarter: 'Q1', year: new Date().getFullYear(),
-    revAnnualCurr: '', revAnnualPrev: '', opexAnnualCurr: '', opexAnnualPrev: '', niAnnualCurr: '', niAnnualPrev: '',
-    revQCurr: '', revQPrev: '', opexQCurr: '', opexQPrev: '', niQCurr: '', niQPrev: '',
-    forwardPE: '', highlights: [], conclusion: '' });
+    revAnnualCurr: '', revAnnualPrev: '', opexAnnualCurr: '', opexAnnualPrev: '',
+    revQCurr: '', revQPrev: '', opexQCurr: '', opexQPrev: '',
+    highlights: [], conclusion: '' });
   faCurrentReportId = rid;
   renderFAReports();
   saveFAData();

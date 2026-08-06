@@ -1496,8 +1496,6 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 }
 .fai-pct.inc-pos { background: rgba(34,197,94,0.1); color: var(--green); }
 .fai-pct.inc-neg { background: rgba(239,68,68,0.09); color: var(--red); }
-/* הפרש רווח נקי בדולרים — טקסט ארוך יותר מתגי האחוזים, לכן פונט קטן יותר כדי שלא יגלוש */
-.fai-pct.fai-ni-diff { font-size: 11.5px; padding: 5px 4px; letter-spacing: -0.01em; }
 
 /* efficiency footer */
 .fai-eff-footer {
@@ -1512,12 +1510,6 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .fai-eff-delta {
   font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
   padding: 2px 8px; border-radius: var(--r); background: transparent;
-}
-
-/* מכפיל רווח עתידי — שורה בודדת מתחת לטבלת הדוח */
-.fai-pe-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 10px; padding-top: 10px; border-top: 0.5px dashed var(--br2);
 }
 
 /* annual toggle */
