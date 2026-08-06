@@ -1008,6 +1008,22 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   border-radius: var(--radius-xl); padding: var(--space-6);
   box-shadow: var(--shadow-xs);
 }
+/* ביצועי החזקות — רשימה מדורגת עם פסים אופקיים + מתג %/$ */
+.perf-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+.perf-toggle { display: inline-flex; background: var(--color-bg-sunken); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-full); padding: 2px; }
+.perf-tab { border: none; background: transparent; color: var(--color-text-tertiary); font-family: var(--font-mono); font-weight: var(--weight-semibold); font-size: 11px; line-height: 1; padding: 4px 11px; border-radius: var(--radius-full); cursor: pointer; transition: all .15s; }
+.perf-tab:hover { color: var(--color-text-secondary); }
+.perf-tab.on { background: var(--color-bg-elevated); color: var(--color-text-primary); box-shadow: var(--shadow-xs); }
+.perf-list { display: flex; flex-direction: column; gap: 7px; }
+.perf-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-4); }
+.perf-tkr { font-family: var(--font-mono); font-weight: var(--weight-semibold); font-size: var(--text-sm); color: var(--color-text-primary); }
+.perf-track { height: 22px; background: var(--color-bg-sunken); border-radius: var(--radius-md); overflow: hidden; }
+.perf-fill { display: block; height: 100%; border-radius: var(--radius-md); transition: width .35s ease; min-width: 3px; }
+.perf-fill.pos { background: linear-gradient(90deg, #2DD4A0, #34D399); }
+.perf-fill.neg { background: linear-gradient(90deg, #F87171, #FB7185); }
+.perf-val { font-family: var(--font-mono); font-weight: var(--weight-semibold); font-size: var(--text-sm); font-variant-numeric: tabular-nums; min-width: 64px; text-align: left; }
+.perf-empty { color: var(--color-text-tertiary); font-size: var(--text-sm); padding: var(--space-5) 0; text-align: center; }
+
 .port-legend { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
 .port-legend-item { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
 .port-legend-dot { width: 6px; height: 6px; border-radius: var(--radius-full); flex-shrink: 0; }

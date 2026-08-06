@@ -514,7 +514,7 @@
     <div style="padding:1.1rem 1.4rem;overflow-y:auto;flex:1">
       <div id="port-charts-row" style="display:none;grid-template-columns:240px 1fr;gap:12px;margin-bottom:1.1rem">
         <div class="port-chart-card"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">הקצאה</div><div style="position:relative;height:150px;display:flex;align-items:center;justify-content:center"><canvas id="alloc-chart"></canvas></div><div class="port-legend" id="alloc-legend"></div></div>
-        <div class="port-chart-card"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">ביצועים</div><div style="position:relative;height:190px"><canvas id="perf-chart"></canvas></div></div>
+        <div class="port-chart-card"><div class="perf-head"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px">ביצועים</div><div class="perf-toggle"><button class="perf-tab on" id="perf-tab-pct" onclick="setPerfMode('pct')">%</button><button class="perf-tab" id="perf-tab-val" onclick="setPerfMode('value')">$</button></div></div><div id="perf-list" class="perf-list"></div></div>
       </div>
       <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
     </div>

@@ -285,6 +285,8 @@ let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
 let equityMode = 'value';   // 'value' = שווי תיק ($) · 'pct' = ביצועים באחוזים
+let perfMode   = 'pct';     // תצוגת ביצועי ההחזקות: 'pct' = אחוזים · 'value' = מספרים ($)
+let perfRows   = [];        // נשמר כדי להחליף בין % ל-$ בלי לרנדר מחדש את כל התיק
 let equityRange = '1w';     // 1w | mtd | 1m | 3m | ytd | 1y | all
 let dashValueChart = null, dashDate = new Date();
 let autosaveTimeout = null;
@@ -1511,7 +1513,7 @@ function renderDashCalendar() {
   const y = dashDate.getFullYear(), m = dashDate.getMonth();
   document.getElementById('dash-cal-title').textContent = dashDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
 
-  const map         = dailyPnlMap(journalTrades());
+  const map         = dailyPnlMap();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const startDow    = new Date(y, m, 1).getDay();
   const todayKey    = today();
@@ -1571,10 +1573,8 @@ function renderDashCalendar() {
 }
 
 function renderDashChart() {
-  // ביומן בודד מוצג רווח מצטבר מ-0 (שווי החשבון והון הבסיס הם ברמת החשבון
-  // המלא ולא ניתנים לפיצול ליומן); בתצוגת "הכל" מוצג שווי התיק כרגיל
-  const isJournal = journalRU !== 'all';
-  const s     = isJournal ? accountValueSeries(journalTrades(), true) : accountValueSeries(trades);
+  // הגרף תמיד ברמת החשבון המלא — בורר היומן משפיע רק על כרטיסי הסטטיסטיקה
+  const s     = accountValueSeries();
   const note  = document.getElementById('dash-chart-note');
   const empty = document.getElementById('dash-chart-empty');
   const cnv   = document.getElementById('dash-value-chart');
@@ -1589,11 +1589,9 @@ function renderDashChart() {
   }
   cnv.style.display = '';
   empty.style.display = 'none';
-  note.textContent = isJournal
-    ? `רווח מצטבר ביומן יחידת סיכון $${(+journalRU).toLocaleString('en')} · ${signStr(s.totalPnl)}$${Math.abs(Math.round(s.totalPnl)).toLocaleString('en')}`
-    : s.baseKnown
-      ? `שווי נוכחי $${Math.round(s.acctVal).toLocaleString('en')} · הון בסיס $${Math.round(s.base).toLocaleString('en')} · ${cashSourceNote().txt}`
-      : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
+  note.textContent = s.baseKnown
+    ? `שווי נוכחי $${Math.round(s.acctVal).toLocaleString('en')} · הון בסיס $${Math.round(s.base).toLocaleString('en')} · ${cashSourceNote().txt}`
+    : 'אין נתון מזומן מ-IBKR — מוצג שינוי מצטבר בשווי התיק';
 
   const lc = s.totalPnl >= 0 ? '#22C55E' : '#EF4444';
   const ink = chartInk();
@@ -1605,7 +1603,7 @@ function renderDashChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (isJournal ? 'רווח מצטבר: $' : 'שווי תיק: $') + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'שווי תיק: $' + c.parsed.y.toLocaleString('en', { maximumFractionDigits: 0 }) } } },
       scales: {
         x: { display: s.pts.length <= 20, ticks: { font: { size: 9.5 }, color: ink.tick, maxRotation: 0 }, grid: { display: false } },
         y: { ticks: { font: { size: 10 }, color: ink.tick, callback: v => fmtAxisUSD(+v) }, grid: { color: ink.grid }, border: { display: false } },
@@ -2694,21 +2692,10 @@ async function loadPortfolio() {
     return `<div class="port-legend-item"><div class="port-legend-dot" style="background:${PORT_COLORS[i % PORT_COLORS.length]}"></div><span class="port-legend-name">${h.ticker}${h.sector ? ' · ' + h.sector : ''}</span><span class="port-legend-pct">${pct}%</span></div>`;
   }).join('');
 
-  if (perfChart) { perfChart.destroy(); perfChart = null; }
-  const perfData = enriched.map(h => h.pnlPct !== null ? +h.pnlPct.toFixed(2) : 0);
-  const pink = chartInk();
-  perfChart = new Chart(document.getElementById('perf-chart'), {
-    type: 'bar',
-    data: { labels: enriched.map(h => h.ticker), datasets: [{ data: perfData, backgroundColor: perfData.map(v => v >= 0 ? '#2DD4A0' : '#F87171'), borderRadius: 5, maxBarThickness: 56 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%' } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, family: "'IBM Plex Mono'" }, color: pink.tick } },
-        y: { grid: { color: pink.grid }, border: { display: false }, ticks: { font: { size: 10 }, color: pink.tick, callback: v => (+v).toFixed(1) + '%' } },
-      },
-    },
-  });
+  // ביצועי ההחזקות — רשימה אופקית מדורגת (הטובה ביותר למעלה), במקום גרף
+  // עמודות עם הרבה מקום ריק. אפשר לעבור בין אחוזים למספרים ($).
+  perfRows = enriched.map(h => ({ ticker: h.ticker, pct: h.pnlPct, val: h.pnl })).sort((a, b) => (b.pct ?? -1e9) - (a.pct ?? -1e9));
+  renderPerfList();
 
   document.getElementById('port-holdings').innerHTML =
     `<div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${enriched.length} החזקות${validN < enriched.length ? ' · ' + (enriched.length - validN) + ' ללא מחיר' : ''}</div>` +
@@ -2718,6 +2705,37 @@ async function loadPortfolio() {
   document.getElementById('port-upd').textContent = 'עודכן ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   setDot('port', validN ? 'green' : 'amber', validN ? 'חי' : 'ללא נתונים');
   btn.classList.remove('spinning');
+}
+
+function setPerfMode(mode) {
+  perfMode = mode;
+  document.getElementById('perf-tab-pct')?.classList.toggle('on', mode === 'pct');
+  document.getElementById('perf-tab-val')?.classList.toggle('on', mode === 'value');
+  renderPerfList();
+}
+
+// רשימת ביצועי ההחזקות: שורה לכל טיקר עם פס אופקי ביחס לביצוע הגדול ביותר,
+// והמספר (% או $) בקצה. רוחב הפס נגזר מהמדד הנבחר כדי שההשוואה תישאר נכונה.
+function renderPerfList() {
+  const el = document.getElementById('perf-list');
+  if (!el) return;
+  if (!perfRows.length) { el.innerHTML = '<div class="perf-empty">אין נתוני מחיר להצגת ביצועים</div>'; return; }
+  const metric = r => perfMode === 'pct' ? r.pct : r.val;
+  const maxAbs = Math.max(1e-9, ...perfRows.map(r => Math.abs(metric(r) ?? 0)));
+  el.innerHTML = perfRows.map(r => {
+    const m   = metric(r);
+    const has = m !== null && m !== undefined;
+    const pos = (m ?? 0) >= 0;
+    const w   = has ? Math.max(2, Math.abs(m) / maxAbs * 100) : 0;
+    const txt = !has ? '—'
+      : perfMode === 'pct' ? signStr(m) + m.toFixed(2) + '%'
+      : signStr(m) + '$' + Math.abs(m).toLocaleString('en', { maximumFractionDigits: 0 });
+    return `<div class="perf-row">
+      <span class="perf-tkr">${r.ticker}</span>
+      <span class="perf-track"><span class="perf-fill ${pos ? 'pos' : 'neg'}" style="width:${w}%"></span></span>
+      <span class="perf-val" style="color:${has ? pnlCol(m) : 'var(--tx3)'}">${txt}</span>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
