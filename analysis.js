@@ -8,13 +8,29 @@
 const CA_KEY = 'tj_company_analysis_v1';
 
 // ── מבנה השדות של המסמך (לפי ניתוח MSFT) ──
+// "איך מרוויחה" ו"מודל עסקי" היו שני שדות נפרדים — מוזגו לאחד כדי שהמודל
+// העסקי ומקורות ההכנסה ייכתבו במקום אחד. ראו caMigrateFields למיזוג נתונים ישנים.
 const CA_SECTIONS = [
   { key: 'whoIs',         title: 'מי החברה?',              icon: 'ti-building',         hint: 'תיאור כללי — מה החברה עושה, גודלה (שווי שוק), מיקומה בשוק, לאיזו קבוצה היא שייכת.' },
-  { key: 'howEarns',      title: 'איך החברה מרוויחה כסף?', icon: 'ti-coins',            hint: 'תחומי הפעילות העיקריים, מקורות ההכנסה, נתחי הכנסה וצמיחה בכל תחום.' },
-  { key: 'businessModel', title: 'מה המודל העסקי?',        icon: 'ti-repeat',           hint: 'מנויים / שימוש / מכירה חד-פעמית, נקודות המינוף וההזדמנויות לצמיחה עתידית.' },
+  { key: 'businessModel', title: 'מודל עסקי ואיך מרוויחים', icon: 'ti-coins',            hint: 'תחומי הפעילות העיקריים, מקורות ההכנסה ואיך בדיוק מרוויחים מהם, נתחי הכנסה וצמיחה בכל תחום, מנויים/שימוש/מכירה חד-פעמית, נקודות המינוף וההזדמנויות לצמיחה עתידית.' },
   { key: 'competitors',   title: 'מי המתחרות העיקריות?',   icon: 'ti-swords',           hint: 'המתחרות המרכזיות בכל אחד מתחומי הפעילות.' },
   { key: 'partners',      title: 'מי השותפות הגדולות?',    icon: 'ti-users-group',      hint: 'שיתופי פעולה אסטרטגיים ומשמעותם.' },
 ];
+
+// מיזוג חד-פעמי לניתוחים ישנים: מעביר תוכן שנכתב תחת "howEarns" (השדה
+// הנפרד הישן) לתוך "businessModel" הממוזג, ודוחף את השינוי לאחסון.
+// לא הרסני — c.fields.howEarns נשאר במבנה הנתונים, פשוט לא מוצג יותר.
+function caMigrateFields(id) {
+  const data = caLoad();
+  const c = data.find(x => x.id === id);
+  if (!c || !c.fields?.howEarns || c._mergedHowEarns) return null;
+  const a = c.fields.businessModel || '', b = c.fields.howEarns || '';
+  c.fields.businessModel = a && b ? `${a}<br><br>${b}` : (a || b);
+  c._mergedHowEarns = true;
+  localStorage.setItem(CA_KEY, JSON.stringify(data));
+  if (typeof dbPush === 'function') { try { dbPush(CA_KEY, data); } catch { /* silent */ } }
+  return c;
+}
 
 function caLoad() {
   try { return JSON.parse(localStorage.getItem(CA_KEY) || '[]'); } catch { return []; }
@@ -124,6 +140,8 @@ function caGet(id) { return caLoad().find(c => c.id === id) || null; }
 function caOpen(id) {
   const c = caGet(id);
   if (!c) return;
+  const migrated = caMigrateFields(id);
+  if (migrated) c.fields = migrated.fields;
   caCurrentId = id;
   document.getElementById('analysis-grid').style.display = 'none';
   const docView = document.getElementById('analysis-doc');
@@ -187,6 +205,104 @@ function caOpen(id) {
   caAutoProfile(id);
 }
 
+// ── טבלת נתונים כספיים לכל דיווח — משכפלת בדיוק את תבנית האקסל של המשתמש
+// לחישוב רווחים והתייעלות: הכנסות/הוצאות/רווח נקי מול תקופה מקבילה,
+// יחס הוצ׳/הכנ׳ (עלות כאחוז מהכנסה) ומכפיל רווח עתידי ──
+function caFinRatio(op, rev) {
+  const o = parseFloat(op), r = parseFloat(rev);
+  if (isNaN(o) || isNaN(r) || r === 0) return null;
+  return o / r * 100;
+}
+function caFinPct(curr, prev, invert) {
+  const c = parseFloat(curr), p = parseFloat(prev);
+  if (isNaN(c) || isNaN(p) || p === 0) return { text: '—', cls: '' };
+  const pct = ((c - p) / Math.abs(p) * 100).toFixed(1);
+  return { text: (pct > 0 ? '+' : '') + pct + '%', cls: (pct > 0 !== invert) ? 'pos' : 'neg' };
+}
+// הפרש רווח נקי בדולרים (curr-prev) — כמו E18=C17-D17 / H18=F17-G17 באקסל
+function caNiDiff(curr, prev) {
+  const c = parseFloat(curr), p = parseFloat(prev);
+  if (isNaN(c) || isNaN(p)) return { text: '—', cls: '' };
+  const d = +(c - p).toFixed(2);
+  const cls = d > 0 ? 'pos' : d < 0 ? 'neg' : '';
+  return { text: (d > 0 ? '+' : d < 0 ? '-' : '') + '$' + Math.round(Math.abs(d)).toLocaleString('en'), cls };
+}
+function caFinEffDelta(cO, cR, pO, pR) {
+  const curr = caFinRatio(cO, cR), prev = caFinRatio(pO, pR);
+  if (curr === null || prev === null) return { text: '—', cls: '' };
+  const d = curr - prev;
+  return { text: (d > 0 ? '+' : '') + d.toFixed(1) + ' נ"א', cls: d < 0 ? 'pos' : d > 0 ? 'neg' : '' };
+}
+function caFinEffTagHTML(id, op, rev) {
+  const r = caFinRatio(op, rev);
+  return `<div class="doc-fin-eff" id="${id}">${r !== null ? r.toFixed(1) + '%' : '—'}</div>`;
+}
+
+function caQFinHTML(q) {
+  const revPct = caFinPct(q.revCurr, q.revPrev, false);
+  const opPct  = caFinPct(q.opCurr,  q.opPrev,  true);
+  const niRes  = caNiDiff(q.niCurr, q.niPrev);
+  const effD   = caFinEffDelta(q.opCurr, q.revCurr, q.opPrev, q.revPrev);
+  return `<div class="doc-fin-table">
+    <div class="doc-fin-header">
+      <div></div><div>תקופה נוכחית</div><div>תקופה מקבילה</div><div>שינוי</div>
+    </div>
+    <div class="doc-fin-row">
+      <div class="doc-fin-lbl">הכנסות</div>
+      <div>
+        <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.revCurr||'')}" oninput="caQFin('${q.id}','revCurr',this.value)">
+        ${caFinEffTagHTML(`ca-eff-curr-${q.id}`, q.opCurr, q.revCurr)}
+      </div>
+      <div>
+        <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.revPrev||'')}" oninput="caQFin('${q.id}','revPrev',this.value)">
+        ${caFinEffTagHTML(`ca-eff-prev-${q.id}`, q.opPrev, q.revPrev)}
+      </div>
+      <div class="doc-fin-badge ${revPct.cls}" id="ca-pct-rev-${q.id}">${revPct.text}</div>
+    </div>
+    <div class="doc-fin-row">
+      <div class="doc-fin-lbl">הוצאות תפעוליות</div>
+      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.opCurr||'')}" oninput="caQFin('${q.id}','opCurr',this.value)">
+      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.opPrev||'')}" oninput="caQFin('${q.id}','opPrev',this.value)">
+      <div class="doc-fin-badge ${opPct.cls}" id="ca-pct-op-${q.id}">${opPct.text}</div>
+    </div>
+    <div class="doc-fin-footer">
+      <span>יחס הוצ׳/הכנ׳ (התייעלות)</span>
+      <span class="doc-fin-badge ${effD.cls}" id="ca-eff-delta-${q.id}">${effD.text}</span>
+    </div>
+    <div class="doc-fin-row">
+      <div class="doc-fin-lbl">רווח נקי</div>
+      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.niCurr||'')}" oninput="caQFin('${q.id}','niCurr',this.value)">
+      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.niPrev||'')}" oninput="caQFin('${q.id}','niPrev',this.value)">
+      <div class="doc-fin-badge ${niRes.cls}" id="ca-ni-diff-${q.id}">${niRes.text}</div>
+    </div>
+    <div class="doc-fin-pe">
+      <span>מכפיל רווח עתידי (Forward P/E)</span>
+      <input class="doc-fin-inp doc-fin-pe-inp" type="text" placeholder="לדוגמה 24x" value="${caEsc(q.forwardPE||'')}" oninput="caQuarterInput('${q.id}','forwardPE',this.value)">
+    </div>
+  </div>`;
+}
+
+// עדכון חי של התגים בטבלה הכספית (אחוזים/הפרשים) בלי לרנדר את כל הכרטיס מחדש
+function caQFin(qid, field, value) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) q[field] = value; });
+  const c = caGet(caCurrentId);
+  const q = c && (c.quarters || []).find(x => x.id === qid);
+  if (!q) return;
+  const setBadge = (id, res) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = res.text; el.className = 'doc-fin-badge ' + res.cls; }
+  };
+  setBadge(`ca-pct-rev-${qid}`,   caFinPct(q.revCurr, q.revPrev, false));
+  setBadge(`ca-pct-op-${qid}`,    caFinPct(q.opCurr,  q.opPrev,  true));
+  setBadge(`ca-ni-diff-${qid}`,   caNiDiff(q.niCurr, q.niPrev));
+  setBadge(`ca-eff-delta-${qid}`, caFinEffDelta(q.opCurr, q.revCurr, q.opPrev, q.revPrev));
+  const fmtEff = v => v !== null ? v.toFixed(1) + '%' : '—';
+  const effCurrEl = document.getElementById(`ca-eff-curr-${qid}`);
+  if (effCurrEl) effCurrEl.textContent = fmtEff(caFinRatio(q.opCurr, q.revCurr));
+  const effPrevEl = document.getElementById(`ca-eff-prev-${qid}`);
+  if (effPrevEl) effPrevEl.textContent = fmtEff(caFinRatio(q.opPrev, q.revPrev));
+}
+
 function caQuartersHTML(c) {
   const qs = c.quarters || [];
   if (!qs.length) {
@@ -199,7 +315,8 @@ function caQuartersHTML(c) {
           oninput="caQuarterInput('${q.id}','label',this.value)">
         <button class="doc-q-del" onclick="caDeleteQuarter('${q.id}')" title="מחק דיווח"><i class="ti ti-x"></i></button>
       </div>
-      <div class="doc-editable doc-q-body" contenteditable="true" data-ph="הכנסות, צמיחה, שינויים, מסקנה על הדוח..."
+      ${caQFinHTML(q)}
+      <div class="doc-editable doc-q-body" contenteditable="true" data-ph="היילייטס, שינויים, מסקנה על הדוח..."
         onfocus="caLastEditable=this" oninput="caQuarterBodyInput('${q.id}',this)">${q.text || ''}</div>
     </div>`).join('');
 }
@@ -322,7 +439,10 @@ function caQuarterBodyInput(qid, el) {
 
 function caAddQuarter() {
   const qid = caUID();
-  caTouch(c => { c.quarters = c.quarters || []; c.quarters.push({ id: qid, label: '', text: '' }); });
+  caTouch(c => { c.quarters = c.quarters || []; c.quarters.push({
+    id: qid, label: '', text: '',
+    revCurr: '', revPrev: '', opCurr: '', opPrev: '', niCurr: '', niPrev: '', forwardPE: '',
+  }); });
   const c = caGet(caCurrentId);
   document.getElementById('doc-quarters').innerHTML = caQuartersHTML(c);
   const el = document.querySelector(`.doc-quarter[data-qid="${qid}"] .doc-q-label`);

@@ -2508,10 +2508,46 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .doc-q-body:hover, .doc-q-body:focus { background: transparent; border-color: transparent; }
 .doc-q-empty { font-size: 12px; color: #a0a0ad; text-align: center; padding: 14px; font-style: italic; }
 
+/* טבלת נתונים כספיים בתוך דיווח — צבעים קבועים (לא משתני ערכת נושא), כי
+   ה"נייר" תמיד בהיר. משכפלת הכנסות/הוצאות/רווח נקי/מכפיל רווח עתידי מהאקסל. */
+.doc-fin-table { margin: 2px 0 10px; }
+.doc-fin-header, .doc-fin-row {
+  display: grid; grid-template-columns: 96px 1fr 1fr 74px;
+  gap: 6px; align-items: center;
+}
+.doc-fin-header { font-size: 9px; font-weight: 600; color: #a0a0ad; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.doc-fin-row { padding: 3px 0; }
+.doc-fin-lbl { font-size: 12px; font-weight: 500; color: #43434f; }
+.doc-fin-inp {
+  background: #fff; border: 1px solid #e2e2ea; border-radius: 5px;
+  padding: 5px 7px; font-family: var(--font-mono); font-size: 12px; color: #1e1e28;
+  width: 100%; direction: ltr; text-align: left; transition: border-color .15s;
+}
+.doc-fin-inp:focus { outline: none; border-color: var(--color-accent); }
+.doc-fin-eff { font-family: var(--font-mono); font-size: 10.5px; color: #9a9aa8; text-align: left; direction: ltr; padding: 1px 3px 0; }
+.doc-fin-badge {
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 700;
+  text-align: center; padding: 4px 4px; border-radius: 5px; background: #f0f0f4; color: #43434f;
+  direction: ltr;
+}
+.doc-fin-badge.pos { background: rgba(34,197,94,0.14); color: #157a41; }
+.doc-fin-badge.neg { background: rgba(239,68,68,0.13); color: #b3331f; }
+.doc-fin-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 3px 0 8px; padding: 4px 8px; background: #f5f5f8; border-radius: 6px;
+  border: 1px dashed #e2e2ea; font-size: 10.5px; color: #6b6b7b;
+}
+.doc-fin-pe {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 4px; padding-top: 8px; border-top: 1px dashed #e2e2ea; font-size: 12px; color: #43434f;
+}
+.doc-fin-pe-inp { max-width: 110px; }
+
 @media (max-width: 640px) {
   .doc-scroll { padding: var(--space-5) 0; }
   .doc-page { padding: 32px 24px 40px; border-radius: 0; box-shadow: none; }
   .doc-symbol { font-size: 28px; }
+  .doc-fin-header, .doc-fin-row { grid-template-columns: 78px 1fr 1fr 62px; gap: 4px; }
 }
 
 /* ── PRINT / PDF EXPORT ── */
