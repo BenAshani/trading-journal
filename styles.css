@@ -2548,6 +2548,21 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .doc-q-body:hover, .doc-q-body:focus { background: transparent; border-color: transparent; }
 .doc-q-empty { font-size: 12px; color: #a0a0ad; text-align: center; padding: 14px; font-style: italic; }
 
+.doc-q-concl-wrap {
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e2ea;
+}
+.doc-q-concl-lbl {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; color: #8a6d00; text-transform: uppercase; letter-spacing: .03em;
+  margin-bottom: 3px;
+}
+.doc-q-concl-lbl i { font-size: 12px; }
+.doc-q-concl {
+  background: #fdf8e8; border-color: #f2e6bb; margin: 0; padding: 7px 9px; border-radius: 6px;
+}
+.doc-q-concl:hover { background: #fbf3d9; }
+.doc-q-concl:focus { background: #fdf8e8; border-color: #e8d38a; }
+
 /* טבלת נתונים כספיים בתוך דיווח — צבעים קבועים (לא משתני ערכת נושא), כי
    ה"נייר" תמיד בהיר. משכפלת הכנסות/הוצאות/רווח נקי/מכפיל רווח עתידי מהאקסל. */
 .doc-fin-table { margin: 2px 0 10px; }

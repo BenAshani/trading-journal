@@ -391,8 +391,13 @@ function caQuartersHTML(c) {
         <button class="doc-q-del" onclick="caDeleteQuarter('${q.id}')" title="מחק דיווח"><i class="ti ti-x"></i></button>
       </div>
       ${caQFinHTML(q)}
-      <div class="doc-editable doc-q-body" contenteditable="true" data-ph="היילייטס, שינויים, מסקנה על הדוח..."
+      <div class="doc-editable doc-q-body" contenteditable="true" data-ph="היילייטס, שינויים..."
         onfocus="caLastEditable=this" oninput="caQuarterBodyInput('${q.id}',this)">${q.text || ''}</div>
+      <div class="doc-q-concl-wrap">
+        <div class="doc-q-concl-lbl"><i class="ti ti-bulb"></i>המסקנה שלי</div>
+        <div class="doc-editable doc-q-concl" contenteditable="true" data-ph="מה אני מסיק מהדוח הזה..."
+          onfocus="caLastEditable=this" oninput="caQuarterConclInput('${q.id}',this)">${q.concl || ''}</div>
+      </div>
     </div>`).join('');
 }
 
@@ -511,11 +516,15 @@ function caQuarterBodyInput(qid, el) {
   const html = el.innerHTML;
   caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) q.text = html; });
 }
+function caQuarterConclInput(qid, el) {
+  const html = el.innerHTML;
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) q.concl = html; });
+}
 
 function caAddQuarter() {
   const qid = caUID();
   caTouch(c => { c.quarters = c.quarters || []; c.quarters.push({
-    id: qid, label: '', text: '',
+    id: qid, label: '', text: '', concl: '',
     revCurr: '', revPrev: '', opCurr: '', opPrev: '', niCurr: '', niPrev: '', forwardPE: '',
   }); });
   const c = caGet(caCurrentId);
@@ -539,7 +548,10 @@ function caFmt(cmd) {
     if (caLastEditable.dataset.field) caFieldInput(caLastEditable);
     else {
       const q = caLastEditable.closest('.doc-quarter');
-      if (q) caQuarterBodyInput(q.dataset.qid, caLastEditable);
+      if (q) {
+        if (caLastEditable.classList.contains('doc-q-concl')) caQuarterConclInput(q.dataset.qid, caLastEditable);
+        else caQuarterBodyInput(q.dataset.qid, caLastEditable);
+      }
     }
   }
 }
