@@ -17,6 +17,46 @@ const CA_SECTIONS = [
   { key: 'partners',      title: 'מי השותפות הגדולות?',    icon: 'ti-users-group',      hint: 'שיתופי פעולה אסטרטגיים ומשמעותם.' },
 ];
 
+// ── מחזור החיים העסקי (7 שלבים) — לפי "מטמורפוזה עסקית: מחזור חיי החברה" ──
+const CA_STAGES = [
+  { id: 1, name: 'שלב החלום',   focus: 'פיתוח ומחקר', criteria: [
+    { label: 'קצב שריפת מזומנים',      desc: 'כמה כסף נשאר בקופה וזמן החמצן שנותר.' },
+    { label: 'אבני דרך טכנולוגיות',    desc: 'הוכחות להתקדמות (אבטיפוס, פטנטים).' },
+    { label: 'התעלמות מהרווח',         desc: 'שורת ההכנסות היא אפס; המיקוד הוא בנכסים.' },
+  ] },
+  { id: 2, name: 'שלב ההוכחה',  focus: 'מכירות ראשונות', criteria: [
+    { label: 'הסכמים ופיילוטים',       desc: 'האם גופים גדולים מוכנים לנסות את המוצר?' },
+    { label: 'תיקוף השוק',             desc: 'הוכחה מעשית שמישהו מוכן לשלם עבור הפתרון.' },
+    { label: 'צמיחה מעל יעילות',       desc: 'לקוח משלם ראשון חשוב יותר מחיסכון.' },
+  ] },
+  { id: 3, name: 'שלב הזינוק',  focus: 'צמיחה בהכנסות', criteria: [
+    { label: 'השורה העליונה',          desc: 'המדד הקריטי ביותר; זינוק אגרסיבי במכירות.' },
+    { label: 'תפיסת קרקע',             desc: 'הגעה לכמות לקוחות מקסימלית לפני המתחרים.' },
+    { label: 'סלחנות להפסדים',         desc: 'השקעה מסיבית בשיווק כדי לכבוש את השוק.' },
+  ] },
+  { id: 4, name: 'שלב הבריאות', focus: 'הכלכלה של היחידה', criteria: [
+    { label: 'רווח גולמי',             desc: 'בדיקה שעלויות הייצור לא עולות בקצב המכירות.' },
+    { label: 'יתרון לגודל',            desc: 'מצפים לראות שיפור באחוז הרווח הגולמי.' },
+    { label: 'מודל עסקי הגיוני',       desc: 'האם המוצר רווחי ברמת היחידה הבודדת?' },
+  ] },
+  { id: 5, name: 'שלב המהפך',   focus: 'איזון תפעולי', criteria: [
+    { label: 'מינוף תפעולי',           desc: 'הוצאות ההנהלה והשיווק יורדות כאחוז מההכנסות.' },
+    { label: 'רווח ראשון',             desc: 'הרגע המכונן בו החברה הופכת לרווחית לראשונה.' },
+    { label: 'עמידה בזכות עצמה',       desc: 'החברה אינה זקוקה יותר לכספי משקיעים.' },
+  ] },
+  { id: 6, name: 'תור הזהב',    focus: 'מכונת המזומנים', criteria: [
+    { label: 'רווח נקי ומזומן חופשי',  desc: 'דגש על תוצאות בהווה ולא הבטחות לעתיד.' },
+    { label: 'שימוש במזומן',           desc: 'חלוקת דיבידנדים או רכישה עצמית של מניות.' },
+    { label: 'יציבות עקבית',           desc: 'יכולת לייצר מזומנים באופן קבוע ללא דרמות.' },
+  ] },
+  { id: 7, name: 'המצאה מחדש',  focus: 'הקצאת הון וחדשנות', criteria: [
+    { label: 'רכישות ומיזוגים',        desc: 'שימוש בכסף לקניית חברות צעירות וחדשניות.' },
+    { label: 'מנועי צמיחה חדשים',      desc: 'פיתוח מוצרים חדשים לחלוטין כדי למנוע דעיכה.' },
+    { label: 'צמיחה במגזרים חדשים',    desc: 'האם החברה מצליחה להמציא את עצמה?' },
+  ] },
+];
+function caStageById(id) { return CA_STAGES.find(s => s.id === id) || null; }
+
 // מיזוג חד-פעמי לניתוחים ישנים: מעביר תוכן שנכתב תחת "howEarns" (השדה
 // הנפרד הישן) לתוך "businessModel" הממוזג, ודוחף את השינוי לאחסון.
 // לא הרסני — c.fields.howEarns נשאר במבנה הנתונים, פשוט לא מוצג יותר.
@@ -81,6 +121,7 @@ function caRender() {
       const sym  = caEsc(c.symbol || '—');
       const name = caEsc(c.name || '');
       const cap  = caEsc(c.marketCap || '');
+      const stage = caStageById(c.stage);
       const d    = c.updatedAt || c.createdAt;
       const date = d ? new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
       return `<div class="ca-card" onclick="caOpen('${c.id}')">
@@ -90,6 +131,7 @@ function caRender() {
           <div class="ca-card-sym">${sym}</div>
         </div>
         ${name ? `<div class="ca-card-name">${name}</div>` : ''}
+        ${stage ? `<div class="ca-card-stage"><i class="ti ti-stairs-up"></i>שלב ${stage.id} · ${caEsc(stage.name)}</div>` : ''}
         <div class="ca-card-foot">
           ${cap ? `<span class="ca-card-cap"><i class="ti ti-scale"></i>${cap}</span>` : '<span></span>'}
           ${date ? `<span class="ca-card-date">${date}</span>` : ''}
@@ -187,6 +229,14 @@ function caOpen(id) {
           </div>
         </header>
 
+        <section class="doc-section doc-stage-section">
+          <h2 class="doc-h2"><i class="ti ti-stairs-up"></i>שלב במחזור החיים העסקי</h2>
+          <div class="doc-stage-grid" id="doc-stage-grid">${caStageGridHTML(c)}</div>
+          <div class="doc-editable doc-stage-note" contenteditable="true" data-field="stageNote"
+            data-ph="הסיבות שלך לשיוך החברה לשלב שנבחר..."
+            onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.stageNote || ''}</div>
+        </section>
+
         ${sectionsHTML}
 
         <section class="doc-section">
@@ -203,6 +253,31 @@ function caOpen(id) {
 
   // מילוי אוטומטי של שדות ריקים (סקטור/שם/שווי שוק) מ-Finnhub — גם לניתוחים ותיקים
   caAutoProfile(id);
+}
+
+// רשת 7 כרטיסי השלבים — מציגה את כל השלבים והמאפיינים שלהם תמיד (לא רק
+// הנבחר), כדי שיהיה קל להשוות ולזכור מה מייחד כל שלב לפני שבוחרים.
+function caStageGridHTML(c) {
+  return CA_STAGES.map(s => `
+    <button type="button" class="doc-stage-card${c.stage === s.id ? ' sel' : ''}" data-stage="${s.id}" onclick="caSetStage(${s.id})">
+      <div class="doc-stage-card-head">
+        <span class="doc-stage-num">${s.id}</span>
+        <span class="doc-stage-name">${s.name}</span>
+      </div>
+      <div class="doc-stage-focus">מיקוד: ${s.focus}</div>
+      <ul class="doc-stage-crit">${s.criteria.map(cr => `<li><b>${cr.label}:</b> ${cr.desc}</li>`).join('')}</ul>
+    </button>`).join('');
+}
+
+// בחירת/ביטול שלב — קליק חוזר על שלב שכבר נבחר מבטל אותו
+function caSetStage(id) {
+  const c = caGet(caCurrentId);
+  if (!c) return;
+  const next = c.stage === id ? null : id;
+  caTouch(cc => { cc.stage = next; });
+  document.querySelectorAll('#doc-stage-grid .doc-stage-card').forEach(el => {
+    el.classList.toggle('sel', next !== null && +el.dataset.stage === next);
+  });
 }
 
 // ── טבלת נתונים כספיים לכל דיווח — משכפלת בדיוק את תבנית האקסל של המשתמש
