@@ -505,7 +505,9 @@ function caQFin(qid, field, value) {
 function caSumExpr(str) {
   const s = String(str || '').trim();
   if (!s) return null;
-  const parts = s.split('+').map(p => p.trim()).filter(p => p !== '');
+  // "-" לפני מספר = מינוס (גם כשהוא מחובר לרצף "+", למשל "100-50" או "-50+20") —
+  // הופכים כל "-" ל-"+-" לפני הפיצול, כך שהמספר השלילי נשאר צמוד לסימן שלו כאיבר נפרד.
+  const parts = s.replace(/-/g, '+-').split('+').map(p => p.trim()).filter(p => p !== '');
   if (!parts.length) return null;
   let sum = 0;
   for (const p of parts) {
