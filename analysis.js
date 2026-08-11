@@ -345,11 +345,11 @@ function caQFinHTML(q) {
     <div class="doc-fin-row">
       <div class="doc-fin-lbl">הכנסות</div>
       <div>
-        <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.revCurr||'')}" oninput="caQFin('${q.id}','revCurr',this.value)">
+        <input class="doc-fin-inp" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.revCurr||'')}" oninput="caQFin('${q.id}','revCurr',this.value)" onkeydown="caFinKeydown(event,'${q.id}','revCurr')" onblur="caFinBlur(event,'${q.id}','revCurr')">
         ${caFinEffTagHTML(`ca-eff-curr-${q.id}`, q.opCurr, q.revCurr)}
       </div>
       <div>
-        <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.revPrev||'')}" oninput="caQFin('${q.id}','revPrev',this.value)">
+        <input class="doc-fin-inp" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.revPrev||'')}" oninput="caQFin('${q.id}','revPrev',this.value)" onkeydown="caFinKeydown(event,'${q.id}','revPrev')" onblur="caFinBlur(event,'${q.id}','revPrev')">
         ${caFinEffTagHTML(`ca-eff-prev-${q.id}`, q.opPrev, q.revPrev)}
       </div>
       <div class="doc-fin-badge ${revPct.cls}" id="ca-pct-rev-${q.id}">${revPct.text}</div>
@@ -357,11 +357,11 @@ function caQFinHTML(q) {
     <div class="doc-fin-row">
       <div class="doc-fin-lbl">הוצאות תפעוליות</div>
       <div class="doc-fin-cell">
-        <input class="doc-fin-inp" id="ca-fin-opCurr-${q.id}" type="number" step="0.01" placeholder="—" value="${caEsc(q.opCurr||'')}" ${(q.opCurrParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opCurr',this.value)">
+        <input class="doc-fin-inp" id="ca-fin-opCurr-${q.id}" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.opCurr||'')}" ${(q.opCurrParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opCurr',this.value)" onkeydown="caFinKeydown(event,'${q.id}','opCurr')" onblur="caFinBlur(event,'${q.id}','opCurr')">
         <button type="button" class="doc-calc-toggle" onclick="caCalcToggle('${q.id}','opCurr')" title="חשב מכמה סעיפי הוצאה"><i class="ti ti-calculator"></i></button>
       </div>
       <div class="doc-fin-cell">
-        <input class="doc-fin-inp" id="ca-fin-opPrev-${q.id}" type="number" step="0.01" placeholder="—" value="${caEsc(q.opPrev||'')}" ${(q.opPrevParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opPrev',this.value)">
+        <input class="doc-fin-inp" id="ca-fin-opPrev-${q.id}" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.opPrev||'')}" ${(q.opPrevParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opPrev',this.value)" onkeydown="caFinKeydown(event,'${q.id}','opPrev')" onblur="caFinBlur(event,'${q.id}','opPrev')">
         <button type="button" class="doc-calc-toggle" onclick="caCalcToggle('${q.id}','opPrev')" title="חשב מכמה סעיפי הוצאה"><i class="ti ti-calculator"></i></button>
       </div>
       <div class="doc-fin-badge ${opPct.cls}" id="ca-pct-op-${q.id}">${opPct.text}</div>
@@ -374,8 +374,8 @@ function caQFinHTML(q) {
     </div>
     <div class="doc-fin-row">
       <div class="doc-fin-lbl">רווח נקי</div>
-      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.niCurr||'')}" oninput="caQFin('${q.id}','niCurr',this.value)">
-      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.niPrev||'')}" oninput="caQFin('${q.id}','niPrev',this.value)">
+      <input class="doc-fin-inp" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.niCurr||'')}" oninput="caQFin('${q.id}','niCurr',this.value)" onkeydown="caFinKeydown(event,'${q.id}','niCurr')" onblur="caFinBlur(event,'${q.id}','niCurr')">
+      <input class="doc-fin-inp" type="text" inputmode="decimal" placeholder="—" value="${caEsc(q.niPrev||'')}" oninput="caQFin('${q.id}','niPrev',this.value)" onkeydown="caFinKeydown(event,'${q.id}','niPrev')" onblur="caFinBlur(event,'${q.id}','niPrev')">
       <div class="doc-fin-badge ${niRes.cls}" id="ca-ni-diff-${q.id}">${niRes.text}</div>
     </div>
     <div class="doc-fin-pe">
@@ -497,6 +497,44 @@ function caQFin(qid, field, value) {
   if (effCurrEl) effCurrEl.textContent = fmtEff(caFinRatio(q.opCurr, q.revCurr));
   const effPrevEl = document.getElementById(`ca-eff-prev-${qid}`);
   if (effPrevEl) effPrevEl.textContent = fmtEff(caFinRatio(q.opPrev, q.revPrev));
+}
+
+// מחשב סכום מביטוי כמו "120+35.5+8" — מאפשר להקליד כמה מספרים ברצף ישר
+// בתוך שדה הכנסות/הוצאות/רווח נקי בטבלה הכספית, בלי לפתוח מחשבון נפרד.
+// מחזיר null אם הביטוי ריק/לא תקין, כדי שלא נדרוס שדה בטעות.
+function caSumExpr(str) {
+  const s = String(str || '').trim();
+  if (!s) return null;
+  const parts = s.split('+').map(p => p.trim()).filter(p => p !== '');
+  if (!parts.length) return null;
+  let sum = 0;
+  for (const p of parts) {
+    const n = parseFloat(p.replace(/,/g, ''));
+    if (isNaN(n)) return null;
+    sum += n;
+  }
+  return Math.round(sum * 100) / 100;
+}
+
+// פותר ביטוי "+" בשדה בפועל: כותב את הסכום חזרה לשדה, שומר ומרענן תגים.
+// אם הביטוי לא תקין (או ריק) — לא נוגע בשדה, כדי לא לדרוס בטעות.
+function caFinResolve(el, qid, field) {
+  const sum = caSumExpr(el.value);
+  if (sum === null) return;
+  el.value = sum;
+  caQFin(qid, field, sum);
+}
+// Enter בשדה כספי בטבלה — פותר מיד ומוריד פוקוס לאישור ויזואלי.
+function caFinKeydown(e, qid, field) {
+  if (e.key !== 'Enter' && e.keyCode !== 13) return;
+  e.preventDefault();
+  caFinResolve(e.target, qid, field);
+  e.target.blur();
+}
+// יציאה מהשדה (קליק במקום אחר וכו') — פותר גם אם המשתמש לא לחץ אנטר,
+// כדי שלא יישאר ביטוי לא פתור ("100+50") שמור בטעות.
+function caFinBlur(e, qid, field) {
+  caFinResolve(e.target, qid, field);
 }
 
 function caQuartersHTML(c) {
