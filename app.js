@@ -280,7 +280,7 @@ let trades = [], portfolio = [], watchlist = [], faDataStore = {};
 let journalRU = 'all';   // יומן המסחר המוצג: 'all' = הכל, או ערך יחידת סיכון מספרי
 let priceCache = {}, prevPrices = {};
 let editTradeId = null, editHoldingId = null;
-let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = null;
+let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = null, activeAddMode = 'portfolio';
 let targetItems = [];
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
@@ -1639,6 +1639,15 @@ function buildPositionCard(t, prices) {
     ? `<div class="real-log">${reals.map(r => `<div class="real-row"><span>${r.date}${r.isSl ? ' 🛑' : ''}</span><span>${r.qty}×$${r.price}</span><span style="color:${pnlCol(r.pnl)}">$${r.pnl.toFixed(0)}</span></div>`).join('')}</div>`
     : '';
 
+  // יומן רכישות — מוצג רק כשהפוזיציה חוזקה (יותר מרכישה אחת), כמו בתיק ההשקעות
+  const buys    = t.buys || [];
+  const buysLog = buys.length > 1
+    ? `<div class="targets-section">
+        <div class="targets-hdr"><span class="targets-title">רכישות</span></div>
+        <div class="real-log">${buys.map(b => `<div class="real-row"><span>${b.date}</span><span>${b.qty}×$${(+b.price).toFixed(2)}</span><span style="color:var(--tx2)">$${Math.round(b.price * b.qty).toLocaleString()}</span></div>`).join('')}</div>
+      </div>`
+    : '';
+
   const tgts    = t.targets || [];
   const tgtHtml = tgts.length
     ? `<div class="targets-section">
@@ -1700,7 +1709,9 @@ function buildPositionCard(t, prices) {
       ${t.scenario ? `<div class="d-row-text"><span class="d-lbl">תרחיש</span><span class="d-val">${t.scenario}</span></div>` : ''}
     </div>
     ${tgtHtml}
+    ${buysLog}
     <div class="pos-actions">
+      <button class="action-btn primary" onclick="openAdd('${t.id}','trade')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
       <button class="action-btn danger"  onclick="openSL('${t.id}')"><i class="ti ti-shield-x" style="font-size:11px"></i>סגור SL</button>
       <button class="action-btn success" onclick="openPM('${t.id}',null)"><i class="ti ti-percentage" style="font-size:11px"></i>מימוש חלקי</button>
       <button class="action-btn neutral" onclick="editTrade('${t.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
@@ -2473,14 +2484,18 @@ function holdingBuys(h) {
   return (h.buys && h.buys.length) ? h.buys : [{ date: h.date, price: h.avgCost, qty: h.qty }];
 }
 
-// ── חיזוק פוזיציה: קניית עוד מאותה מניה ──
-function openAdd(id) {
+// ── חיזוק פוזיציה: קניית עוד מאותה מניה — עובד גם על תיק ההשקעות (portfolio)
+// וגם על עסקאות פתוחות ביומן המסחר (trades), לפי mode ──
+function openAdd(id, mode) {
   activeAddId = id;
-  const h = portfolio.find(x => x.id === id);
+  activeAddMode = mode === 'trade' ? 'trade' : 'portfolio';
+  const arr = activeAddMode === 'trade' ? trades : portfolio;
+  const h = arr.find(x => x.id === id);
   if (!h) return;
-  const rem = h.remainingQty || h.qty;
+  const rem  = h.remainingQty || h.qty;
+  const cost = activeAddMode === 'trade' ? h.entry : h.avgCost;
   document.getElementById('add-tkr-lbl').textContent  = h.ticker;
-  document.getElementById('add-info-txt').textContent = `${rem} מניות · עלות ממוצעת $${h.avgCost.toFixed(2)}`;
+  document.getElementById('add-info-txt').textContent = `${rem} מניות · עלות ממוצעת $${cost.toFixed(2)}`;
   document.getElementById('add-price').value = '';
   document.getElementById('add-qty').value   = '';
   document.getElementById('add-date').value  = today();
@@ -2492,10 +2507,12 @@ function openAdd(id) {
 function calcAdd() {
   const price = parseFloat(document.getElementById('add-price').value);
   const qty   = parseFloat(document.getElementById('add-qty').value);
-  const h     = activeAddId ? portfolio.find(x => x.id === activeAddId) : null;
+  const arr   = activeAddMode === 'trade' ? trades : portfolio;
+  const h     = activeAddId ? arr.find(x => x.id === activeAddId) : null;
   if (!h || !price || !qty) { document.getElementById('add-avg').textContent = '—'; document.getElementById('add-det').textContent = '—'; return; }
   const rem    = h.remainingQty || h.qty;
-  const newAvg = (h.avgCost * rem + price * qty) / (rem + qty);
+  const cost   = activeAddMode === 'trade' ? h.entry : h.avgCost;
+  const newAvg = (cost * rem + price * qty) / (rem + qty);
   document.getElementById('add-avg').textContent = '$' + newAvg.toFixed(2);
   document.getElementById('add-det').textContent = `${rem + qty} מניות · תוספת $${(price * qty).toLocaleString('en', { maximumFractionDigits: 0 })}`;
 }
@@ -2505,6 +2522,27 @@ function confirmAdd() {
   const qty   = parseFloat(document.getElementById('add-qty').value);
   const date  = document.getElementById('add-date').value || today();
   if (!price || !qty) { toast('⚠ הכנס מחיר וכמות'); return; }
+
+  if (activeAddMode === 'trade') {
+    const idx = trades.findIndex(t => t.id === activeAddId);
+    if (idx === -1) return;
+    const t      = trades[idx];
+    const rem    = t.remainingQty || t.qty;
+    const oldAvg = t.entry;
+    if (!t.buys || !t.buys.length) t.buys = [{ date: t.date, price: oldAvg, qty: rem }];
+    t.buys.push({ date, price, qty });
+    // מחיר כניסה משוקלל מחדש על פני היתרה הקיימת + הקנייה החדשה
+    t.entry        = +(((oldAvg * rem) + (price * qty)) / (rem + qty)).toFixed(4);
+    t.remainingQty = rem + qty;
+    t.qty          = (t.qty || rem) + qty;   // סך הכל שנקנה אי־פעם
+    trades[idx] = t;
+    sv(SK.trades, trades);
+    closeAdd();
+    loadLive();
+    toast(`✓ חוזקה פוזיציה: ${qty} × $${price} · ממוצע $${t.entry.toFixed(2)}`);
+    return;
+  }
+
   const idx = portfolio.findIndex(h => h.id === activeAddId);
   if (idx === -1) return;
   const h      = portfolio[idx];
@@ -2524,7 +2562,7 @@ function confirmAdd() {
   toast(`✓ חוזקה פוזיציה: ${qty} × $${price} · ממוצע $${h.avgCost.toFixed(2)}`);
 }
 
-function closeAdd() { document.getElementById('add-overlay').classList.remove('open'); activeAddId = null; }
+function closeAdd() { document.getElementById('add-overlay').classList.remove('open'); activeAddId = null; activeAddMode = 'portfolio'; }
 
 function buildHoldingCard(h, i, allocData, allocTotal) {
   const pnlC    = h.pnl === null ? 'var(--tx3)' : pnlCol(h.pnl);
