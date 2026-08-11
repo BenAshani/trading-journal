@@ -22,7 +22,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="tokens.css?v=20260731a">
-<link rel="stylesheet" href="styles.css?v=20260810b">
+<link rel="stylesheet" href="styles.css?v=20260811c">
 </head>
 <body>
 <div id="toast"></div>
@@ -580,9 +580,9 @@
     <i class="ti ti-briefcase"></i>
     <span>תיק</span>
   </button>
-  <button class="mbn-item" id="mbn-dashboard" onclick="nav('dashboard',null);mbnSet('dashboard')">
-    <i class="ti ti-layout-dashboard"></i>
-    <span>דאשבורד</span>
+  <button class="mbn-item" id="mbn-analysis" onclick="nav('analysis',null);mbnSet('analysis')">
+    <i class="ti ti-file-analytics"></i>
+    <span>ניתוח</span>
   </button>
 </nav>
 
@@ -615,9 +615,9 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20260731a"></script>
+<script src="app.js?v=20260811b"></script>
 <script src="prep.js?v=20260728"></script>
-<script src="analysis.js?v=20260810b"></script>
+<script src="analysis.js?v=20260811a"></script>
 <script src="ibkr.js?v=20260728"></script>
 <script>
 // render prep page when navigating to it
@@ -702,7 +702,7 @@ function toggleTheme() {
 <script>
 // Mobile bottom nav active state
 function mbnSet(page) {
-  var ids = ['live','closed','add','portfolio','dashboard'];
+  var ids = ['live','closed','add','portfolio','analysis'];
   ids.forEach(function(id) {
     var el = document.getElementById('mbn-' + id);
     if (el) el.classList.toggle('active', id === page);

@@ -1704,6 +1704,7 @@ function buildPositionCard(t, prices) {
       <button class="action-btn danger"  onclick="openSL('${t.id}')"><i class="ti ti-shield-x" style="font-size:11px"></i>סגור SL</button>
       <button class="action-btn success" onclick="openPM('${t.id}',null)"><i class="ti ti-percentage" style="font-size:11px"></i>מימוש חלקי</button>
       <button class="action-btn neutral" onclick="editTrade('${t.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
+      ${(typeof caFindBySymbol === 'function' && caFindBySymbol(t.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${t.ticker}')"><i class="ti ti-file-analytics" style="font-size:11px"></i>ניתוח</button>` : ''}
     </div>
   </div>`;
 }
@@ -2099,7 +2100,8 @@ function closeSL() { document.getElementById('sl-overlay').classList.remove('ope
 // ═══════════════════════════════════════════════════════════
 //  CLOSED TRADES TABLE / CARDS
 // ═══════════════════════════════════════════════════════════
-let closedViewMode = 'table';
+// במובייל טבלת עסקאות סגורות דורשת גלילה אופקית לראות P&L — ברירת מחדל לתצוגת כרטיסיות שם
+let closedViewMode = (typeof window !== 'undefined' && window.innerWidth <= 640) ? 'cards' : 'table';
 
 function setClosedView(mode) {
   closedViewMode = mode;
@@ -2578,6 +2580,7 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
         <button class="action-btn primary" onclick="openAdd('${h.id}')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
         <button class="action-btn success" onclick="openSell('${h.id}')"><i class="ti ti-coin" style="font-size:11px"></i>מכור</button>
         <button class="action-btn neutral" onclick="openHM('${h.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
+        ${(typeof caFindBySymbol === 'function' && caFindBySymbol(h.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${h.ticker}')"><i class="ti ti-file-analytics" style="font-size:11px"></i>ניתוח</button>` : ''}
         <button class="action-btn danger"  onclick="deleteHolding('${h.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button>
       </div>
     </div>
@@ -2884,6 +2887,8 @@ async function init() {
   document.getElementById('f-fee').value  = getDefaultFee().toFixed(2);
   updateFeeHint();
   renderTargets();
+  document.getElementById('vtb-table').classList.toggle('active', closedViewMode === 'table');
+  document.getElementById('vtb-cards').classList.toggle('active', closedViewMode === 'cards');
   fullRefresh();
   setIv(60);
 

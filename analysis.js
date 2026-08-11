@@ -179,6 +179,21 @@ function caDeleteCompany(id, e) {
 // ═══════════════════════════════════════════════════════════
 function caGet(id) { return caLoad().find(c => c.id === id) || null; }
 
+// מחפש ניתוח חברה קיים לפי סימבול — לשימוש בכפתור "ניתוח" מעסקאות פתוחות ומתיק ההשקעות
+function caFindBySymbol(symbol) {
+  const sym = (symbol || '').trim().toUpperCase();
+  if (!sym) return null;
+  return caLoad().find(c => (c.symbol || '').trim().toUpperCase() === sym) || null;
+}
+
+function caOpenBySymbol(symbol) {
+  const c = caFindBySymbol(symbol);
+  if (!c) return;
+  if (typeof nav === 'function') nav('analysis', null);
+  if (typeof mbnSet === 'function') mbnSet('analysis');
+  caOpen(c.id);
+}
+
 function caOpen(id) {
   const c = caGet(id);
   if (!c) return;

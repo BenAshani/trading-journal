@@ -425,6 +425,8 @@ body {
 .action-btn.neutral:hover { background: var(--color-bg-raised); color: var(--color-text-primary); }
 .action-btn.primary { background: var(--color-accent-subtle); color: var(--color-accent-text); border-color: rgba(204,160,66,0.2); }
 .action-btn.primary:hover { background: var(--color-accent-muted); }
+.action-btn.info { background: rgba(99,102,241,0.12); color: var(--blue-t, #6366F1); border-color: rgba(99,102,241,0.2); }
+.action-btn.info:hover { background: rgba(99,102,241,0.2); }
 
 /* ── FLASH ── */
 @keyframes flashG { 0%{background:var(--color-success-muted)} 100%{background:transparent} }
@@ -440,7 +442,7 @@ body {
   background: var(--color-scrim);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  z-index: 1000; align-items: center; justify-content: center;
+  z-index: 3100; align-items: center; justify-content: center;
 }
 .overlay.open { display: flex; }
 
@@ -1821,6 +1823,10 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   .ph-top { flex-wrap: wrap; gap: var(--space-3); }
   .ph-alloc { min-width: 100%; order: 3; padding: 0; margin-top: 4px; }
   .ph-price-blk, .ph-pnl-blk { min-width: 80px; }
+  .ph-bot { flex-wrap: wrap; row-gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+  .ph-stat { flex: 1 1 40%; min-width: 40%; }
+  .ph-actions { flex: 1 1 100%; margin-right: 0; flex-wrap: wrap; order: 10; }
+  .ph-actions .action-btn { flex: 1 1 auto; justify-content: center; }
 
   /* ── Portfolio charts ── */
   #port-charts-row > .port-chart-card:first-child { display: none; }
@@ -1840,9 +1846,9 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
     gap: 9px;
   }
 
-  /* ── Toast: account for safe area ── */
+  /* ── Toast: sit above the fixed bottom nav instead of overlapping it ── */
   #toast {
-    bottom: calc(var(--space-7) + env(safe-area-inset-bottom));
+    bottom: calc(58px + env(safe-area-inset-bottom) + var(--space-4));
   }
 
   /* ── Scrollbar hidden on mobile ── */
