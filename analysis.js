@@ -242,7 +242,12 @@ function caOpen(id) {
         <section class="doc-section">
           <div class="doc-h2-row">
             <h2 class="doc-h2"><i class="ti ti-timeline-event"></i>מעקב רבעוני (דיווחים)</h2>
-            <button class="doc-add-q" onclick="caAddQuarter()"><i class="ti ti-plus"></i>הוסף דיווח</button>
+            <div class="doc-h2-actions">
+              <button class="doc-ir-btn" onclick="caOpenIR()" title="חיפוש דף Investor Relations של החברה">
+                <i class="ti ti-building-bank"></i>Investor Relations<i class="ti ti-external-link doc-ir-ext"></i>
+              </button>
+              <button class="doc-add-q" onclick="caAddQuarter()"><i class="ti ti-plus"></i>הוסף דיווח</button>
+            </div>
           </div>
           <div id="doc-quarters">${caQuartersHTML(c)}</div>
         </section>
@@ -498,6 +503,16 @@ function caSymbolChanged(val) {
   const sym  = (val || '').trim().toUpperCase();
   if (slot) slot.innerHTML = (sym && typeof stockLogoImg === 'function') ? stockLogoImg(sym, 40, 'doc-symbol-logo') : '';
   if (caCurrentId) caAutoProfile(caCurrentId);
+}
+
+// פותח חיפוש לדף ה-Investor Relations של החברה בכרטיסייה חדשה —
+// אין API אמין למיפוי סימבול→URL של IR, אז נעזרים בחיפוש "{סימבול} ir"
+// שבד"כ מעלה את דף ה-IR הרשמי כתוצאה הראשונה.
+function caOpenIR() {
+  const c = caGet(caCurrentId);
+  const q = ((c && (c.symbol || c.name)) || '').trim();
+  if (!q) { alert('הזן קודם סימבול או שם חברה'); return; }
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q + ' ir')}`, '_blank', 'noopener');
 }
 
 // el מגיע ישירות מ-oninput (this) — לא מסתמכים על משתנה גלובלי
