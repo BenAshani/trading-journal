@@ -356,10 +356,18 @@ function caQFinHTML(q) {
     </div>
     <div class="doc-fin-row">
       <div class="doc-fin-lbl">הוצאות תפעוליות</div>
-      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.opCurr||'')}" oninput="caQFin('${q.id}','opCurr',this.value)">
-      <input class="doc-fin-inp" type="number" step="0.01" placeholder="—" value="${caEsc(q.opPrev||'')}" oninput="caQFin('${q.id}','opPrev',this.value)">
+      <div class="doc-fin-cell">
+        <input class="doc-fin-inp" id="ca-fin-opCurr-${q.id}" type="number" step="0.01" placeholder="—" value="${caEsc(q.opCurr||'')}" ${(q.opCurrParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opCurr',this.value)">
+        <button type="button" class="doc-calc-toggle" onclick="caCalcToggle('${q.id}','opCurr')" title="חשב מכמה סעיפי הוצאה"><i class="ti ti-calculator"></i></button>
+      </div>
+      <div class="doc-fin-cell">
+        <input class="doc-fin-inp" id="ca-fin-opPrev-${q.id}" type="number" step="0.01" placeholder="—" value="${caEsc(q.opPrev||'')}" ${(q.opPrevParts||[]).length ? 'readonly' : ''} oninput="caQFin('${q.id}','opPrev',this.value)">
+        <button type="button" class="doc-calc-toggle" onclick="caCalcToggle('${q.id}','opPrev')" title="חשב מכמה סעיפי הוצאה"><i class="ti ti-calculator"></i></button>
+      </div>
       <div class="doc-fin-badge ${opPct.cls}" id="ca-pct-op-${q.id}">${opPct.text}</div>
     </div>
+    <div class="doc-calc-panel" id="ca-calc-opCurr-${q.id}" style="display:${(q.opCurrParts||[]).length ? 'block' : 'none'}">${caCalcRowsHTML(q.id, 'opCurr', q.opCurrParts || [])}</div>
+    <div class="doc-calc-panel" id="ca-calc-opPrev-${q.id}" style="display:${(q.opPrevParts||[]).length ? 'block' : 'none'}">${caCalcRowsHTML(q.id, 'opPrev', q.opPrevParts || [])}</div>
     <div class="doc-fin-footer">
       <span>יחס הוצ׳/הכנ׳ (התייעלות)</span>
       <span class="doc-fin-badge ${effD.cls}" id="ca-eff-delta-${q.id}">${effD.text}</span>
@@ -375,6 +383,99 @@ function caQFinHTML(q) {
       <input class="doc-fin-inp doc-fin-pe-inp" type="text" placeholder="לדוגמה 24x" value="${caEsc(q.forwardPE||'')}" oninput="caQuarterInput('${q.id}','forwardPE',this.value)">
     </div>
   </div>`;
+}
+
+// ── מחשבון פירוט הוצאות — כשבדוח אין שורת "סה״כ הוצאות" אחת אלא כמה סעיפים
+// (מו"פ, שיווק, הנהלה...), אפשר לפרק ולסכום אותם כאן ותקופה נוכחית/מקבילה
+// מסתנכרנת אוטומטית לשדה "הוצאות תפעוליות" הראשי (שהופך לקריאה בלבד כל עוד
+// יש פירוט פעיל) ולתגי האחוזים/ההתייעלות שתלויים בו ──
+function caCalcRowsHTML(qid, field, parts) {
+  const sum = parts.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const label = field === 'opCurr' ? 'פירוט הוצאות — תקופה נוכחית' : 'פירוט הוצאות — תקופה מקבילה';
+  return `
+    <div class="doc-calc-hd">
+      <span>${label}</span>
+      <button type="button" onclick="caCalcClear('${qid}','${field}')" title="נקה פירוט וחזור להזנה ידנית"><i class="ti ti-trash"></i></button>
+    </div>
+    <div class="doc-calc-rows">
+      ${parts.map((v, i) => `
+        <div class="doc-calc-row">
+          <button type="button" class="doc-calc-rm" onclick="caCalcRemoveRow('${qid}','${field}',${i})"><i class="ti ti-x"></i></button>
+          <input class="doc-calc-inp" type="number" step="0.01" placeholder="סכום סעיף" value="${caEsc(v)}" oninput="caCalcRowInput('${qid}','${field}',${i},this.value)">
+        </div>`).join('')}
+    </div>
+    <div class="doc-calc-foot">
+      <button type="button" class="doc-calc-add" onclick="caCalcAddRow('${qid}','${field}')"><i class="ti ti-plus"></i>הוסף סעיף</button>
+      <span class="doc-calc-total" id="ca-calc-total-${field}-${qid}">סה״כ: $${sum.toLocaleString('en', { maximumFractionDigits: 2 })}</span>
+    </div>`;
+}
+
+function caCalcToggle(qid, field) {
+  const panel = document.getElementById(`ca-calc-${field}-${qid}`);
+  if (!panel) return;
+  const willShow = panel.style.display === 'none' || !panel.style.display;
+  if (willShow) {
+    const c = caGet(caCurrentId);
+    const q = c && (c.quarters || []).find(x => x.id === qid);
+    if (q && !(q[field + 'Parts'] || []).length) caCalcAddRow(qid, field);
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function caCalcRerenderRows(qid, field) {
+  const c = caGet(caCurrentId);
+  const q = c && (c.quarters || []).find(x => x.id === qid);
+  const panel = document.getElementById(`ca-calc-${field}-${qid}`);
+  if (panel && q) panel.innerHTML = caCalcRowsHTML(qid, field, q[field + 'Parts'] || []);
+}
+
+// מסנכרן את סכום הסעיפים לשדה הראשי (opCurr/opPrev) + לתגי האחוזים/ההתייעלות.
+// כשאין סעיפים כלל — משחרר את השדה בחזרה לעריכה ידנית בלי לשנות את הערך שבו.
+function caCalcSyncTotals(qid, field) {
+  const c = caGet(caCurrentId);
+  const q = c && (c.quarters || []).find(x => x.id === qid);
+  if (!q) return;
+  const parts = q[field + 'Parts'] || [];
+  const inp = document.getElementById(`ca-fin-${field}-${qid}`);
+  if (!parts.length) {
+    if (inp) inp.removeAttribute('readonly');
+    return;
+  }
+  const sum = parts.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const totalEl = document.getElementById(`ca-calc-total-${field}-${qid}`);
+  if (totalEl) totalEl.textContent = 'סה״כ: $' + sum.toLocaleString('en', { maximumFractionDigits: 2 });
+  if (inp) { inp.value = sum; inp.setAttribute('readonly', 'readonly'); }
+  caQFin(qid, field, sum);
+}
+
+function caCalcRowInput(qid, field, idx, value) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) { q[field + 'Parts'] = q[field + 'Parts'] || []; q[field + 'Parts'][idx] = value; } });
+  caCalcSyncTotals(qid, field);
+}
+
+function caCalcAddRow(qid, field) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) { q[field + 'Parts'] = q[field + 'Parts'] || []; q[field + 'Parts'].push(''); } });
+  caCalcRerenderRows(qid, field);
+  caCalcSyncTotals(qid, field);
+  const panel = document.getElementById(`ca-calc-${field}-${qid}`);
+  const inputs = panel ? panel.querySelectorAll('.doc-calc-inp') : [];
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function caCalcRemoveRow(qid, field, idx) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q && q[field + 'Parts']) q[field + 'Parts'].splice(idx, 1); });
+  caCalcRerenderRows(qid, field);
+  caCalcSyncTotals(qid, field);
+}
+
+function caCalcClear(qid, field) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) q[field + 'Parts'] = []; });
+  const panel = document.getElementById(`ca-calc-${field}-${qid}`);
+  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  const inp = document.getElementById(`ca-fin-${field}-${qid}`);
+  if (inp) inp.removeAttribute('readonly');
 }
 
 // עדכון חי של התגים בטבלה הכספית (אחוזים/הפרשים) בלי לרנדר את כל הכרטיס מחדש
@@ -556,6 +657,7 @@ function caAddQuarter() {
   caTouch(c => { c.quarters = c.quarters || []; c.quarters.push({
     id: qid, label: '', text: '', concl: '',
     revCurr: '', revPrev: '', opCurr: '', opPrev: '', niCurr: '', niPrev: '', forwardPE: '',
+    opCurrParts: [], opPrevParts: [],
   }); });
   const c = caGet(caCurrentId);
   document.getElementById('doc-quarters').innerHTML = caQuartersHTML(c);

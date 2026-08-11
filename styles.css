@@ -2595,7 +2595,43 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   width: 100%; direction: ltr; text-align: left; transition: border-color .15s;
 }
 .doc-fin-inp:focus { outline: none; border-color: var(--color-accent); }
+.doc-fin-inp[readonly] { background: #f2f2f6; color: #6b6b7b; cursor: default; }
 .doc-fin-eff { font-family: var(--font-mono); font-size: 10.5px; color: #9a9aa8; text-align: left; direction: ltr; padding: 1px 3px 0; }
+.doc-fin-cell { display: flex; align-items: center; gap: 4px; }
+.doc-fin-cell .doc-fin-inp { flex: 1; min-width: 0; }
+.doc-calc-toggle {
+  flex: none; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  background: #f0f0f4; border: 1px solid #e2e2ea; border-radius: 5px; color: #6b6b7b; cursor: pointer; font-size: 12px; padding: 0;
+}
+.doc-calc-toggle:hover { background: #e6e6ec; color: #1e1e28; }
+.doc-calc-panel {
+  margin: -2px 0 8px; padding: 8px 10px;
+  background: #f7f8fc; border: 1px dashed #d9d9e2; border-radius: 7px;
+}
+.doc-calc-hd { display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; font-weight: 600; color: #6b6b7b; margin-bottom: 6px; }
+.doc-calc-hd button { background: none; border: none; color: #a0a0ad; cursor: pointer; padding: 2px; font-size: 12px; }
+.doc-calc-hd button:hover { color: #c0392b; }
+.doc-calc-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
+.doc-calc-row { display: flex; align-items: center; gap: 6px; }
+.doc-calc-rm {
+  flex: none; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #a0a0ad; cursor: pointer; font-size: 11px; padding: 0;
+}
+.doc-calc-rm:hover { color: #c0392b; }
+.doc-calc-inp {
+  flex: 1; min-width: 0; background: #fff; border: 1px solid #e2e2ea; border-radius: 5px;
+  padding: 5px 7px; font-family: var(--font-mono); font-size: 12px; color: #1e1e28;
+  direction: ltr; text-align: left;
+}
+.doc-calc-inp:focus { outline: none; border-color: var(--color-accent); }
+.doc-calc-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 5px; border-top: 1px dashed #e2e2ea; }
+.doc-calc-add {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #eef0ff; border: 1px solid #d7dcff; color: var(--color-accent); cursor: pointer;
+  padding: 4px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 500; font-family: inherit;
+}
+.doc-calc-add:hover { background: #e2e5ff; }
+.doc-calc-total { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: #1e1e28; }
 .doc-fin-badge {
   font-family: var(--font-mono); font-size: 11.5px; font-weight: 700;
   text-align: center; padding: 4px 4px; border-radius: 5px; background: #f0f0f4; color: #43434f;
@@ -2638,6 +2674,8 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   body.ca-printing .doc-q-del,
   body.ca-printing .doc-add-q,
   body.ca-printing .doc-ir-btn,
+  body.ca-printing .doc-calc-toggle,
+  body.ca-printing .doc-calc-panel,
   body.ca-printing .doc-editable:empty:before { display: none !important; }
   body.ca-printing .doc-editable, body.ca-printing .doc-q-label { border-color: transparent !important; background: transparent !important; }
   /* בהדפסה מציגים רק את השלב שנבחר, לא את כל 7 הכרטיסים */
