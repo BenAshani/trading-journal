@@ -72,6 +72,18 @@ function caMigrateFields(id) {
   return c;
 }
 
+// סדר ברירת המחדל של הבלוקים הקבועים במסמך — לפני שנוספו תמונות/גרפים.
+const CA_FIXED_BLOCKS = ['whoIs', 'businessModel', 'competitors', 'partners', 'stage', 'quarters'];
+
+// מיזוג חד-פעמי: מוסיף blockOrder/images/charts לניתוחים ישנים בלי לגעת
+// בתוכן הקיים. blockOrder קובע את סדר ההצגה של כל הבלוקים (כולל תמונות/גרפים
+// שהמשתמש מוסיף), ומאפשר להזיז תמונה/גרף מעל או מתחת לכל בלוק קבוע אחר.
+function caMigrateBlockOrder(c) {
+  if (!Array.isArray(c.blockOrder)) c.blockOrder = [...CA_FIXED_BLOCKS];
+  if (!Array.isArray(c.images)) c.images = [];
+  if (!Array.isArray(c.charts)) c.charts = [];
+}
+
 function caLoad() {
   try { return JSON.parse(localStorage.getItem(CA_KEY) || '[]'); } catch { return []; }
 }
@@ -199,17 +211,11 @@ function caOpen(id) {
   if (!c) return;
   const migrated = caMigrateFields(id);
   if (migrated) c.fields = migrated.fields;
+  caMigrateBlockOrder(c);
   caCurrentId = id;
   document.getElementById('analysis-grid').style.display = 'none';
   const docView = document.getElementById('analysis-doc');
   docView.style.display = '';
-
-  const sectionsHTML = CA_SECTIONS.map(s => `
-    <section class="doc-section">
-      <h2 class="doc-h2"><i class="ti ${s.icon}"></i>${s.title}</h2>
-      <div class="doc-editable" contenteditable="true" data-field="${s.key}" data-ph="${caEsc(s.hint)}"
-        onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.[s.key] || ''}</div>
-    </section>`).join('');
 
   docView.innerHTML = `
     <div class="doc-toolbar" id="doc-toolbar">
@@ -244,28 +250,13 @@ function caOpen(id) {
           </div>
         </header>
 
-        <section class="doc-section doc-stage-section">
-          <h2 class="doc-h2"><i class="ti ti-stairs-up"></i>שלב במחזור החיים העסקי</h2>
-          <div class="doc-stage-grid" id="doc-stage-grid">${caStageGridHTML(c)}</div>
-          <div class="doc-editable doc-stage-note" contenteditable="true" data-field="stageNote"
-            data-ph="הסיבות שלך לשיוך החברה לשלב שנבחר..."
-            onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.stageNote || ''}</div>
-        </section>
+        <div id="doc-blocks">${caBlocksHTML(c)}</div>
 
-        ${sectionsHTML}
-
-        <section class="doc-section">
-          <div class="doc-h2-row">
-            <h2 class="doc-h2"><i class="ti ti-timeline-event"></i>מעקב רבעוני (דיווחים)</h2>
-            <div class="doc-h2-actions">
-              <button class="doc-ir-btn" onclick="caOpenIR()" title="חיפוש דף Investor Relations של החברה">
-                <i class="ti ti-building-bank"></i>Investor Relations<i class="ti ti-external-link doc-ir-ext"></i>
-              </button>
-              <button class="doc-add-q" onclick="caAddQuarter()"><i class="ti ti-plus"></i>הוסף דיווח</button>
-            </div>
-          </div>
-          <div id="doc-quarters">${caQuartersHTML(c)}</div>
-        </section>
+        <div class="doc-add-block-row">
+          <button class="doc-add-block-btn" onclick="caAddImageBlock()"><i class="ti ti-photo-plus"></i>הוסף תמונה</button>
+          <button class="doc-add-block-btn" onclick="caAddChartBlock()"><i class="ti ti-chart-candle"></i>הוסף גרף נרות יפני</button>
+          <input type="file" id="ca-image-input" accept="image/*" style="display:none" onchange="caHandleImageFile(this)">
+        </div>
       </article>
     </div>`;
 
@@ -273,6 +264,338 @@ function caOpen(id) {
 
   // מילוי אוטומטי של שדות ריקים (סקטור/שם/שווי שוק) מ-Finnhub — גם לניתוחים ותיקים
   caAutoProfile(id);
+  // טעינת נתונים לכל בלוקי הגרפים הקיימים במסמך
+  (c.charts || []).forEach(chart => caLoadChart('chart:' + chart.id));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  בלוקים ניתנים לסידור (סעיפים קבועים + תמונות + גרפים)
+// ═══════════════════════════════════════════════════════════
+function caBlocksHTML(c) {
+  return (c.blockOrder || []).map(entry => caBlockHTML(c, entry)).join('');
+}
+
+function caBlockHTML(c, entry) {
+  if (entry === 'stage') return caStageBlockHTML(c);
+  if (entry === 'quarters') return caQuartersBlockHTML(c);
+  const section = CA_SECTIONS.find(s => s.key === entry);
+  if (section) return caSectionBlockHTML(c, section);
+  if (entry.startsWith('image:')) {
+    const img = (c.images || []).find(x => x.id === entry.slice(6));
+    return img ? caImageBlockHTML(c, entry, img) : '';
+  }
+  if (entry.startsWith('chart:')) {
+    const chart = (c.charts || []).find(x => x.id === entry.slice(6));
+    return chart ? caChartBlockHTML(c, entry) : '';
+  }
+  return '';
+}
+
+function caSectionBlockHTML(c, s) {
+  return `
+    <section class="doc-section">
+      <h2 class="doc-h2"><i class="ti ${s.icon}"></i>${s.title}</h2>
+      <div class="doc-editable" contenteditable="true" data-field="${s.key}" data-ph="${caEsc(s.hint)}"
+        onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.[s.key] || ''}</div>
+    </section>`;
+}
+
+function caStageBlockHTML(c) {
+  return `
+    <section class="doc-section doc-stage-section">
+      <h2 class="doc-h2"><i class="ti ti-stairs-up"></i>שלב במחזור החיים העסקי</h2>
+      <div class="doc-stage-grid" id="doc-stage-grid">${caStageGridHTML(c)}</div>
+      <div class="doc-editable doc-stage-note" contenteditable="true" data-field="stageNote"
+        data-ph="הסיבות שלך לשיוך החברה לשלב שנבחר..."
+        onfocus="caLastEditable=this" oninput="caFieldInput(this)">${c.fields?.stageNote || ''}</div>
+    </section>`;
+}
+
+function caQuartersBlockHTML(c) {
+  return `
+    <section class="doc-section">
+      <div class="doc-h2-row">
+        <h2 class="doc-h2"><i class="ti ti-timeline-event"></i>מעקב רבעוני (דיווחים)</h2>
+        <div class="doc-h2-actions">
+          <button class="doc-ir-btn" onclick="caOpenIR()" title="חיפוש דף Investor Relations של החברה">
+            <i class="ti ti-building-bank"></i>Investor Relations<i class="ti ti-external-link doc-ir-ext"></i>
+          </button>
+          <button class="doc-add-q" onclick="caAddQuarter()"><i class="ti ti-plus"></i>הוסף דיווח</button>
+        </div>
+      </div>
+      <div id="doc-quarters">${caQuartersHTML(c)}</div>
+    </section>`;
+}
+
+// חצי הזזה למעלה/למטה — מוצגים רק על תמונות/גרפים, לא על הסעיפים הקבועים,
+// כדי לא לבלגן את התצוגה של מה שכבר עובד. הבלוק עצמו יכול לזוז מעל/מתחת
+// לכל בלוק אחר במסמך, כולל סעיפים קבועים.
+function caBlockMoveCtrlsHTML(c, entryId) {
+  const order = c.blockOrder || [];
+  const idx = order.indexOf(entryId);
+  return `<div class="doc-blk-move">
+      <button class="doc-blk-move-btn" onclick="caMoveBlock('${entryId}',-1)" ${idx <= 0 ? 'disabled' : ''} title="הזז למעלה"><i class="ti ti-chevron-up"></i></button>
+      <button class="doc-blk-move-btn" onclick="caMoveBlock('${entryId}',1)" ${idx === -1 || idx >= order.length - 1 ? 'disabled' : ''} title="הזז למטה"><i class="ti ti-chevron-down"></i></button>
+    </div>`;
+}
+
+function caRerenderBlocks() {
+  const c = caGet(caCurrentId);
+  if (!c) return;
+  document.getElementById('doc-blocks').innerHTML = caBlocksHTML(c);
+  (c.charts || []).forEach(chart => caLoadChart('chart:' + chart.id));
+}
+
+// הזזת בלוק (תמונה/גרף) למעלה (-1) או למטה (+1) בסדר ההצגה — יכול לעקוף גם סעיפים קבועים
+function caMoveBlock(entryId, dir) {
+  caTouch(c => {
+    caMigrateBlockOrder(c);
+    const order = c.blockOrder;
+    const idx = order.indexOf(entryId);
+    const newIdx = idx + dir;
+    if (idx === -1 || newIdx < 0 || newIdx >= order.length) return;
+    [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  });
+  caRerenderBlocks();
+}
+
+function caDeleteBlock(entryId) {
+  const isImage = entryId.startsWith('image:');
+  if (!confirm(isImage ? 'למחוק את התמונה?' : 'למחוק את הגרף?')) return;
+  caTouch(c => {
+    caMigrateBlockOrder(c);
+    c.blockOrder = c.blockOrder.filter(x => x !== entryId);
+    if (isImage) c.images = c.images.filter(x => 'image:' + x.id !== entryId);
+    else c.charts = c.charts.filter(x => 'chart:' + x.id !== entryId);
+  });
+  caRerenderBlocks();
+}
+
+// ── תמונות ──
+function caAddImageBlock() {
+  document.getElementById('ca-image-input').click();
+}
+
+function caHandleImageFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('יש לבחור קובץ תמונה'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = new Image();
+    src.onload = () => {
+      // הקטנה/דחיסה לפני שמירה ב-localStorage — כדי לא לחרוג ממכסת האחסון
+      // עם כמה תמונות גדולות בכמה ניתוחים.
+      const maxW = 1000;
+      const scale = Math.min(1, maxW / src.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(src.width * scale);
+      canvas.height = Math.round(src.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const imgId = caUID();
+      caTouch(c => {
+        caMigrateBlockOrder(c);
+        c.images.push({ id: imgId, dataUrl, caption: '', addedAt: Date.now() });
+        c.blockOrder.push('image:' + imgId);
+      });
+      caRerenderBlocks();
+      const el = document.querySelector(`.doc-img-block[data-block-id="image:${imgId}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    src.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function caImageBlockHTML(c, entryId, img) {
+  return `
+    <section class="doc-section doc-block doc-img-block" data-block-id="${entryId}">
+      <div class="doc-blk-head">
+        ${caBlockMoveCtrlsHTML(c, entryId)}
+        <i class="ti ti-photo doc-blk-icon"></i>
+        <span class="doc-blk-title">תמונה</span>
+        <button class="doc-blk-del" onclick="caDeleteBlock('${entryId}')" title="מחק תמונה"><i class="ti ti-x"></i></button>
+      </div>
+      <img class="doc-img-block-img" src="${img.dataUrl}" alt="">
+      <input class="doc-img-caption" value="${caEsc(img.caption || '')}" placeholder="כיתוב לתמונה (אופציונלי)"
+        oninput="caImageCaptionInput('${img.id}',this.value)">
+    </section>`;
+}
+
+function caImageCaptionInput(imgId, value) {
+  caTouch(c => { const img = (c.images || []).find(x => x.id === imgId); if (img) img.caption = value; });
+}
+
+// ── גרף נרות יפני חי (FMP) ──
+// שולף פעם אחת טווח רחב (280 ימי מסחר) ושומר בזיכרון לפי entryId — מעבר בין
+// טווחי התצוגה (1M/3M/6M/1Y) הוא רק פרוסה מהמטמון הקיים, בלי בקשה חוזרת ל-API.
+const _caChartCache = {};
+
+function caAddChartBlock() {
+  const chartId = caUID();
+  caTouch(c => {
+    caMigrateBlockOrder(c);
+    c.charts.push({ id: chartId, range: '3M', addedAt: Date.now() });
+    c.blockOrder.push('chart:' + chartId);
+  });
+  caRerenderBlocks();
+  const el = document.querySelector(`.doc-chart-block[data-block-id="chart:${chartId}"]`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function caChartBlockHTML(c, entryId) {
+  const chart = (c.charts || []).find(x => x.id === entryId.slice(6));
+  const range = (chart && chart.range) || '3M';
+  const cid = 'ca-chart-' + entryId.slice(6);
+  return `
+    <section class="doc-section doc-block doc-chart-block" data-block-id="${entryId}">
+      <div class="doc-blk-head">
+        ${caBlockMoveCtrlsHTML(c, entryId)}
+        <i class="ti ti-chart-candle doc-blk-icon"></i>
+        <span class="doc-blk-title">גרף נרות יפני · ${caEsc(c.symbol || '—')}</span>
+        <div class="doc-chart-range">
+          ${['1M', '3M', '6M', '1Y'].map(r => `<button type="button" class="doc-chart-range-btn${r === range ? ' sel' : ''}" onclick="caSetChartRange('${entryId}','${r}')">${r}</button>`).join('')}
+        </div>
+        <button class="doc-blk-refresh" onclick="caLoadChart('${entryId}', true)" title="רענן"><i class="ti ti-refresh"></i></button>
+        <button class="doc-blk-del" onclick="caDeleteBlock('${entryId}')" title="מחק גרף"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="doc-chart-body" id="${cid}"><div class="doc-chart-msg">טוען נתונים…</div></div>
+      <div class="doc-chart-foot" id="${cid}-foot"></div>
+    </section>`;
+}
+
+function caSetChartRange(entryId, range) {
+  caTouch(c => { const chart = (c.charts || []).find(x => x.id === entryId.slice(6)); if (chart) chart.range = range; });
+  const head = document.querySelector(`.doc-chart-block[data-block-id="${entryId}"] .doc-chart-range`);
+  if (head) head.querySelectorAll('.doc-chart-range-btn').forEach(btn => btn.classList.toggle('sel', btn.textContent === range));
+  const cached = _caChartCache[entryId];
+  if (cached) caDrawChart(entryId, cached, range);
+  else caLoadChart(entryId);
+}
+
+async function caLoadChart(entryId, force) {
+  const c = caGet(caCurrentId);
+  if (!c) return;
+  const chart = (c.charts || []).find(x => x.id === entryId.slice(6));
+  const symbol = (c.symbol || '').trim().toUpperCase();
+  const cid = 'ca-chart-' + entryId.slice(6);
+  const body = document.getElementById(cid);
+  if (!symbol) { if (body) body.innerHTML = '<div class="doc-chart-msg">הזן סימבול כדי לטעון גרף</div>'; return; }
+  const key = (typeof getFmpKey === 'function') ? getFmpKey() : '';
+  if (!key) {
+    if (body) body.innerHTML = `<div class="doc-chart-msg">נדרש מפתח API של FMP<button type="button" class="doc-chart-msg-btn" onclick="openSettings()">פתח הגדרות</button></div>`;
+    return;
+  }
+  const range = (chart && chart.range) || '3M';
+  const cached = _caChartCache[entryId];
+  if (!force && cached && cached.symbol === symbol && (Date.now() - cached.fetchedAt) < 5 * 60 * 1000) {
+    caDrawChart(entryId, cached, range);
+    return;
+  }
+  if (body) body.innerHTML = '<div class="doc-chart-msg">טוען נתונים…</div>';
+  try {
+    const url = `https://financialmodelingprep.com/api/v3/historical-price-full/${encodeURIComponent(symbol)}?timeseries=280&apikey=${encodeURIComponent(key)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('http ' + res.status);
+    const json = await res.json();
+    const hist = (json && json.historical) || [];
+    if (!hist.length) throw new Error('no data');
+    const data = hist.map(d => ({ date: d.date, o: d.open, h: d.high, l: d.low, c: d.close })).sort((a, b) => a.date < b.date ? -1 : 1);
+    const entry = { symbol, data, fetchedAt: Date.now() };
+    _caChartCache[entryId] = entry;
+    if (caCurrentId === c.id) caDrawChart(entryId, entry, range);
+  } catch {
+    if (body && caCurrentId === c.id) body.innerHTML = '<div class="doc-chart-msg">לא ניתן לטעון נתונים — בדוק את הסימבול ואת מפתח ה-API</div>';
+  }
+}
+
+function caDrawChart(entryId, entry, range) {
+  const cid = 'ca-chart-' + entryId.slice(6);
+  const body = document.getElementById(cid);
+  const foot = document.getElementById(cid + '-foot');
+  if (!body) return;
+  const days = { '1M': 22, '3M': 66, '6M': 132, '1Y': 260 }[range] || 66;
+  const data = entry.data.slice(-days);
+  if (!data.length) { body.innerHTML = '<div class="doc-chart-msg">אין נתונים</div>'; return; }
+  body.innerHTML = '';
+  body.appendChild(caBuildCandleSVG(data));
+  if (foot) {
+    const time = new Date(entry.fetchedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    foot.textContent = `נתונים חיים · Financial Modeling Prep · עודכן ${time}`;
+  }
+}
+
+// צבעים לגרף — ערכים קבועים (לא משתני ערכת נושא), באותו סגנון כמו שאר
+// דף הניתוח (doc-page): ה"נייר" תמיד בהיר, גם במצב כהה של שאר האפליקציה.
+function caChartInk() {
+  return { up: '#15803D', down: '#B91C1C', text: '#8a8a97', grid: 'rgba(26,26,46,.08)', last: '#6366F1' };
+}
+
+function caBuildCandleSVG(data) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const ink = caChartInk();
+  const W = 640, H = 220, padT = 10, padB = 22, padL = 4, padR = 46;
+  let hi = Math.max(...data.map(d => d.h));
+  let lo = Math.min(...data.map(d => d.l));
+  const pad = (hi - lo) * 0.06 || 1;
+  hi += pad; lo -= pad;
+  const innerH = H - padT - padB, innerW = W - padL - padR;
+  const n = data.length, step = innerW / n, cw = Math.max(1.5, step * 0.55);
+  const y = v => padT + (hi - v) / (hi - lo) * innerH;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', H);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `גרף נרות יפני, ${n} ימי מסחר, סגירה אחרונה ${data[n - 1].c}`);
+  [hi - pad, (hi + lo) / 2, lo + pad].forEach(v => {
+    const ly = y(v);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', W - padR);
+    line.setAttribute('y1', ly); line.setAttribute('y2', ly);
+    line.setAttribute('stroke', ink.grid); line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', W - padR + 6); t.setAttribute('y', ly + 3);
+    t.setAttribute('font-size', '9'); t.setAttribute('font-family', 'IBM Plex Mono, monospace');
+    t.setAttribute('fill', ink.text); t.textContent = v.toFixed(v < 10 ? 2 : 0);
+    svg.appendChild(t);
+  });
+  data.forEach((d, i) => {
+    const cx = padL + step * i + step / 2;
+    const color = d.c >= d.o ? ink.up : ink.down;
+    const wick = document.createElementNS(NS, 'line');
+    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
+    wick.setAttribute('y1', y(d.h)); wick.setAttribute('y2', y(d.l));
+    wick.setAttribute('stroke', color); wick.setAttribute('stroke-width', '1.2');
+    svg.appendChild(wick);
+    const bodyTop = y(Math.max(d.o, d.c));
+    const bodyH = Math.max(1.2, Math.abs(y(d.o) - y(d.c)));
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', cx - cw / 2); rect.setAttribute('y', bodyTop);
+    rect.setAttribute('width', cw); rect.setAttribute('height', bodyH);
+    rect.setAttribute('fill', color); rect.setAttribute('rx', '1');
+    svg.appendChild(rect);
+    if (i === 0 || i === n - 1 || i % Math.ceil(n / 6) === 0) {
+      const lbl = document.createElementNS(NS, 'text');
+      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
+      lbl.setAttribute('font-size', '9'); lbl.setAttribute('font-family', 'IBM Plex Mono, monospace');
+      lbl.setAttribute('fill', ink.text); lbl.setAttribute('text-anchor', 'middle');
+      lbl.textContent = d.date.slice(5).replace('-', '/');
+      svg.appendChild(lbl);
+    }
+  });
+  const lastY = y(data[n - 1].c);
+  const dash = document.createElementNS(NS, 'line');
+  dash.setAttribute('x1', padL); dash.setAttribute('x2', W - padR);
+  dash.setAttribute('y1', lastY); dash.setAttribute('y2', lastY);
+  dash.setAttribute('stroke', ink.last); dash.setAttribute('stroke-width', '1');
+  dash.setAttribute('stroke-dasharray', '2,3');
+  svg.appendChild(dash);
+  return svg;
 }
 
 // רשת 7 כרטיסי השלבים — מציגה את כל השלבים והמאפיינים שלהם תמיד (לא רק
@@ -544,11 +867,16 @@ function caQuartersHTML(c) {
   if (!qs.length) {
     return `<div class="doc-q-empty">אין דיווחים עדיין. לחץ "הוסף דיווח" כדי לתעד דוח רבעוני.</div>`;
   }
-  return qs.map(q => `
-    <div class="doc-quarter" data-qid="${q.id}">
+  return qs.map((q, i) => `
+    <div class="doc-quarter${q.collapsed ? ' collapsed' : ''}" data-qid="${q.id}">
       <div class="doc-q-head">
+        <button class="doc-q-collapse" onclick="caToggleCollapse('${q.id}')" title="קפל/הרחב דיווח"><i class="ti ti-chevron-down"></i></button>
         <input class="doc-q-label" value="${caEsc(q.label)}" placeholder="Q1 2026 · שווי שוק"
           oninput="caQuarterInput('${q.id}','label',this.value)">
+        <div class="doc-q-move">
+          <button class="doc-q-move-btn" onclick="caMoveQuarter('${q.id}',-1)" ${i === 0 ? 'disabled' : ''} title="הזז למעלה"><i class="ti ti-chevron-up"></i></button>
+          <button class="doc-q-move-btn" onclick="caMoveQuarter('${q.id}',1)" ${i === qs.length - 1 ? 'disabled' : ''} title="הזז למטה"><i class="ti ti-chevron-down"></i></button>
+        </div>
         <button class="doc-q-del" onclick="caDeleteQuarter('${q.id}')" title="מחק דיווח"><i class="ti ti-x"></i></button>
       </div>
       ${caQFinHTML(q)}
@@ -695,7 +1023,7 @@ function caQuarterConclInput(qid, el) {
 function caAddQuarter() {
   const qid = caUID();
   caTouch(c => { c.quarters = c.quarters || []; c.quarters.push({
-    id: qid, label: '', text: '', concl: '',
+    id: qid, label: '', text: '', concl: '', collapsed: false,
     revCurr: '', revPrev: '', opCurr: '', opPrev: '', niCurr: '', niPrev: '', forwardPE: '',
     opCurrParts: [], opPrevParts: [],
   }); });
@@ -708,6 +1036,26 @@ function caAddQuarter() {
 function caDeleteQuarter(qid) {
   if (!confirm('למחוק את הדיווח?')) return;
   caTouch(c => { c.quarters = (c.quarters || []).filter(q => q.id !== qid); });
+  document.getElementById('doc-quarters').innerHTML = caQuartersHTML(caGet(caCurrentId));
+}
+
+// קיפול/פתיחה של כרטיס דיווח — רק מחליף מחלקת CSS (בלי רינדור מחדש) כדי לא
+// לאבד פוקוס/מצב בשאר הכרטיסים, ונשמר כדי שהמצב יישאר גם אחרי רענון.
+function caToggleCollapse(qid) {
+  caTouch(c => { const q = (c.quarters || []).find(x => x.id === qid); if (q) q.collapsed = !q.collapsed; });
+  const card = document.querySelector(`.doc-quarter[data-qid="${qid}"]`);
+  if (card) card.classList.toggle('collapsed');
+}
+
+// הזזת דיווח למעלה (-1) או למטה (+1) בסדר ההצגה
+function caMoveQuarter(qid, dir) {
+  caTouch(c => {
+    const qs = c.quarters || [];
+    const idx = qs.findIndex(x => x.id === qid);
+    const newIdx = idx + dir;
+    if (idx === -1 || newIdx < 0 || newIdx >= qs.length) return;
+    [qs[idx], qs[newIdx]] = [qs[newIdx], qs[idx]];
+  });
   document.getElementById('doc-quarters').innerHTML = caQuartersHTML(caGet(caCurrentId));
 }
 

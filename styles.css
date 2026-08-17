@@ -2560,9 +2560,85 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   background: transparent; border: none; color: #a0a0ad; cursor: pointer; border-radius: 5px; font-size: 14px;
 }
 .doc-q-del:hover { background: #f0dede; color: #c0392b; }
+.doc-q-collapse {
+  flex: none; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #6b6b7b; cursor: pointer; border-radius: 5px; font-size: 13px;
+}
+.doc-q-collapse i { transition: transform .15s; display: block; }
+.doc-q-collapse:hover { background: #eceef5; color: #1e1e28; }
+.doc-quarter.collapsed .doc-q-collapse i { transform: rotate(-90deg); }
+.doc-quarter.collapsed > *:not(.doc-q-head) { display: none; }
+.doc-q-move { flex: none; display: flex; flex-direction: column; }
+.doc-q-move-btn {
+  width: 20px; height: 13px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #a0a0ad; cursor: pointer; padding: 0;
+}
+.doc-q-move-btn i { font-size: 11px; }
+.doc-q-move-btn:hover:not(:disabled) { color: #1e1e28; }
+.doc-q-move-btn:disabled { color: #d5d5dd; cursor: default; }
 .doc-q-body { background: transparent; margin: 0; padding: 4px 0; }
 .doc-q-body:hover, .doc-q-body:focus { background: transparent; border-color: transparent; }
 .doc-q-empty { font-size: 12px; color: #a0a0ad; text-align: center; padding: 14px; font-style: italic; }
+
+/* ── בלוקים ניתנים לסידור: תמונות + גרף נרות יפני ── */
+.doc-add-block-row { display: flex; gap: 8px; margin: 8px 0 30px; }
+.doc-add-block-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #f7f7fa; border: 1px dashed #d5d5e0; color: #5c5c68; cursor: pointer;
+  padding: 7px 13px; border-radius: 8px; font-size: 11.5px; font-weight: 500; font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.doc-add-block-btn:hover { background: #eef0ff; border-color: #c9cdf7; color: var(--color-accent); }
+.doc-add-block-btn i { font-size: 14px; }
+
+.doc-block { border: 1px solid #e6e6ec; border-radius: 8px; padding: 12px 14px; background: #fafafc; }
+.doc-blk-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.doc-blk-move { flex: none; display: flex; flex-direction: column; }
+.doc-blk-move-btn {
+  width: 20px; height: 13px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #a0a0ad; cursor: pointer; padding: 0;
+}
+.doc-blk-move-btn i { font-size: 11px; }
+.doc-blk-move-btn:hover:not(:disabled) { color: #1e1e28; }
+.doc-blk-move-btn:disabled { color: #d5d5dd; cursor: default; }
+.doc-blk-icon { font-size: 15px; color: var(--color-accent); flex: none; }
+.doc-blk-title { font-size: 12.5px; font-weight: 600; color: #1e1e28; flex: 1; }
+.doc-blk-del {
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #a0a0ad; cursor: pointer; border-radius: 5px; font-size: 14px; flex: none;
+}
+.doc-blk-del:hover { background: #f0dede; color: #c0392b; }
+.doc-blk-refresh {
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #a0a0ad; cursor: pointer; border-radius: 5px; font-size: 13px; flex: none;
+}
+.doc-blk-refresh:hover { background: #eceef5; color: #1e1e28; }
+
+.doc-img-block-img { display: block; max-width: 100%; border-radius: 6px; margin-bottom: 8px; }
+.doc-img-caption {
+  width: 100%; font-size: 11.5px; color: #5c5c68; background: transparent; border: none;
+  border-top: 1px dashed #e2e2ea; padding: 6px 0 0; font-family: inherit;
+}
+.doc-img-caption::placeholder { color: #b0b0bd; font-style: italic; }
+.doc-img-caption:focus { outline: none; }
+
+.doc-chart-range { display: flex; gap: 3px; flex: none; }
+.doc-chart-range-btn {
+  background: transparent; border: 1px solid transparent; color: #8a8a97; cursor: pointer;
+  padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 500; font-family: var(--font-mono);
+}
+.doc-chart-range-btn:hover { background: #eceef5; }
+.doc-chart-range-btn.sel { background: #eef0ff; border-color: #d7dcff; color: var(--color-accent); }
+.doc-chart-body { width: 100%; min-height: 90px; }
+.doc-chart-msg {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 90px;
+  font-size: 11.5px; color: #a0a0ad; text-align: center; flex-wrap: wrap;
+}
+.doc-chart-msg-btn {
+  background: #eef0ff; border: 1px solid #d7dcff; color: var(--color-accent); cursor: pointer;
+  padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 500; font-family: inherit;
+}
+.doc-chart-foot { font-size: 9.5px; color: #b0b0bd; font-family: var(--font-mono); margin-top: 6px; }
 
 .doc-q-concl-wrap {
   margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e2ea;
@@ -2676,6 +2752,11 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   body.ca-printing .doc-ir-btn,
   body.ca-printing .doc-calc-toggle,
   body.ca-printing .doc-calc-panel,
+  body.ca-printing .doc-add-block-row,
+  body.ca-printing .doc-blk-move,
+  body.ca-printing .doc-blk-del,
+  body.ca-printing .doc-blk-refresh,
+  body.ca-printing .doc-chart-range,
   body.ca-printing .doc-editable:empty:before { display: none !important; }
   body.ca-printing .doc-editable, body.ca-printing .doc-q-label { border-color: transparent !important; background: transparent !important; }
   /* בהדפסה מציגים רק את השלב שנבחר, לא את כל 7 הכרטיסים */
@@ -2684,6 +2765,7 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   body.ca-printing .doc-stage-grid { grid-template-columns: 1fr !important; }
   /* לא לחתוך סעיף/דיווח באמצע בין עמודים, ולא להשאיר כותרת יתומה בתחתית עמוד */
   body.ca-printing .doc-section,
+  body.ca-printing .doc-block,
   body.ca-printing .doc-quarter { break-inside: avoid; page-break-inside: avoid; }
   body.ca-printing .doc-h2 { break-after: avoid; page-break-after: avoid; }
   @page { size: A4; margin: 14mm; }

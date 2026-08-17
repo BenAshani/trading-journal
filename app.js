@@ -234,6 +234,7 @@ const SK = {
   trades:     'tj_trades_v4',
   port:       'tj_port_v4',
   key:        'tj_finnhub_key',
+  fmpKey:     'tj_fmp_key',
   fee:        'tj_default_fee',
   risk:       'tj_risk_unit',
   draft:      'tj_form_draft',
@@ -258,6 +259,8 @@ const _cleanKey = s => String(s || '')
   .trim();
 const getKey        = ()  => _cleanKey(localStorage.getItem(SK.key) || (window.APP_CONFIG && window.APP_CONFIG.finnhubApiKey) || '');
 const setKey        = k   => _pushSetting(SK.key, k);
+const getFmpKey     = ()  => _cleanKey(localStorage.getItem(SK.fmpKey) || (window.APP_CONFIG && window.APP_CONFIG.fmpApiKey) || '');
+const setFmpKey     = k   => _pushSetting(SK.fmpKey, k);
 // ריפוי מקור: אם המפתח השמור (מקומי/ענן) מלוכלך, כותבים חזרה גרסה נקייה —
 // גם ל-localStorage וגם ל-Supabase — כדי שהגרשיים לא יימשכו שוב בכל רענון.
 function normalizeStoredKey() {
@@ -565,6 +568,7 @@ function importData() {
 function openSettings() {
   document.getElementById('settings-fee').value         = getDefaultFee().toFixed(2);
   document.getElementById('settings-key').value         = getKey();
+  document.getElementById('settings-fmp-key').value     = getFmpKey();
   document.getElementById('settings-risk').value        = getRiskUnit() > 0 ? getRiskUnit() : '';
   ['settings-saved','risk-saved'].forEach(id => document.getElementById(id).classList.remove('show'));
   if (typeof dbOpenSetup === 'function') dbOpenSetup();
@@ -591,6 +595,12 @@ function saveSettings() {
 function saveApiKey() {
   const k = _cleanKey(document.getElementById('settings-key').value);
   if (k) { setKey(k); document.getElementById('settings-key').value = k; toast('✓ Finnhub API Key עודכן'); closeSettings(); fullRefresh(); }
+  else   { toast('⚠ הכנס API Key תחילה'); }
+}
+
+function saveFmpApiKey() {
+  const k = _cleanKey(document.getElementById('settings-fmp-key').value);
+  if (k) { setFmpKey(k); document.getElementById('settings-fmp-key').value = k; toast('✓ FMP API Key עודכן'); }
   else   { toast('⚠ הכנס API Key תחילה'); }
 }
 

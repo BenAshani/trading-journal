@@ -150,6 +150,14 @@
       <div class="settings-hint">finnhub.io — 60 בקשות/דקה (חינמי)</div>
     </div>
     <div class="settings-group">
+      <div class="settings-label">API Key — Financial Modeling Prep</div>
+      <div class="settings-row">
+        <input type="text" class="settings-input" id="settings-fmp-key" placeholder="הדבק מפתח FMP..." autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:11px;direction:ltr;text-align:left">
+        <button class="btn-p" onclick="saveFmpApiKey()">שמור</button>
+      </div>
+      <div class="settings-hint">financialmodelingprep.com — נדרש לגרף הנרות היפני החי בניתוח חברות.</div>
+    </div>
+    <div class="settings-group">
       <div class="settings-label"><i class="ti ti-database" style="color:var(--blue-t);font-size:13px"></i> גיבוי ושחזור נתונים</div>
       <div class="settings-row" style="gap:8px">
         <button class="btn-p" onclick="exportData()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-download" style="font-size:12px"></i> ייצא גיבוי</button>
