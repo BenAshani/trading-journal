@@ -2067,7 +2067,8 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
   padding: 2px 7px; border-radius: 99px; white-space: nowrap;
 }
-.ibkr-kind-new         { background: rgba(99,102,241,0.12);  color: var(--blue-t, #818cf8); }
+.ibkr-kind-new,
+.ibkr-kind-add         { background: rgba(99,102,241,0.12);  color: var(--blue-t, #818cf8); }
 .ibkr-kind-close       { background: rgba(34,197,94,0.12);   color: var(--green-t, #4ade80); }
 .ibkr-kind-partial     { background: rgba(245,158,11,0.12);  color: var(--amber-t, #fbbf24); }
 .ibkr-kind-update,

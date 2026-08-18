@@ -386,9 +386,21 @@ function ibkrBuildProposals(execs) {
   }
 
   function newTradeProp(ex, dir) {
-    workTrades.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, dir, status: 'open',
+    workTrades.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, date: ex.date, dir, status: 'open',
                          entry: ex.price, qty: ex.qty, remainingQty: ex.qty });
     proposals.push({ kind: 'new', dest: 'trades', dir, exec: ex, checked: true });
+  }
+
+  // מילוי בכמה חלקים של אותה פוזיציה (אי-נזילות) — כשיש כבר עסקה פתוחה
+  // באותו טיקר/כיוון שנפתחה היום, ממזגים לתוכה (מחיר כניסה משוקלל, כמות
+  // מצטברת) במקום ליצור עסקה נפרדת לכל ביצוע. אותו חישוב כמו "חזק" ידני.
+  function strengthenLogic(ex, t) {
+    const rem = t.remainingQty ?? t.qty;
+    const newAvg = +(((t.entry * rem) + (ex.price * ex.qty)) / (rem + ex.qty)).toFixed(4);
+    proposals.push({ kind: 'add', dest: 'trades', exec: ex, tradeId: t.id, qty: ex.qty, oldAvg: t.entry, newAvg, checked: true });
+    t.remainingQty = rem + ex.qty;
+    t.qty = (t.qty || rem) + ex.qty;
+    t.entry = newAvg;
   }
 
   // explicit=true: המשתמש/מיפוי החשבון קבעו יומן — בלי ניתוב אוטומטי לתיק
@@ -406,6 +418,9 @@ function ibkrBuildProposals(execs) {
       const shortT = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Short');
       if (shortT) return closeLogic(ex, shortT);
       if (!explicit && workPort.some(h => h.ticker === ex.ticker)) return portLogic(ex);
+      // עוד מילוי של אותה קנייה מהיום (אי-נזילות → כמה ביצועים במחירים שונים) — מיזוג, לא עסקה נפרדת
+      const openLongToday = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Long' && t.date === ex.date);
+      if (openLongToday) return strengthenLogic(ex, openLongToday);
       newTradeProp(ex, 'Long');
     } else {
       const longT = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Long');
@@ -423,6 +438,8 @@ function ibkrBuildProposals(execs) {
         const h = workPort.find(x => x.ticker === ex.ticker && (x.remainingQty ?? x.qty) > 0);
         if (h) return portLogic(ex);
       }
+      const openShortToday = workTrades.find(t => t.ticker === ex.ticker && t.status === 'open' && t.dir === 'Short' && t.date === ex.date);
+      if (openShortToday) return strengthenLogic(ex, openShortToday);
       newTradeProp(ex, 'Short');
     }
   }
@@ -512,6 +529,7 @@ const IBKR_KIND_LBL = {
   'port-new':    'אחזקה חדשה',
   'port-add':    'הוספה לאחזקה',
   'port-sell':   'מימוש מאחזקה',
+  'add':         'מילוי נוסף',
 };
 
 function ibkrOpenPreview() {
@@ -538,6 +556,10 @@ function ibkrOpenPreview() {
         <div class="ibkr-prop-pnl" style="color:${green}">▲ LONG</div>`;
     } else if (p.kind === 'port-add') {
       dirTxt = 'הגדלת פוזיציה';
+      sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
+        <div class="ibkr-prop-pnl" style="color:var(--tx3)">ממוצע: $${(+p.newAvg).toFixed(2)}</div>`;
+    } else if (p.kind === 'add') {
+      dirTxt = 'מולא בכמה חלקים (אי-נזילות) — מתמזג לעסקה אחת';
       sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
         <div class="ibkr-prop-pnl" style="color:var(--tx3)">ממוצע: $${(+p.newAvg).toFixed(2)}</div>`;
     } else {   // close / partial / port-sell
@@ -617,7 +639,7 @@ function ibkrUpdateFoot() {
 // ממלא שדות אובייקטיביים בלבד. הערות/סיבה/תרחיש/יעדים לא נגעים לעולם.
 function ibkrApply() {
   const seen = ibkrGetSeen();
-  let added = 0, closed = 0, realized = 0, updated = 0, portChanged = 0;
+  let added = 0, closed = 0, realized = 0, updated = 0, merged = 0, portChanged = 0;
   let tradesDirty = false, portDirty = false;
 
   ibkrProposals.forEach(p => {
@@ -670,6 +692,21 @@ function ibkrApply() {
         updated++; tradesDirty = true;
       }
 
+    } else if (p.kind === 'add') {
+      // מיזוג ביצוע נוסף לתוך עסקה פתוחה קיימת (מילוי בכמה חלקים) — מחיר כניסה
+      // משוקלל מחדש + יומן רכישות, בדיוק כמו "חזק" ידני
+      const t = trades.find(x => x.id === p.tradeId);
+      if (t) {
+        const rem = t.remainingQty ?? t.qty;
+        if (!t.buys || !t.buys.length) t.buys = [{ date: t.date, price: t.entry, qty: rem }];
+        t.buys.push({ date: ex.date, price: ex.price, qty: ex.qty });
+        t.entry        = +(((t.entry * rem) + (ex.price * ex.qty)) / (rem + ex.qty)).toFixed(4);
+        t.remainingQty = rem + ex.qty;
+        t.qty          = (t.qty || rem) + ex.qty;
+        t.fee          = +(((t.fee || 0) + ex.fee)).toFixed(2);
+        merged++; tradesDirty = true;
+      }
+
     } else if (p.kind === 'port-new') {
       portfolio.unshift({
         id: 'ibkr_' + ex.id, ticker: ex.ticker, qty: ex.qty, avgCost: ex.price,
@@ -720,6 +757,7 @@ function ibkrApply() {
   if (closed)      parts.push(`${closed} נסגרו`);
   if (realized)    parts.push(`${realized} מימושים`);
   if (updated)     parts.push(`${updated} עודכנו`);
+  if (merged)      parts.push(`${merged} מוזגו למילוי קיים`);
   if (portChanged) parts.push(`${portChanged} בתיק`);
   toast(parts.length ? '✓ IBKR: ' + parts.join(', ') : 'לא נבחרו עסקאות');
 
