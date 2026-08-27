@@ -385,10 +385,31 @@ function ibkrBuildProposals(execs) {
     proposals.push({ kind: full ? 'close' : 'partial', dest: 'trades', exec: ex, tradeId: t.id, qty, pnl, checked: true });
   }
 
+  // תכנון עסקה שתואם את הביצוע: אותו טיקר + אותו תאריך, טרם הומר,
+  // וכיוון תואם (אם הוגדר בתכנון). התאמת כמות לא נדרשת — המחירים/כמות
+  // הנכונים נלקחים מהברוקר.
+  function planMatch(ex, dir) {
+    if (typeof prepLoad !== 'function') return null;
+    const ymd = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+    let plans = [];
+    try { plans = prepLoad(); } catch (e) { return null; }
+    return plans.find(p =>
+      !p.convertedTo &&
+      (p.ticker || '').toUpperCase() === ex.ticker &&
+      (p.entryDate || (p.createdAt ? ymd(p.createdAt) : '')) === ex.date &&
+      (!p.dir || p.dir === dir)
+    ) || null;
+  }
+
   function newTradeProp(ex, dir) {
     workTrades.unshift({ id: 'ibkr_' + ex.id, ticker: ex.ticker, date: ex.date, dir, status: 'open',
                          entry: ex.price, qty: ex.qty, remainingQty: ex.qty });
-    proposals.push({ kind: 'new', dest: 'trades', dir, exec: ex, checked: true });
+    const plan = planMatch(ex, dir);
+    if (plan) {
+      proposals.push({ kind: 'plan-new', dest: 'trades', dir, exec: ex, planId: plan.id, planNote: plan.gradeNote || '', checked: true });
+    } else {
+      proposals.push({ kind: 'new', dest: 'trades', dir, exec: ex, checked: true });
+    }
   }
 
   // מילוי בכמה חלקים של אותה פוזיציה (אי-נזילות) — כשיש כבר עסקה פתוחה
@@ -522,6 +543,7 @@ function ibkrIgnoreAll() {
 // ── Preview modal ───────────────────────────────────────────
 const IBKR_KIND_LBL = {
   'new':         'עסקה חדשה',
+  'plan-new':    'עסקה מתכנון',
   'close':       'סגירה',
   'partial':     'מימוש חלקי',
   'update':      'עדכון כניסה',
@@ -542,8 +564,9 @@ function ibkrOpenPreview() {
     const logo = (typeof stockLogoImg === 'function') ? stockLogoImg(ex.ticker, 30) : '';
 
     let dirTxt, sideCell;
-    if (p.kind === 'new') {
+    if (p.kind === 'new' || p.kind === 'plan-new') {
       dirTxt = p.dir === 'Long' ? 'קנייה — Long' : 'מכירה בחסר — Short';
+      if (p.kind === 'plan-new') dirTxt += ' · מתכנון' + (p.planNote ? ': ' + p.planNote : '') + ' — סטופ/יעדים/הערות יועברו';
       sideCell = `<div class="ibkr-prop-qty">${qty} × $${ex.price}</div>
         <div class="ibkr-prop-pnl" style="color:${p.dir === 'Long' ? green : red}">${p.dir === 'Long' ? '▲ LONG' : '▼ SHORT'}</div>`;
     } else if (p.kind === 'update' || p.kind === 'update-exit') {
@@ -646,12 +669,37 @@ function ibkrApply() {
     if (!p.checked) return;
     const ex = p.exec;
 
-    if (p.kind === 'new') {
+    if (p.kind === 'new' || p.kind === 'plan-new') {
+      let grade = '1', reason = '', scenario = '', sl = null, targets = [];
+
+      if (p.kind === 'plan-new' && typeof prepLoad === 'function') {
+        try {
+          const plans = prepLoad();
+          const plan  = plans.find(x => x.id === p.planId);
+          if (plan) {
+            grade    = plan.grade === '2' ? '2' : '1';
+            reason   = plan.gradeNote || '';
+            scenario = (typeof planScenarioText === 'function') ? planScenarioText(plan) : '';
+            targets  = (typeof planTargetsToForm === 'function') ? planTargetsToForm(plan) : [];
+            // סטופ = מחיר כניסה מהברוקר ± מרחק הסטופ מהתכנון (בסנט)
+            const stopC = parseFloat(plan.stop);
+            if (stopC > 0) {
+              const raw = p.dir === 'Long' ? ex.price - stopC / 100 : ex.price + stopC / 100;
+              if (raw > 0) sl = +raw.toFixed(2);
+            }
+            plan.convertedTo = 'ibkr_' + ex.id;
+            plan.convertedAt = Date.now();
+            if (typeof prepSave === 'function') prepSave(plans);
+          }
+        } catch (e) {}
+      }
+
       trades.unshift({
         id: 'ibkr_' + ex.id, ticker: ex.ticker, date: ex.date, dir: p.dir, status: 'open',
         entry: ex.price, exit: null, qty: ex.qty, fee: ex.fee, pnl: null,
-        grade: '1', reason: '', scenario: '', sl: null,
-        targets: [], realizations: [], remainingQty: ex.qty, source: 'ibkr',
+        grade, reason, scenario, sl,
+        targets, realizations: [], remainingQty: ex.qty, source: 'ibkr',
+        ...(p.kind === 'plan-new' ? { planId: p.planId } : {}),
       });
       added++; tradesDirty = true;
 
@@ -764,6 +812,7 @@ function ibkrApply() {
   if (typeof loadLive === 'function') loadLive();
   if (typeof renderClosedTable === 'function') try { renderClosedTable(); } catch {}
   if (portDirty && typeof loadPortfolio === 'function') try { loadPortfolio(); } catch {}
+  if (typeof prepRender === 'function') try { prepRender(); } catch {}
 }
 
 // ── Manual file import (Flex XML שהורד ידנית מהפורטל) ──────

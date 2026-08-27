@@ -285,6 +285,9 @@ let priceCache = {}, prevPrices = {};
 let editTradeId = null, editHoldingId = null;
 let activePMId = null, activeSLId = null, activeSellId = null, activeAddId = null, activeAddMode = 'portfolio';
 let targetItems = [];
+// כשממירים תכנון עסקה → עסקה: מחזיק את מזהה התכנון ומרחק הסטופ (בסנט)
+// כדי למלא אוטומטית את הסטופ לפי מחיר הכניסה, ולסמן את התכנון כ"הומר" בשמירה.
+let pendingPlan = null;   // { id, stopCents, dir } | null
 let autoIv = 60, cdRemaining = 60, cdTimer = null, refreshTimer = null;
 let equityChart = null, allocChart = null, perfChart = null;
 let equityMode = 'value';   // 'value' = שווי תיק ($) · 'pct' = ביצועים באחוזים
@@ -462,6 +465,7 @@ function draftSave() {
       scenario: document.getElementById('f-scenario').value,
       targets:  JSON.parse(JSON.stringify(targetItems)),
       editTradeId,
+      pendingPlan,
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(SK.draft, JSON.stringify(draft));
@@ -489,6 +493,7 @@ function loadDraft() {
     if (d.grade) setGrade(d.grade);
     if (d.fee !== undefined && d.fee !== '') document.getElementById('f-fee').value = d.fee;
     if (d.targets?.length) { targetItems = d.targets; renderTargets(); }
+    pendingPlan = d.pendingPlan || null;   // שחזור קישור להמרה מתכנון
     if (d.ticker || d.entry) {
       const t = d.savedAt ? new Date(d.savedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
       setAutosaveBar('saved', 'טיוטה שוחזרה' + (t ? ` (${t})` : ''));
@@ -1854,6 +1859,16 @@ function saveTrade() {
     remainingQty,
   };
 
+  // המרה מתכנון: לקשר את העסקה לתכנון ולסמן את התכנון כ"הומר" — בלי למחוק אותו.
+  if (!editTradeId && pendingPlan && typeof prepLoad === 'function') {
+    trade.planId = pendingPlan.id;
+    try {
+      const plans = prepLoad();
+      const pl = plans.find(x => x.id === pendingPlan.id);
+      if (pl) { pl.convertedTo = trade.id; pl.convertedAt = Date.now(); prepSave(plans); }
+    } catch (e) {}
+  }
+
   if (editTradeId) { trades = trades.map(t => t.id === editTradeId ? trade : t); toast('✓ עסקה עודכנה'); }
   else             { trades.unshift(trade); toast('✓ עסקה נשמרה!'); }
   sv(SK.trades, trades);
@@ -1899,6 +1914,7 @@ function editTrade(id) {
 
 function resetForm() {
   editTradeId = null;
+  pendingPlan = null;
   targetItems = [];
   document.getElementById('form-title').textContent = 'עסקה חדשה';
   ['f-ticker','f-entry','f-exit','f-qty','f-reason','f-scenario','f-sl'].forEach(id => document.getElementById(id).value = '');
@@ -1921,8 +1937,18 @@ function calcFormPnl() {
   const ex  = parseFloat(document.getElementById('f-exit').value);
   const qty = parseFloat(document.getElementById('f-qty').value);
   const fee = parseFloat(document.getElementById('f-fee').value) || 0;
-  const sl  = parseFloat(document.getElementById('f-sl').value);
   const dir = document.getElementById('f-dir').value;
+
+  // מילוי אוטומטי של הסטופ בהמרה מתכנון: מחיר כניסה ± מרחק הסטופ מהתכנון.
+  // רק כשהשדה ריק — עריכה ידנית של המשתמש גוברת.
+  const slEl = document.getElementById('f-sl');
+  if (pendingPlan && pendingPlan.stopCents && en > 0 && slEl && !slEl.value) {
+    const slAuto = pendingPlan.dir === 'Long'
+      ? en - pendingPlan.stopCents / 100
+      : en + pendingPlan.stopCents / 100;
+    if (slAuto > 0) slEl.value = slAuto.toFixed(2);
+  }
+  const sl = parseFloat(slEl.value);
   const el  = document.getElementById('pnl-val');
   const det = document.getElementById('pnl-det');
 
@@ -2013,6 +2039,74 @@ function updateTargetSummary() {
   const total = targetItems.reduce((s, t) => s + t.pct, 0);
   const col   = total === 100 ? 'var(--green)' : total > 100 ? 'var(--red)' : 'var(--amber)';
   el.innerHTML = `<span style="color:${col}">סה"כ: ${total}% ${total === 100 ? '✓' : total > 100 ? '⚠ חורג' : ''}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  תכנון עסקה → עסקה
+// ═══════════════════════════════════════════════════════════
+// יעדי התכנון ({target,sellQty,newStop}) → יעדי הטופס ({pct,price,...}).
+// האחוז נגזר מכמות המכירה חלקי כמות הפוזיציה; אם חסר — ברירת המחדל של היעד.
+function planTargetsToForm(plan) {
+  const qty = parseFloat(plan && plan.qty) || 0;
+  return (plan && plan.targets || [])
+    .filter(t => t.target || t.sellQty)
+    .slice(0, 3)
+    .map((t, i) => {
+      const cfg = TARGET_CFG[i] || TARGET_CFG[TARGET_CFG.length - 1];
+      const sq  = parseFloat(t.sellQty);
+      const pct = (qty > 0 && sq > 0) ? Math.max(1, Math.min(100, Math.round((sq / qty) * 100))) : cfg.pct;
+      return { id: Date.now() + i, pct, price: parseFloat(t.target) || '', label: cfg.label, badge: cfg.badge, done: false };
+    });
+}
+
+// טקסט "תרחיש" נגזר מהתכנון: צ'קליסט שסומן + העברות סטופ מתוכננות.
+function planScenarioText(plan) {
+  if (!plan) return '';
+  const parts = [];
+  const cl = plan.checklist || {};
+  const def = (typeof PREP_CHECKLIST_DEF !== 'undefined') ? PREP_CHECKLIST_DEF : [];
+  const checked = def.filter(i => cl[i.key]).map(i => i.label);
+  if (checked.length) parts.push('צ׳קליסט: ' + checked.join(' · '));
+  const moves = (plan.targets || [])
+    .map((t, i) => t.newStop ? `אחרי יעד ${i + 1} → סטופ $${t.newStop}` : null)
+    .filter(Boolean);
+  if (moves.length) parts.push('העברת סטופ מתוכננת: ' + moves.join(' · '));
+  return parts.join('\n');
+}
+
+// פותח את טופס העסקה ממולא מראש מתוך תכנון. המשתמש מזין מחיר כניסה
+// ומאשר — הסטופ מתמלא אוטומטית ממחיר הכניסה + מרחק הסטופ מהתכנון.
+function tradeFromPlan(plan) {
+  if (!plan) return;
+  editTradeId = null;
+  clearDraft();
+  nav('add', null);                 // מאפס את הטופס וטוען טיוטה (ריקה — נמחקה)
+
+  const dir = plan.dir === 'Short' ? 'Short' : 'Long';
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('f-ticker', (plan.ticker || '').toUpperCase());
+  set('f-qty',    plan.qty || '');
+  set('f-dir',    dir);
+  if (plan.entryDate) set('f-date', plan.entryDate);
+  set('f-entry',  '');
+  set('f-sl',     '');
+  set('f-exit',   '');
+  document.getElementById('f-status').value = 'open';
+  set('f-reason',   plan.gradeNote || '');
+  set('f-scenario', planScenarioText(plan));
+  setGrade(plan.grade === '2' ? '2' : '1');
+
+  targetItems = planTargetsToForm(plan);
+  renderTargets();
+
+  const stopCents = parseFloat(plan.stop);
+  pendingPlan = { id: plan.id, stopCents: stopCents > 0 ? stopCents : null, dir };
+
+  document.getElementById('form-title').textContent = 'עסקה מתכנון · ' + (plan.ticker || '');
+  calcFormPnl();
+  const en = document.getElementById('f-entry');
+  if (en) en.focus();
+  toast('מולא מהתכנון — הזן מחיר כניסה בפועל');
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -32,11 +32,16 @@ function prepEmptyChecklist() {
   return cl;
 }
 
+function prepToday() {
+  return (typeof today === 'function') ? today() : new Date().toISOString().slice(0, 10);
+}
+
 function prepAddTrade() {
   const data = prepLoad();
   const id = prepUID();
   data.unshift({
-    id, ticker: '', grade: '1', gradeNote: '', qty: '', stop: '',
+    id, ticker: '', dir: 'Long', grade: '1', gradeNote: '', qty: '', stop: '',
+    entryDate: prepToday(),
     targets: [{ id: prepUID(), target: '', sellQty: '', newStop: '' }],
     checklist: prepEmptyChecklist(),
     createdAt: Date.now()
@@ -87,7 +92,9 @@ async function prepRender() {
       const ticker  = t.ticker || '—';
       const grade   = t.grade === '2' ? 'סיווג 2' : 'סיווג 1';
       const gradeClx= t.grade === '2' ? 'bs' : 'bl';
-      const dateObj = t.createdAt ? new Date(t.createdAt) : null;
+      const dirTxt  = t.dir === 'Short' ? 'שורט' : 'לונג';
+      const dateRaw = t.entryDate || (t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : '');
+      const dateObj = dateRaw ? new Date(dateRaw + 'T00:00:00') : null;
       const date    = dateObj ? dateObj.toLocaleDateString('he-IL', { weekday:'short', day:'numeric', month:'long', year:'numeric' }) : '';
       const targets = (t.targets || []).filter(x => x.target || x.sellQty || x.newStop);
 
@@ -160,7 +167,11 @@ async function prepRender() {
           </div>
 
           ${priceHTML}
-          <span class="dbadge ${gradeClx}" style="margin-bottom:var(--space-3);display:inline-flex">${grade}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--space-3)">
+            <span class="dbadge ${gradeClx}" style="display:inline-flex">${grade}</span>
+            <span class="dbadge ${t.dir === 'Short' ? 'bs' : 'bl'}" style="display:inline-flex">${dirTxt}</span>
+            ${t.convertedTo ? `<span class="dbadge" style="display:inline-flex;background:rgba(34,197,94,.14);color:var(--green-t)"><i class="ti ti-check" style="font-size:11px"></i>הומר לעסקה</span>` : ''}
+          </div>
           ${t.gradeNote ? `<div class="pc-note">${t.gradeNote}</div>` : ''}
 
           <div class="pc-stats">
@@ -171,6 +182,13 @@ async function prepRender() {
           ${riskHTML}
           ${clHTML}
           ${tgtHTML}
+
+          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:0.5px solid var(--br)">
+            <button class="btn-p" style="width:100%;justify-content:center;font-size:11.5px;padding:7px"
+              onclick="prepConvertToTrade('${t.id}',event)">
+              <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>${t.convertedTo ? 'פתח עסקה נוספת מהתכנון' : 'המר לעסקה פתוחה'}
+            </button>
+          </div>
         </div>`;
     }).join('')
   }</div>`;
@@ -232,11 +250,27 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
+          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כיוון</label>
+          <select id="pm-dir" onchange="prepModalField('dir',this.value)">
+            <option value="Long" ${t.dir!=='Short'?'selected':''}>Long (לונג)</option>
+            <option value="Short" ${t.dir==='Short'?'selected':''}>Short (שורט)</option>
+          </select>
+        </div>
+
+        <div class="fg">
           <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סיווג</label>
           <select id="pm-grade" onchange="prepModalField('grade',this.value)">
             <option value="1" ${t.grade==='1'?'selected':''}>סיווג 1</option>
             <option value="2" ${t.grade==='2'?'selected':''}>סיווג 2</option>
           </select>
+        </div>
+
+        <div class="fg">
+          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">תאריך כניסה מתוכנן</label>
+          <input id="pm-entry-date" type="date"
+            value="${esc(t.entryDate || '')}"
+            style="font-family:'IBM Plex Mono',monospace"
+            oninput="prepModalField('entryDate',this.value)">
         </div>
 
         <div class="fg">
@@ -273,15 +307,20 @@ function prepFormHTML(t) {
       <div id="pm-checklist">${prepChecklistHTML(t.checklist || {})}</div>
     </div>
 
-    <!-- Save -->
-    <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+    <!-- Save + convert -->
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
       <button class="btn-p" onclick="prepModalSave()">
         <i class="ti ti-device-floppy" style="font-size:13px;margin-left:6px"></i>שמור תכנון
+      </button>
+      <button class="btn-s" onclick="prepConvertToTrade('${t.id}',event)">
+        <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>המר לעסקה פתוחה
       </button>
       <span class="settings-saved" id="pm-saved">
         <i class="ti ti-check" style="font-size:11px"></i>נשמר!
       </span>
     </div>
+    ${t.convertedTo ? `<div style="font-size:10.5px;color:var(--green-t);margin-top:8px;display:flex;align-items:center;gap:5px">
+      <i class="ti ti-check" style="font-size:12px"></i>התכנון כבר הומר לעסקה — התכנון נשמר ואפשר להמיר שוב</div>` : ''}
   `;
 }
 
@@ -311,7 +350,9 @@ function prepModalSave() {
 
   t.ticker    = document.getElementById('pm-ticker')?.value || t.ticker;
   t.qty       = document.getElementById('pm-qty')?.value    || t.qty;
+  t.dir       = document.getElementById('pm-dir')?.value    || t.dir || 'Long';
   t.grade     = document.getElementById('pm-grade')?.value  || t.grade;
+  t.entryDate = document.getElementById('pm-entry-date')?.value ?? t.entryDate;
   t.stop      = document.getElementById('pm-stop')?.value   || t.stop;
   t.gradeNote = document.getElementById('pm-note')?.value   || t.gradeNote;
 
@@ -482,4 +523,25 @@ function updatePclWarning(cl) {
   const allRequired = required.every(i => cl[i.key]);
   const warnEl = document.getElementById('pcl-warning');
   if (warnEl) warnEl.style.display = allRequired ? 'none' : 'flex';
+}
+
+/* ──────────────────────────────────────────
+   CONVERT PLAN → OPEN TRADE
+   פותח את טופס "עסקה חדשה" ממולא מראש מתוך התכנון.
+   המשתמש מזין מחיר כניסה בפועל ומאשר; הסטופ מחושב
+   אוטומטית ממחיר הכניסה + מרחק הסטופ מהתכנון.
+   התכנון עצמו לא נמחק — רק מסומן שהומר.
+────────────────────────────────────────── */
+function prepConvertToTrade(id, e) {
+  if (e) e.stopPropagation();
+  if (typeof tradeFromPlan !== 'function') {
+    if (typeof toast === 'function') toast('⚠ טעינת המערכת לא הושלמה — נסה שוב');
+    return;
+  }
+  // אם התכנון פתוח לעריכה — לשמור קודם את מה שבשדות (לפני ה-debounce)
+  if (_prepOpenId === id) { try { prepModalSave(); } catch (err) {} }
+  const plan = prepLoad().find(t => t.id === id);
+  if (!plan) return;
+  prepCloseCard();
+  tradeFromPlan(plan);
 }
