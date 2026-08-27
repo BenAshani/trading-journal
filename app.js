@@ -636,6 +636,22 @@ function updateFeeHint() {
 // ═══════════════════════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════════════════════
+
+// Chart.js לא תמיד מרענן את גודל הקנבס כשחלון הדפדפן משתנה (או כשחוצים
+// את שבירת המובייל), אז הגרפים "נתקעים" ברוחב ישן וזולגים לצד אחד.
+// מאזין אחד, עם השהיה, שמצייר מחדש את הגרפים של העמוד הפעיל.
+let _resizeT = null;
+function handleViewportResize() {
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(() => {
+    const active = document.querySelector('.page.active');
+    if (!active) return;
+    try {
+      if (active.id === 'page-live')            renderEquityChart();
+      else if (active.id === 'page-dashboard')  renderDashChart();
+    } catch (e) { /* אל תפיל את העמוד בגלל ריענון גרף */ }
+  }, 180);
+}
 function nav(page, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2946,6 +2962,9 @@ async function init() {
     if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
   });
   document.getElementById('fa-overlay').addEventListener('click', function(e) { if (e.target === this) closeFAModal(); });
+
+  // ריענון גרפים בשינוי גודל חלון / סיבוב מכשיר
+  window.addEventListener('resize', handleViewportResize);
 
   // ניקוי מיידי של שדה מפתח ה-API — כשמדביקים מפתח, גרשיים/רווחים/תווים נסתרים
   // נחתכים על המקום כדי שהמשתמש יראה שהמפתח נשאר נקי ולא "נוספים לו דברים".
