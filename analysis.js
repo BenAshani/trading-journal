@@ -106,6 +106,41 @@ function caCatsSave(cats) {
 }
 function caCatById(id) { return caCatsLoad().find(c => c.id === id) || null; }
 
+// מצב מכווץ של "ללא קטגוריה" (לשאר הקטגוריות נשמר על אובייקט הקטגוריה עצמו)
+const CA_UNCAT_COLLAPSE_KEY = 'tj_company_analysis_uncat_collapsed_v1';
+function caUncatCollapsed() { return localStorage.getItem(CA_UNCAT_COLLAPSE_KEY) === '1'; }
+function caIsCatCollapsed(id) {
+  return id === '' ? caUncatCollapsed() : !!(caCatById(id) || {}).collapsed;
+}
+
+// כיווץ/פתיחה של קטגוריה — מסתיר את תוכנה כדי לא לגלול הרבה. משנה רק
+// מחלקת CSS (בלי רינדור מחדש) כדי שהפעולה תהיה מיידית, ושומר את המצב.
+function caToggleCategory(id, headEl) {
+  let collapsed;
+  if (id === '') {
+    collapsed = !caUncatCollapsed();
+    localStorage.setItem(CA_UNCAT_COLLAPSE_KEY, collapsed ? '1' : '0');
+  } else {
+    const cats = caCatsLoad();
+    const cat = cats.find(c => c.id === id);
+    if (!cat) return;
+    cat.collapsed = !cat.collapsed;
+    collapsed = cat.collapsed;
+    caCatsSave(cats);
+  }
+  const sec = headEl && headEl.closest('.ca-cat');
+  if (sec) sec.classList.toggle('ca-collapsed', collapsed);
+}
+
+// כיווץ / פתיחה של כל הקטגוריות בבת אחת
+function caCollapseAllCategories(collapsed) {
+  const cats = caCatsLoad();
+  cats.forEach(c => { c.collapsed = collapsed; });
+  caCatsSave(cats);
+  localStorage.setItem(CA_UNCAT_COLLAPSE_KEY, collapsed ? '1' : '0');
+  caRender();
+}
+
 // אפשרויות ה-<select> לשיוך חברה לקטגוריה — משותף לכרטיסיות וגם למסמך הניתוח
 function caCatOptionsHTML(sel) {
   return `<option value="">ללא קטגוריה</option>` + caCatsLoad()
@@ -226,9 +261,16 @@ function caRender() {
   const data = caLoad();
   const cats = caCatsLoad();
 
+  const anyCollapsed = cats.some(c => c.collapsed) || caUncatCollapsed();
+  const collapseAllBtn = cats.length
+    ? `<button class="ca-tb-btn ca-collapse-all" onclick="caCollapseAllCategories(${anyCollapsed ? 'false' : 'true'})">
+        <i class="ti ti-${anyCollapsed ? 'chevrons-down' : 'chevrons-up'}"></i>${anyCollapsed ? 'פתח הכול' : 'כווץ הכול'}
+      </button>`
+    : '';
   const toolbar = `<div class="ca-toolbar">
     <button class="ca-tb-btn ca-add-company" onclick="caAddCompany()"><i class="ti ti-plus"></i>הוסף חברה</button>
     <button class="ca-tb-btn ca-cat-add" onclick="caAddCategory()"><i class="ti ti-folder-plus"></i>קטגוריה חדשה</button>
+    ${collapseAllBtn}
   </div>`;
 
   // סעיפים: קטגוריות לפי סדרן, ואז "ללא קטגוריה" בסוף
@@ -240,15 +282,17 @@ function caRender() {
     const companies = data.filter(c => (c.categoryId || '') === sec.id);
     // "ללא קטגוריה" מוצג רק אם יש בו חברות (או שאין קטגוריות בכלל)
     if (sec.uncat && !companies.length && cats.length) return;
-    const acts = sec.uncat ? '' : `<div class="ca-cat-actions">
-        <button onclick="caMoveCategory('${sec.id}',-1)" ${si === 0 ? 'disabled' : ''} title="הזז למעלה"><i class="ti ti-chevron-up"></i></button>
-        <button onclick="caMoveCategory('${sec.id}',1)" ${si >= cats.length - 1 ? 'disabled' : ''} title="הזז למטה"><i class="ti ti-chevron-down"></i></button>
+    const collapsed = caIsCatCollapsed(sec.id);
+    const acts = sec.uncat ? '' : `<div class="ca-cat-actions" onclick="event.stopPropagation()">
+        <button onclick="caMoveCategory('${sec.id}',-1)" ${si === 0 ? 'disabled' : ''} title="הזז למעלה"><i class="ti ti-arrow-up"></i></button>
+        <button onclick="caMoveCategory('${sec.id}',1)" ${si >= cats.length - 1 ? 'disabled' : ''} title="הזז למטה"><i class="ti ti-arrow-down"></i></button>
         <button onclick="caRenameCategory('${sec.id}')" title="שנה שם"><i class="ti ti-pencil"></i></button>
         <button onclick="caDeleteCategory('${sec.id}')" title="מחק קטגוריה"><i class="ti ti-trash"></i></button>
       </div>`;
-    html += `<section class="ca-cat">
-      <div class="ca-cat-head">
+    html += `<section class="ca-cat${collapsed ? ' ca-collapsed' : ''}">
+      <div class="ca-cat-head" onclick="caToggleCategory('${sec.id}',this)" title="${collapsed ? 'הרחב' : 'כווץ'}">
         <div class="ca-cat-title">
+          <i class="ti ti-chevron-down ca-cat-caret"></i>
           <i class="ti ${sec.uncat ? 'ti-inbox' : 'ti-folder'}"></i>
           <span>${caEsc(sec.name)}</span>
           <span class="ca-cat-count">${companies.length}</span>

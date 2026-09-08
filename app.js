@@ -657,6 +657,30 @@ function handleViewportResize() {
     } catch (e) { /* אל תפיל את העמוד בגלל ריענון גרף */ }
   }, 180);
 }
+// Chart.js לפעמים ננעל על גודל קנבס ברירת-מחדל (≈300px) כשהמכל לא היה
+// בגודלו הסופי ברגע היצירה — טעינה ראשונה (בעיקר ב-Safari), טעינת פונטים,
+// או מעבר בין טאבים. הפונקציה מכריחה מדידה מחדש אחרי שהפריסה מתייצבת,
+// ומחברת ResizeObserver פעם אחת לכל מכל גרף כך שכל שינוי רוחב אמיתי
+// (כולל הופעת העמוד מ-display:none) מצייר את הגרף מחדש לרוחב המלא.
+const _chartWrapObs = new WeakMap();
+function keepChartFitted(getChart, wrap) {
+  if (!wrap) return;
+  const fit = () => {
+    const ch = getChart();
+    if (!ch || !ch.canvas) return;
+    try {
+      if (Math.abs(ch.width - wrap.clientWidth) > 1 || Math.abs(ch.height - wrap.clientHeight) > 1) ch.resize();
+    } catch (e) { /* אל תפיל את העמוד בגלל ריענון גרף */ }
+  };
+  requestAnimationFrame(fit);
+  setTimeout(fit, 250);
+  if (typeof ResizeObserver !== 'undefined' && !_chartWrapObs.has(wrap)) {
+    const obs = new ResizeObserver(fit);
+    obs.observe(wrap);
+    _chartWrapObs.set(wrap, obs);
+  }
+}
+
 function nav(page, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1363,6 +1387,7 @@ function renderEquityChart() {
       animation: { duration: 400 },
     },
   });
+  keepChartFitted(() => equityChart, canvas.parentElement);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1642,6 +1667,7 @@ function renderDashChart() {
       animation: { duration: 400 },
     },
   });
+  keepChartFitted(() => dashValueChart, cnv.parentElement);
 }
 
 // ═══════════════════════════════════════════════════════════
