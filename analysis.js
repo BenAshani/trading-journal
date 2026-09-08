@@ -6,6 +6,9 @@
 */
 
 const CA_KEY = 'tj_company_analysis_v1';
+// קטגוריות (נושאי מחקר) — מאוחסנות בנפרד מהחברות. סדר המערך = סדר ההצגה.
+// כל חברה נושאת c.categoryId (מזהה קטגוריה) או null/ריק = "ללא קטגוריה".
+const CA_CATS_KEY = 'tj_company_analysis_categories_v1';
 
 // ── מבנה השדות של המסמך (לפי ניתוח MSFT) ──
 // "איך מרוויחה" ו"מודל עסקי" היו שני שדות נפרדים — מוזגו לאחד כדי שהמודל
@@ -92,6 +95,86 @@ function caSave(data) {
   if (typeof dbPush === 'function') dbPush(CA_KEY, data);
 }
 function caUID() { return Math.random().toString(36).slice(2, 9); }
+
+// ── קטגוריות ──────────────────────────────────────────────
+function caCatsLoad() {
+  try { return JSON.parse(localStorage.getItem(CA_CATS_KEY) || '[]'); } catch { return []; }
+}
+function caCatsSave(cats) {
+  localStorage.setItem(CA_CATS_KEY, JSON.stringify(cats));
+  if (typeof dbPush === 'function') dbPush(CA_CATS_KEY, cats);
+}
+function caCatById(id) { return caCatsLoad().find(c => c.id === id) || null; }
+
+// אפשרויות ה-<select> לשיוך חברה לקטגוריה — משותף לכרטיסיות וגם למסמך הניתוח
+function caCatOptionsHTML(sel) {
+  return `<option value="">ללא קטגוריה</option>` + caCatsLoad()
+    .map(c => `<option value="${c.id}"${c.id === (sel || '') ? ' selected' : ''}>${caEsc(c.name)}</option>`)
+    .join('');
+}
+
+function caAddCategory() {
+  const name = (prompt('שם הקטגוריה החדשה (למשל: בינה מלאכותית, אנרגיה, ביטחון):') || '').trim();
+  if (!name) return;
+  const cats = caCatsLoad();
+  cats.push({ id: caUID(), name, createdAt: Date.now() });
+  caCatsSave(cats);
+  caRender();
+}
+
+function caRenameCategory(id) {
+  const cats = caCatsLoad();
+  const cat = cats.find(c => c.id === id);
+  if (!cat) return;
+  const name = (prompt('שם חדש לקטגוריה:', cat.name) || '').trim();
+  if (!name || name === cat.name) return;
+  cat.name = name;
+  caCatsSave(cats);
+  caRender();
+}
+
+// מחיקת קטגוריה — הניתוחים עצמם נשמרים, פשוט חוזרים ל"ללא קטגוריה"
+function caDeleteCategory(id) {
+  const cat = caCatById(id);
+  if (!cat) return;
+  const n = caLoad().filter(c => (c.categoryId || '') === id).length;
+  const msg = n
+    ? `למחוק את הקטגוריה "${cat.name}"?\n${n} חברות יעברו ל"ללא קטגוריה" (הניתוחים עצמם יישמרו).`
+    : `למחוק את הקטגוריה "${cat.name}"?`;
+  if (!confirm(msg)) return;
+  caCatsSave(caCatsLoad().filter(c => c.id !== id));
+  const data = caLoad();
+  let touched = false;
+  data.forEach(c => { if ((c.categoryId || '') === id) { c.categoryId = null; touched = true; } });
+  if (touched) caSave(data);
+  caRender();
+}
+
+function caMoveCategory(id, dir) {
+  const cats = caCatsLoad();
+  const idx = cats.findIndex(c => c.id === id);
+  const nIdx = idx + dir;
+  if (idx === -1 || nIdx < 0 || nIdx >= cats.length) return;
+  [cats[idx], cats[nIdx]] = [cats[nIdx], cats[idx]];
+  caCatsSave(cats);
+  caRender();
+}
+
+// שיוך חברה לקטגוריה מתוך ה-<select> (בכרטיסייה או במסמך)
+function caSetCompanyCategory(id, catId) {
+  const v = catId || null;
+  if (caCurrentId === id) {
+    caTouch(c => { c.categoryId = v; });
+  } else {
+    const data = caLoad();
+    const c = data.find(x => x.id === id);
+    if (!c) return;
+    c.categoryId = v;
+    c.updatedAt = Date.now();
+    caSave(data);
+  }
+  if (caCurrentId == null) caRender();
+}
 function caEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
 let caCurrentId = null;
@@ -102,6 +185,34 @@ let caLastEditable = null;
 // ═══════════════════════════════════════════════════════════
 //  רשת כרטיסיות
 // ═══════════════════════════════════════════════════════════
+function caCardHTML(c) {
+  const sym   = caEsc(c.symbol || '—');
+  const name  = caEsc(c.name || '');
+  const blurb = caEsc(c.blurb || '');
+  const cap   = caEsc(c.marketCap || '');
+  const stage = caStageById(c.stage);
+  const d     = c.updatedAt || c.createdAt;
+  const date  = d ? new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return `<div class="ca-card" draggable="true" data-id="${c.id}" onclick="caOpen('${c.id}')">
+    <button class="ca-card-del" onclick="caDeleteCompany('${c.id}',event)" title="מחק"><i class="ti ti-trash"></i></button>
+    <div class="ca-card-sym-row">
+      ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 28, 'ca-card-logo') : ''}
+      <div class="ca-card-sym">${sym}</div>
+    </div>
+    ${name ? `<div class="ca-card-name">${name}</div>` : ''}
+    ${blurb ? `<div class="ca-card-blurb">${blurb}</div>` : ''}
+    ${stage ? `<div class="ca-card-stage"><i class="ti ti-stairs-up"></i>שלב ${stage.id} · ${caEsc(stage.name)}</div>` : ''}
+    <div class="ca-card-foot">
+      ${cap ? `<span class="ca-card-cap"><i class="ti ti-scale"></i>${cap}</span>` : '<span></span>'}
+      ${date ? `<span class="ca-card-date">${date}</span>` : ''}
+    </div>
+    <select class="ca-card-cat" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
+      onchange="caSetCompanyCategory('${c.id}',this.value)" title="שייך לקטגוריה">
+      ${caCatOptionsHTML(c.categoryId || '')}
+    </select>
+  </div>`;
+}
+
 function caRender() {
   const grid = document.getElementById('analysis-grid');
   const docView = document.getElementById('analysis-doc');
@@ -113,44 +224,136 @@ function caRender() {
   caCurrentId = null;
 
   const data = caLoad();
-  const addCard = `<div class="ca-add-card" onclick="caAddCompany()">
-      <i class="ti ti-plus"></i>
-      <span>הוסף חברה</span>
-    </div>`;
+  const cats = caCatsLoad();
+
+  const toolbar = `<div class="ca-toolbar">
+    <button class="ca-tb-btn ca-add-company" onclick="caAddCompany()"><i class="ti ti-plus"></i>הוסף חברה</button>
+    <button class="ca-tb-btn ca-cat-add" onclick="caAddCategory()"><i class="ti ti-folder-plus"></i>קטגוריה חדשה</button>
+  </div>`;
+
+  // סעיפים: קטגוריות לפי סדרן, ואז "ללא קטגוריה" בסוף
+  const sections = cats.map(cat => ({ id: cat.id, name: cat.name, uncat: false }))
+    .concat([{ id: '', name: 'ללא קטגוריה', uncat: true }]);
+
+  let html = toolbar;
+  sections.forEach((sec, si) => {
+    const companies = data.filter(c => (c.categoryId || '') === sec.id);
+    // "ללא קטגוריה" מוצג רק אם יש בו חברות (או שאין קטגוריות בכלל)
+    if (sec.uncat && !companies.length && cats.length) return;
+    const acts = sec.uncat ? '' : `<div class="ca-cat-actions">
+        <button onclick="caMoveCategory('${sec.id}',-1)" ${si === 0 ? 'disabled' : ''} title="הזז למעלה"><i class="ti ti-chevron-up"></i></button>
+        <button onclick="caMoveCategory('${sec.id}',1)" ${si >= cats.length - 1 ? 'disabled' : ''} title="הזז למטה"><i class="ti ti-chevron-down"></i></button>
+        <button onclick="caRenameCategory('${sec.id}')" title="שנה שם"><i class="ti ti-pencil"></i></button>
+        <button onclick="caDeleteCategory('${sec.id}')" title="מחק קטגוריה"><i class="ti ti-trash"></i></button>
+      </div>`;
+    html += `<section class="ca-cat">
+      <div class="ca-cat-head">
+        <div class="ca-cat-title">
+          <i class="ti ${sec.uncat ? 'ti-inbox' : 'ti-folder'}"></i>
+          <span>${caEsc(sec.name)}</span>
+          <span class="ca-cat-count">${companies.length}</span>
+        </div>
+        ${acts}
+      </div>
+      <div class="ca-grid-list" data-cat-id="${sec.id}">
+        ${companies.map(caCardHTML).join('')}
+        ${!companies.length ? '<div class="ca-cat-empty">גררו לכאן חברות</div>' : ''}
+      </div>
+    </section>`;
+  });
 
   if (!data.length) {
-    grid.innerHTML = `<div class="ca-grid-list">${addCard}
-      <div class="empty-state" style="grid-column:1/-1">
-        <i class="ti ti-file-analytics"></i>
-        <p>עדיין לא ניתחת חברות<br>לחץ "הוסף חברה" כדי להתחיל מסמך ניתוח חדש</p>
-      </div></div>`;
-    return;
+    html += `<div class="empty-state" style="margin-top:var(--space-6)">
+      <i class="ti ti-file-analytics"></i>
+      <p>עדיין לא ניתחת חברות<br>לחץ "הוסף חברה" כדי להתחיל מסמך ניתוח חדש</p>
+    </div>`;
   }
 
-  const sorted = [...data].sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
-  grid.innerHTML = `<div class="ca-grid-list">${addCard}${
-    sorted.map(c => {
-      const sym  = caEsc(c.symbol || '—');
-      const name = caEsc(c.name || '');
-      const cap  = caEsc(c.marketCap || '');
-      const stage = caStageById(c.stage);
-      const d    = c.updatedAt || c.createdAt;
-      const date = d ? new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-      return `<div class="ca-card" onclick="caOpen('${c.id}')">
-        <button class="ca-card-del" onclick="caDeleteCompany('${c.id}',event)" title="מחק"><i class="ti ti-trash"></i></button>
-        <div class="ca-card-sym-row">
-          ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 28, 'ca-card-logo') : ''}
-          <div class="ca-card-sym">${sym}</div>
-        </div>
-        ${name ? `<div class="ca-card-name">${name}</div>` : ''}
-        ${stage ? `<div class="ca-card-stage"><i class="ti ti-stairs-up"></i>שלב ${stage.id} · ${caEsc(stage.name)}</div>` : ''}
-        <div class="ca-card-foot">
-          ${cap ? `<span class="ca-card-cap"><i class="ti ti-scale"></i>${cap}</span>` : '<span></span>'}
-          ${date ? `<span class="ca-card-date">${date}</span>` : ''}
-        </div>
-      </div>`;
-    }).join('')
-  }</div>`;
+  grid.innerHTML = html;
+  caBindGridDnD(grid);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  גרירה וסידור של כרטיסיות בין/בתוך קטגוריות (drag & drop)
+// ═══════════════════════════════════════════════════════════
+let _caDrag = null;
+
+function caBindGridDnD(root) {
+  root.querySelectorAll('.ca-card[draggable="true"]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      _caDrag = card;
+      requestAnimationFrame(() => card.classList.add('ca-dragging'));
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch { /* silent */ }
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('ca-dragging');
+      root.querySelectorAll('.ca-grid-list.ca-drop-hint').forEach(l => l.classList.remove('ca-drop-hint'));
+      const moved = _caDrag;
+      _caDrag = null;
+      if (moved) caCommitGridOrder(root);
+    });
+  });
+
+  root.querySelectorAll('.ca-grid-list[data-cat-id]').forEach(list => {
+    list.addEventListener('dragover', e => {
+      if (!_caDrag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      root.querySelectorAll('.ca-grid-list.ca-drop-hint').forEach(l => { if (l !== list) l.classList.remove('ca-drop-hint'); });
+      list.classList.add('ca-drop-hint');
+      const before = caDragBeforeEl(list, e.clientX, e.clientY);
+      if (before == null) list.appendChild(_caDrag);
+      else if (before !== _caDrag) list.insertBefore(_caDrag, before);
+    });
+    list.addEventListener('dragleave', e => {
+      if (e.target === list) list.classList.remove('ca-drop-hint');
+    });
+    list.addEventListener('drop', e => { e.preventDefault(); });
+  });
+}
+
+// מחזיר את הכרטיס שהפריט הנגרר צריך להיכנס *לפניו* (או null = לסוף הרשימה).
+// רשת עוטפת + RTL: מוצאים את הכרטיס הקרוב ביותר לסמן, ומחליטים לפי מיקום יחסי.
+function caDragBeforeEl(list, x, y) {
+  const els = [...list.querySelectorAll('.ca-card[draggable="true"]:not(.ca-dragging)')];
+  if (!els.length) return null;
+  let nearest = null, best = Infinity, after = false;
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const d = Math.hypot(x - cx, y - cy);
+    if (d < best) {
+      best = d; nearest = el;
+      const sameRow = y >= r.top && y <= r.bottom;
+      // RTL: כרטיס "מאוחר יותר" יושב שמאלה. "אחרי" = הסמן משמאל למרכז.
+      after = sameRow ? (x < cx) : (y > cy);
+    }
+  }
+  return after ? nearest.nextElementSibling : nearest;
+}
+
+// בונה מחדש את סדר המערך ואת שיוך הקטגוריות מתוך ה-DOM אחרי גרירה
+function caCommitGridOrder(root) {
+  const data = caLoad();
+  const before = data.map(c => c.id + ':' + (c.categoryId || '')).join('|');
+  const byId = new Map(data.map(c => [c.id, c]));
+  let ord = 0;
+  root.querySelectorAll('.ca-grid-list[data-cat-id]').forEach(list => {
+    const catId = list.dataset.catId || null;
+    list.querySelectorAll('.ca-card[data-id]').forEach(card => {
+      const c = byId.get(card.dataset.id);
+      if (!c) return;
+      c.categoryId = catId;
+      c._ord = ord++;
+    });
+  });
+  data.sort((a, b) => (a._ord ?? 1e9) - (b._ord ?? 1e9));
+  const after = data.map(c => c.id + ':' + (c.categoryId || '')).join('|');
+  data.forEach(c => delete c._ord);
+  if (before === after) return;
+  caSave(data);
+  caRender();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -170,7 +373,7 @@ function caAddCompany() {
   const id = caUID();
   data.unshift({
     id, symbol,
-    name: '', marketCap: '', sector: '',
+    name: '', marketCap: '', sector: '', blurb: '', categoryId: null,
     fields: {}, quarters: [],
     createdAt: Date.now(), updatedAt: Date.now(),
   });
@@ -242,11 +445,16 @@ function caOpen(id) {
           </div>
           <input id="doc-name" class="doc-company" value="${caEsc(c.name)}" placeholder="שם החברה"
             oninput="caMetaInput('name',this.value)">
+          <input id="doc-blurb" class="doc-blurb" value="${caEsc(c.blurb || '')}" maxlength="240"
+            placeholder="משפט אחד — במה העסק עוסק (מוצג על הכרטיסייה ברשימה)"
+            oninput="caMetaInput('blurb',this.value)">
           <div class="doc-meta-row">
             <label class="doc-meta"><i class="ti ti-scale"></i>
               <input id="doc-mktcap" value="${caEsc(c.marketCap)}" placeholder="שווי שוק (למשל 2.86T)" oninput="caMetaInput('marketCap',this.value)"></label>
             <label class="doc-meta"><i class="ti ti-category"></i>
               <input id="doc-sector" value="${caEsc(c.sector)}" placeholder="סקטור / תחום" oninput="caMetaInput('sector',this.value)"></label>
+            <label class="doc-meta"><i class="ti ti-folder"></i>
+              <select id="doc-category" onchange="caSetCompanyCategory('${c.id}',this.value)">${caCatOptionsHTML(c.categoryId || '')}</select></label>
           </div>
         </header>
 
