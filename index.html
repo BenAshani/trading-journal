@@ -507,12 +507,13 @@
       <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">תיק השקעות</span><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
       <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
-    <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
+    <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
       <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div id="ps-val-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div></div>
-      <div class="s-card"><div class="s-label">רווח / הפסד</div><div class="s-val" id="ps-pnl">—</div></div>
-      <div class="s-card"><div class="s-label">תשואה</div><div class="s-val" id="ps-ret">—</div></div>
-      <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div></div>
+      <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div><div id="ps-cost-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
+      <div class="s-card"><div class="s-label">רווח ממומש</div><div class="s-val" id="ps-realized">—</div><div id="ps-realized-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
+      <div class="s-card"><div class="s-label">רווח לא ממומש</div><div class="s-val" id="ps-pnl">—</div><div id="ps-pnl-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
+      <div class="s-card" style="border-color:var(--blue-t)"><div class="s-label" style="color:var(--blue-t)">רווח כולל</div><div class="s-val" id="ps-total">—</div><div id="ps-total-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
+      <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div><div id="ps-cnt-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card">
         <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן בתיק</div>
         <div class="s-val" id="ps-cash-val">—</div>
@@ -525,6 +526,7 @@
         <div class="port-chart-card"><div class="perf-head"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px">ביצועים</div><div class="perf-toggle"><button class="perf-tab on" id="perf-tab-pct" onclick="setPerfMode('pct')">%</button><button class="perf-tab" id="perf-tab-val" onclick="setPerfMode('value')">$</button></div></div><div id="perf-list" class="perf-list"></div></div>
       </div>
       <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
+      <div id="port-closed" style="display:none;margin-top:1.1rem"></div>
     </div>
   </div>
 

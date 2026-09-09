@@ -2612,8 +2612,12 @@ function confirmSell() {
   h.sales.push({ date: today(), price, qty, pnl: +p.toFixed(2) });
   h.remainingQty = rem - qty;
   if (h.remainingQty <= 0) {
-    portfolio.splice(idx, 1);
-    toast(`✓ נמכר! P&L: ${signStr(p)}$${Math.abs(p).toFixed(0)}`);
+    // הפוזיציה נסגרה — לא מוחקים אותה, אלא שומרים לארכיון כדי שהרווח הממומש
+    // יישאר בסיכום התיק וברשימת הפוזיציות הסגורות
+    h.remainingQty = 0;
+    h.closedDate = today();
+    portfolio[idx] = h;
+    toast(`✓ נסגרה! P&L: ${signStr(p)}$${Math.abs(p).toFixed(0)}`);
   } else {
     portfolio[idx] = h;
     toast(`✓ מכירה: ${qty} × $${price}`);
@@ -2779,6 +2783,72 @@ function setPsValSub(txt) {
   if (el) el.textContent = txt;
 }
 
+// שורת המשנה של כרטיס בסיכום התיק: טקסט + צבע אופציונלי לפי רווח/הפסד
+function setPsSub(id, txt, colorVal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = txt || '';
+  el.style.color = (colorVal === undefined || colorVal === null) ? 'var(--tx3)' : pnlCol(colorVal);
+}
+
+// ── רווח ממומש: סכום כל המכירות (sales) על פני כל ההחזקות — פתוחות וסגורות.
+// עלות הבסיס של החלק שמומש נגזרת מכל מכירה: price·qty − pnl = avgCost·qty,
+// כך שהאחוז מדויק גם אחרי חיזוק/שקלול מחדש של הפוזיציה.
+function portfolioRealized() {
+  let pnl = 0, cost = 0, sales = 0;
+  const closed = [];
+  (portfolio || []).forEach(h => {
+    const hs = h.sales || [];
+    if (!hs.length) return;
+    let hPnl = 0, hCost = 0, hQty = 0;
+    hs.forEach(s => {
+      const p = +s.pnl || 0;
+      hPnl += p;
+      hCost += (s.price * s.qty) - p;
+      hQty += (s.qty || 0);
+      sales++;
+    });
+    pnl  += hPnl;
+    cost += hCost;
+    if ((h.remainingQty ?? h.qty) <= 0) {
+      closed.push({ ...h, realizedPnl: hPnl, realizedCost: hCost, realizedQty: hQty });
+    }
+  });
+  return { pnl, cost, sales, pct: cost > 0 ? (pnl / cost) * 100 : null, closed };
+}
+
+// ── רשימת פוזיציות סגורות (מומשו ב-100%) — מכווצת, עם סך הרווח הממומש ──
+function renderClosedPositions(closed) {
+  const el = document.getElementById('port-closed');
+  if (!el) return;
+  if (!closed.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const totPnl  = closed.reduce((s, h) => s + h.realizedPnl, 0);
+  const totCost = closed.reduce((s, h) => s + h.realizedCost, 0);
+  const totPct  = totCost > 0 ? (totPnl / totCost) * 100 : null;
+  const wasOpen = el.classList.contains('open');
+  const rows = closed.slice()
+    .sort((a, b) => String(b.closedDate || '').localeCompare(String(a.closedDate || '')))
+    .map(h => {
+      const pct  = h.realizedCost > 0 ? (h.realizedPnl / h.realizedCost) * 100 : null;
+      const last = (h.sales || [])[(h.sales || []).length - 1] || {};
+      return `<div class="pclosed-row">
+        <span class="pclosed-tkr">${(typeof stockLogoImg === 'function') ? stockLogoImg(h.ticker, 18) : ''}${h.ticker}</span>
+        <span class="pclosed-meta">${h.realizedQty} מניות · נסגרה ${h.closedDate || last.date || '—'}</span>
+        <span class="pclosed-pnl" style="color:${pnlCol(h.realizedPnl)}">${fmtD(h.realizedPnl)}${pct !== null ? ' · ' + signStr(pct) + pct.toFixed(1) + '%' : ''}</span>
+        <button class="pclosed-del" title="מחק לצמיתות" onclick="deleteHolding('${h.id}')"><i class="ti ti-trash"></i></button>
+      </div>`;
+    }).join('');
+  el.className = 'pclosed' + (wasOpen ? ' open' : '');
+  el.innerHTML = `
+    <div class="pclosed-head" onclick="this.parentElement.classList.toggle('open')">
+      <i class="ti ti-chevron-left pclosed-caret"></i>
+      <span class="pclosed-title">פוזיציות סגורות · ${closed.length}</span>
+      <span class="pclosed-total" style="color:${pnlCol(totPnl)}">${fmtD(totPnl)}${totPct !== null ? ' · ' + signStr(totPct) + totPct.toFixed(1) + '%' : ''}</span>
+    </div>
+    <div class="pclosed-body">${rows}</div>`;
+}
+
 // סנכרון כרטיס "מזומן בתיק": ערך + מקור (נמשך מ-IBKR)
 function syncCashCard(investCash) {
   const valEl = document.getElementById('ps-cash-val');
@@ -2807,21 +2877,51 @@ async function loadPortfolio() {
   btn.classList.add('spinning');
   setDot('port', 'amber', 'טוען...');
 
-  const holdings = portfolio.filter(h => (h.remainingQty || h.qty) > 0);
+  const realized = portfolioRealized();
+  const holdings = portfolio.filter(h => (h.remainingQty ?? h.qty) > 0);
   document.getElementById('ps-cnt').textContent = holdings.length;
+  setPsSub('ps-cnt-sub', realized.closed.length ? realized.closed.length + ' סגורות' : '');
 
   const investCash = getInvestCash();
   syncCashCard(investCash);
+  renderClosedPositions(realized.closed);
+
+  // ── רווח ממומש (מוצג תמיד, גם ללא החזקות פתוחות) ──
+  const psReal = document.getElementById('ps-realized');
+  if (realized.sales) {
+    psReal.textContent = fmtD(realized.pnl);
+    psReal.style.color = pnlCol(realized.pnl);
+    setPsSub('ps-realized-sub',
+      realized.pct !== null ? signStr(realized.pct) + realized.pct.toFixed(2) + '% על עלות שמומשה' : `${realized.sales} מכירות`,
+      realized.pct !== null ? realized.pnl : null);
+  } else {
+    psReal.textContent = '—'; psReal.style.color = '';
+    setPsSub('ps-realized-sub', 'אין מכירות עדיין');
+  }
 
   if (!holdings.length) {
-    document.getElementById('port-holdings').innerHTML = '<div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div>';
-    ['ps-val','ps-cost','ps-pnl','ps-ret'].forEach(id => { document.getElementById(id).textContent = '—'; document.getElementById(id).style.color = ''; });
-    if (investCash) {
-      document.getElementById('ps-val').textContent = '$' + Math.round(investCash).toLocaleString();
-      setPsValSub('מזומן בלבד');
-    } else setPsValSub('');
+    document.getElementById('port-holdings').innerHTML = '<div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">' + (realized.closed.length ? 'כל הפוזיציות נסגרו' : 'אין החזקות עדיין') + '</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה' + (realized.closed.length ? '' : ' ראשונה') + '</button></div>';
+    ['ps-cost','ps-pnl'].forEach(id => { document.getElementById(id).textContent = '—'; document.getElementById(id).style.color = ''; });
+    setPsSub('ps-cost-sub', ''); setPsSub('ps-pnl-sub', 'אין החזקות פתוחות');
+    document.getElementById('ps-val').textContent = investCash ? '$' + Math.round(investCash).toLocaleString() : '—';
+    document.getElementById('ps-val').style.color = '';
+    setPsValSub(investCash ? 'מזומן בלבד' : '');
+    // רווח כולל = רווח ממומש בלבד
+    const psTotE = document.getElementById('ps-total');
+    if (realized.sales) {
+      psTotE.textContent = fmtD(realized.pnl);
+      psTotE.style.color = pnlCol(realized.pnl);
+      const acctPctE = investCash > 0 ? (realized.pnl / investCash) * 100 : null;
+      setPsSub('ps-total-sub',
+        [realized.pct !== null ? 'תשואה ' + signStr(realized.pct) + realized.pct.toFixed(2) + '%' : '',
+         acctPctE !== null ? 'מהחשבון ' + signStr(acctPctE) + acctPctE.toFixed(1) + '%' : ''].filter(Boolean).join(' · '),
+        realized.pnl);
+    } else {
+      psTotE.textContent = '—'; psTotE.style.color = '';
+      setPsSub('ps-total-sub', '');
+    }
     document.getElementById('port-charts-row').style.display = 'none';
-    setDot('port', 'off', 'ממתין');
+    setDot('port', realized.closed.length ? 'green' : 'off', realized.closed.length ? 'סגור' : 'ממתין');
     btn.classList.remove('spinning');
     return;
   }
@@ -2842,25 +2942,44 @@ async function loadPortfolio() {
     return { ...h, rem, cp, q, cost, val, pnl: p, pnlPct: pPct };
   });
 
-  const totalPnl = validN ? totalVal - totalCost : null;
-  const totalRet = totalPnl !== null ? (totalPnl / totalCost) * 100 : null;
+  const unrealPnl = validN ? totalVal - totalCost : null;
+  const unrealPct = unrealPnl !== null && totalCost > 0 ? (unrealPnl / totalCost) * 100 : null;
 
   // שווי תיק = שווי שוק של ההחזקות + מזומן (המזומן נמשך מ-IBKR או מוזן ידנית).
   // החזקה שאין לה מחיר חי נספרת לפי עלות הבסיס שלה.
   const holdingsDispVal = enriched.reduce((s, h) => s + (h.val ?? h.cost), 0);
   document.getElementById('ps-val').textContent  = '$' + Math.round(holdingsDispVal + investCash).toLocaleString();
+  document.getElementById('ps-val').style.color  = '';
   setPsValSub(investCash
     ? `החזקות $${Math.round(holdingsDispVal).toLocaleString()} + מזומן $${Math.round(investCash).toLocaleString()}`
     : '');
   document.getElementById('ps-cost').textContent = '$' + Math.round(totalCost).toLocaleString();
+  setPsSub('ps-cost-sub', enriched.length + ' פוזיציות פתוחות');
 
+  // ── רווח לא ממומש (על ההחזקות הפתוחות) ──
   const psPnl = document.getElementById('ps-pnl');
-  psPnl.textContent = totalPnl !== null ? fmtD(totalPnl) : '—';
-  psPnl.style.color = totalPnl !== null ? pnlCol(totalPnl) : '';
+  psPnl.textContent = unrealPnl !== null ? fmtD(unrealPnl) : '—';
+  psPnl.style.color = unrealPnl !== null ? pnlCol(unrealPnl) : '';
+  setPsSub('ps-pnl-sub',
+    unrealPct !== null ? signStr(unrealPct) + unrealPct.toFixed(2) + '% על החזקות פתוחות'
+                       : (validN < enriched.length ? 'חסר מחיר חי' : ''),
+    unrealPct !== null ? unrealPnl : null);
 
-  const psRet = document.getElementById('ps-ret');
-  psRet.textContent = totalRet !== null ? signStr(totalRet) + totalRet.toFixed(2) + '%' : '—';
-  psRet.style.color = totalRet !== null ? pnlCol(totalRet) : '';
+  // ── רווח כולל = ממומש + לא ממומש ──
+  const hasUnreal = unrealPnl !== null;
+  const totalPnl  = (realized.pnl || 0) + (hasUnreal ? unrealPnl : 0);
+  const hasTotal  = realized.sales > 0 || hasUnreal;
+  const capital   = realized.cost + totalCost;              // כל ההון שהושקע: פוזיציות סגורות + פתוחות
+  const acctVal   = holdingsDispVal + investCash;           // שווי החשבון הנוכחי
+  const totRetPct = capital > 0 ? (totalPnl / capital) * 100 : null;
+  const acctPct   = acctVal  > 0 ? (totalPnl / acctVal)  * 100 : null;
+  const psTot = document.getElementById('ps-total');
+  psTot.textContent = hasTotal ? fmtD(totalPnl) : '—';
+  psTot.style.color = hasTotal ? pnlCol(totalPnl) : '';
+  setPsSub('ps-total-sub',
+    [totRetPct !== null ? 'תשואה על ההון ' + signStr(totRetPct) + totRetPct.toFixed(2) + '%' : '',
+     acctPct   !== null ? 'מהחשבון ' + signStr(acctPct) + acctPct.toFixed(1) + '%' : ''].filter(Boolean).join(' · '),
+    hasTotal ? totalPnl : null);
 
   // Charts
   document.getElementById('port-charts-row').style.display = 'grid';

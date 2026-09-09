@@ -781,7 +781,7 @@ function ibkrApply() {
         if (!h.sales) h.sales = [];
         h.sales.push({ date: ex.date, price: ex.price, qty, pnl: p.pnl, source: 'ibkr', execId: ex.id });
         h.remainingQty = rem - qty;
-        if (h.remainingQty <= 0) portfolio.splice(idx, 1);   // כמו מכירה ידנית מלאה
+        if (h.remainingQty <= 0) { h.remainingQty = 0; h.closedDate = ex.date; }   // נסגרה — נשמרת לארכיון
         portChanged++; portDirty = true;
       }
     }
