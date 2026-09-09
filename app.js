@@ -2629,6 +2629,94 @@ function confirmSell() {
 
 function closeSell() { document.getElementById('sell-overlay').classList.remove('open'); activeSellId = null; }
 
+// ═══════════════════════════════════════════════════════════
+//  עריכה / מחיקה של מכירה (מימוש) בהחזקת תיק
+// ═══════════════════════════════════════════════════════════
+let activeSaleHoldingId = null, activeSaleIdx = null;
+
+// יתרת הפוזיציה = כמות שנקנתה − סך המכירות. פוזיציה שכולה מומשה מקבלת
+// תאריך סגירה; אם עריכה/מחיקה החזירו לה מניות — התאריך יורד והיא חוזרת לרשימה.
+function recalcHoldingAfterSalesChange(h) {
+  const soldQty = (h.sales || []).reduce((s, x) => s + (x.qty || 0), 0);
+  h.remainingQty = Math.max(0, (h.qty || 0) - soldQty);
+  if (h.remainingQty <= 0) {
+    h.remainingQty = 0;
+    if (!h.closedDate) {
+      const last = (h.sales || [])[h.sales.length - 1];
+      h.closedDate = (last && last.date) || today();
+    }
+  } else {
+    delete h.closedDate;
+  }
+}
+
+function openSaleEdit(holdingId, idx) {
+  const h = portfolio.find(x => x.id === holdingId);
+  if (!h || !h.sales || !h.sales[idx]) return;
+  activeSaleHoldingId = holdingId;
+  activeSaleIdx = idx;
+  const s = h.sales[idx];
+  const otherQty = h.sales.reduce((sum, x, i) => sum + (i === idx ? 0 : (x.qty || 0)), 0);
+  const maxQty = Math.max(0, (h.qty || 0) - otherQty);
+  document.getElementById('sm-tkr-lbl').textContent  = h.ticker;
+  document.getElementById('sm-info-txt').textContent = `עלות ממוצעת $${h.avgCost.toFixed(2)} · עד ${maxQty} מניות במכירה זו`;
+  document.getElementById('sm-price').value = s.price;
+  document.getElementById('sm-qty').value   = s.qty;
+  document.getElementById('sm-date').value  = s.date || today();
+  calcSM();
+  document.getElementById('sm-overlay').classList.add('open');
+}
+
+function calcSM() {
+  const h = portfolio.find(x => x.id === activeSaleHoldingId);
+  const price = parseFloat(document.getElementById('sm-price').value);
+  const qty   = parseFloat(document.getElementById('sm-qty').value);
+  const pnlEl = document.getElementById('sm-pnl'), detEl = document.getElementById('sm-det');
+  if (!h || !price || !qty) { pnlEl.textContent = '—'; detEl.textContent = '—'; return; }
+  const p = (price - h.avgCost) * qty;
+  pnlEl.textContent = signStr(p) + '$' + Math.abs(p).toFixed(2);
+  pnlEl.style.color = pnlCol(p);
+  detEl.textContent = `${((p / (h.avgCost * qty)) * 100).toFixed(2)}% · ${qty} מניות`;
+}
+
+function confirmSM() {
+  const idx = portfolio.findIndex(x => x.id === activeSaleHoldingId);
+  if (idx === -1 || activeSaleIdx === null) return;
+  const h = portfolio[idx];
+  const price = parseFloat(document.getElementById('sm-price').value);
+  const qty   = parseFloat(document.getElementById('sm-qty').value);
+  const date  = document.getElementById('sm-date').value || today();
+  if (!price || !qty || qty <= 0) { toast('⚠ הכנס מחיר וכמות'); return; }
+  const otherQty = h.sales.reduce((s, x, i) => s + (i === activeSaleIdx ? 0 : (x.qty || 0)), 0);
+  if (qty + otherQty > (h.qty || 0)) { toast('⚠ סך המכירות גדול מהכמות שנקנתה'); return; }
+  h.sales[activeSaleIdx] = {
+    ...h.sales[activeSaleIdx],
+    date, price, qty, pnl: +((price - h.avgCost) * qty).toFixed(2),
+  };
+  recalcHoldingAfterSalesChange(h);
+  portfolio[idx] = h;
+  sv(SK.port, portfolio);
+  closeSM();
+  loadPortfolio();
+  toast('✓ המכירה עודכנה');
+}
+
+function deleteSale() {
+  const idx = portfolio.findIndex(x => x.id === activeSaleHoldingId);
+  if (idx === -1 || activeSaleIdx === null) return;
+  if (!confirm('למחוק את המכירה? הכמות תוחזר לפוזיציה.')) return;
+  const h = portfolio[idx];
+  h.sales.splice(activeSaleIdx, 1);
+  recalcHoldingAfterSalesChange(h);
+  portfolio[idx] = h;
+  sv(SK.port, portfolio);
+  closeSM();
+  loadPortfolio();
+  toast('המכירה נמחקה — הכמות הוחזרה לפוזיציה');
+}
+
+function closeSM() { document.getElementById('sm-overlay').classList.remove('open'); activeSaleHoldingId = null; activeSaleIdx = null; }
+
 // רשימת הרכישות של החזקה — כולל תמיכה לאחור בהחזקות ישנות ללא שדה buys
 function holdingBuys(h) {
   return (h.buys && h.buys.length) ? h.buys : [{ date: h.date, price: h.avgCost, qty: h.qty }];
@@ -2720,10 +2808,20 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
   const allocPct = allocTotal ? ((allocData[i] / allocTotal) * 100).toFixed(1) : 0;
   const color    = PORT_COLORS[i % PORT_COLORS.length];
   const sales    = h.sales || [];
+  const realPnl  = sales.reduce((s, x) => s + (+x.pnl || 0), 0);
+  const realCost = sales.reduce((s, x) => s + (x.price * x.qty - (+x.pnl || 0)), 0);
+  const realPct  = realCost > 0 ? (realPnl / realCost) * 100 : null;
   const salesLog = sales.length
     ? `<div style="border-top:0.5px solid var(--br);padding:0.55rem 0.9rem">
-        <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px">מכירות</div>
-        <div class="real-log">${sales.map(s => `<div class="real-row"><span>${s.date}</span><span>${s.qty}×$${s.price}</span><span style="color:${pnlCol(s.pnl)}">$${s.pnl.toFixed(0)}</span></div>`).join('')}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+          <span style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px">מכירות · ${sales.length}</span>
+          <span style="font-size:11px;font-weight:600;font-family:var(--font-mono);color:${pnlCol(realPnl)}">רווח ממומש ${fmtD(realPnl)}${realPct !== null ? ' · ' + signStr(realPct) + realPct.toFixed(1) + '%' : ''}</span>
+        </div>
+        <div class="real-log">${sales.map((s, si) => `<div class="real-row real-row-edit" onclick="openSaleEdit('${h.id}',${si})">
+          <span>${s.date}</span>
+          <span>${s.qty}×$${(+s.price).toFixed(2)}</span>
+          <span style="display:flex;align-items:center;gap:6px;color:${pnlCol(s.pnl)}">${signStr(s.pnl)}$${Math.abs(s.pnl).toFixed(0)}<i class="ti ti-pencil real-row-pencil"></i></span>
+        </div>`).join('')}</div>
       </div>`
     : '';
   // יומן רכישות — מוצג רק כשהפוזיציה חוזקה (יותר מרכישה אחת)
@@ -2763,6 +2861,7 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
       <div class="ph-stat"><div class="ph-stat-lbl">עלות ממוצעת</div><div class="ph-stat-val">$${h.avgCost.toFixed(2)}</div></div>
       <div class="ph-stat"><div class="ph-stat-lbl">עלות בסיס</div><div class="ph-stat-val">$${Math.round(h.cost).toLocaleString()}</div></div>
       <div class="ph-stat"><div class="ph-stat-lbl">שווי נוכחי</div><div class="ph-stat-val">${h.val ? '$' + Math.round(h.val).toLocaleString() : '—'}</div></div>
+      ${sales.length ? `<div class="ph-stat"><div class="ph-stat-lbl">רווח ממומש</div><div class="ph-stat-val" style="color:${pnlCol(realPnl)}">${fmtD(realPnl)}${realPct !== null ? ` <span style="font-size:10px;font-weight:500">${signStr(realPct)}${realPct.toFixed(1)}%</span>` : ''}</div></div>` : ''}
       ${h.date ? `<div class="ph-stat"><div class="ph-stat-lbl">תאריך קנייה</div><div class="ph-stat-val">${h.date}</div></div>` : ''}
       <div class="ph-actions">
         <button class="action-btn primary" onclick="openAdd('${h.id}')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
@@ -2827,16 +2926,25 @@ function renderClosedPositions(closed) {
   const totCost = closed.reduce((s, h) => s + h.realizedCost, 0);
   const totPct  = totCost > 0 ? (totPnl / totCost) * 100 : null;
   const wasOpen = el.classList.contains('open');
+  const expanded = new Set([...el.querySelectorAll('.pclosed-item.exp')].map(x => x.dataset.hid));
   const rows = closed.slice()
     .sort((a, b) => String(b.closedDate || '').localeCompare(String(a.closedDate || '')))
     .map(h => {
       const pct  = h.realizedCost > 0 ? (h.realizedPnl / h.realizedCost) * 100 : null;
       const last = (h.sales || [])[(h.sales || []).length - 1] || {};
-      return `<div class="pclosed-row">
-        <span class="pclosed-tkr">${(typeof stockLogoImg === 'function') ? stockLogoImg(h.ticker, 18) : ''}${h.ticker}</span>
-        <span class="pclosed-meta">${h.realizedQty} מניות · נסגרה ${h.closedDate || last.date || '—'}</span>
-        <span class="pclosed-pnl" style="color:${pnlCol(h.realizedPnl)}">${fmtD(h.realizedPnl)}${pct !== null ? ' · ' + signStr(pct) + pct.toFixed(1) + '%' : ''}</span>
-        <button class="pclosed-del" title="מחק לצמיתות" onclick="deleteHolding('${h.id}')"><i class="ti ti-trash"></i></button>
+      const saleRows = (h.sales || []).map((s, si) => `<div class="real-row real-row-edit" onclick="event.stopPropagation();openSaleEdit('${h.id}',${si})">
+        <span>${s.date}</span>
+        <span>${s.qty}×$${(+s.price).toFixed(2)}</span>
+        <span style="display:flex;align-items:center;gap:6px;color:${pnlCol(s.pnl)}">${signStr(s.pnl)}$${Math.abs(s.pnl).toFixed(0)}<i class="ti ti-pencil real-row-pencil"></i></span>
+      </div>`).join('');
+      return `<div class="pclosed-item${expanded.has(h.id) ? ' exp' : ''}" data-hid="${h.id}">
+        <div class="pclosed-row" onclick="this.parentElement.classList.toggle('exp')">
+          <span class="pclosed-tkr"><i class="ti ti-chevron-left pclosed-rowcaret"></i>${(typeof stockLogoImg === 'function') ? stockLogoImg(h.ticker, 18) : ''}${h.ticker}</span>
+          <span class="pclosed-meta">${h.realizedQty} מניות · ${(h.sales || []).length} מכירות · נסגרה ${h.closedDate || last.date || '—'}</span>
+          <span class="pclosed-pnl" style="color:${pnlCol(h.realizedPnl)}">${fmtD(h.realizedPnl)}${pct !== null ? ' · ' + signStr(pct) + pct.toFixed(1) + '%' : ''}</span>
+          <button class="pclosed-del" title="מחק לצמיתות" onclick="event.stopPropagation();deleteHolding('${h.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+        <div class="pclosed-sales"><div class="real-log">${saleRows}</div></div>
       </div>`;
     }).join('');
   el.className = 'pclosed' + (wasOpen ? ' open' : '');

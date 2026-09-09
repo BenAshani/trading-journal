@@ -238,6 +238,25 @@
   </div>
 </div>
 
+<!-- Edit-sale (portfolio realization) Overlay -->
+<div class="overlay" id="sm-overlay">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-edit"></i>עריכת מכירה — <span id="sm-tkr-lbl"></span></div>
+    <div class="sell-info"><i class="ti ti-info-circle"></i><span id="sm-info-txt"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+      <div class="modal-sec"><div class="modal-label">מחיר מכירה ($)</div><input type="number" id="sm-price" placeholder="0.00" step="0.01" oninput="calcSM()"></div>
+      <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="sm-qty" placeholder="0" step="1" min="1" oninput="calcSM()"></div>
+    </div>
+    <div class="modal-sec"><div class="modal-label">תאריך מכירה</div><input type="date" id="sm-date"></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="sm-pnl">—</div></div>
+    <div class="modal-actions">
+      <button class="btn-p" onclick="confirmSM()">שמור</button>
+      <button class="btn-s" onclick="closeSM()">ביטול</button>
+      <button class="btn-s" style="color:var(--red);margin-inline-start:auto" onclick="deleteSale()"><i class="ti ti-trash"></i> מחק מכירה</button>
+    </div>
+  </div>
+</div>
+
 <!-- FA Overlay -->
 <div class="fa-overlay" id="fa-overlay">
   <div class="fa-modal">
