@@ -62,7 +62,7 @@ body {
   width: 32px; height: 32px;
   border-radius: var(--radius-md);
   background: var(--color-bg-overlay);
-  border: 1px solid rgba(204,160,66,0.22);
+  border: 1px solid var(--color-border-subtle);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
