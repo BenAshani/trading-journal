@@ -365,10 +365,11 @@ function ibkrFmtDate(s) {
 // שונים → הצעת "עדכון" שמיישרת את הנתונים לברוקר בלי לגעת בשדות ידניים.
 function ibkrBuildProposals(execs) {
   const seen = ibkrGetSeen();
+  const myPort = getMyPortfolio();   // תמיד התיק שלי — גם כשמוצג התיק של אבא
   const autoSeen = [];
   // עותקי עבודה כדי לדמות ביצוע עוקב (מימוש ראשון משפיע על הנותרת של הבא)
   const workTrades = JSON.parse(JSON.stringify(trades));
-  const workPort   = JSON.parse(JSON.stringify(portfolio));
+  const workPort   = JSON.parse(JSON.stringify(myPort));
   const proposals  = [];
   const cfg  = ibkrGetCfg();
   const near = (a, b, tol = 0.005) => Math.abs((a || 0) - (b || 0)) <= tol;
@@ -495,7 +496,7 @@ function ibkrBuildProposals(execs) {
   function alreadyApplied(ex) {
     const key = 'ibkr_' + ex.id;
     return trades.some(t => t.id === key || (t.realizations || []).some(r => r.execId === ex.id)) ||
-           portfolio.some(h => h.id === key || (h.sales || []).some(s => s.execId === ex.id));
+           myPort.some(h => h.id === key || (h.sales || []).some(s => s.execId === ex.id));
   }
 
   execs.forEach(ex => {
@@ -664,6 +665,7 @@ function ibkrApply() {
   const seen = ibkrGetSeen();
   let added = 0, closed = 0, realized = 0, updated = 0, merged = 0, portChanged = 0;
   let tradesDirty = false, portDirty = false;
+  const myPort = getMyPortfolio();   // תמיד התיק שלי — גם כשמוצג התיק של אבא
 
   ibkrProposals.forEach(p => {
     if (!p.checked) return;
@@ -756,14 +758,14 @@ function ibkrApply() {
       }
 
     } else if (p.kind === 'port-new') {
-      portfolio.unshift({
+      myPort.unshift({
         id: 'ibkr_' + ex.id, ticker: ex.ticker, qty: ex.qty, avgCost: ex.price,
         date: ex.date, sector: '', notes: '', sales: [], remainingQty: ex.qty, source: 'ibkr',
       });
       portChanged++; portDirty = true;
 
     } else if (p.kind === 'port-add') {
-      const h = portfolio.find(x => x.id === p.holdingId);
+      const h = myPort.find(x => x.id === p.holdingId);
       if (h) {
         const oldQty = h.qty || 0;
         h.avgCost = +(((h.avgCost * oldQty) + ex.price * ex.qty) / (oldQty + ex.qty)).toFixed(4);
@@ -773,9 +775,9 @@ function ibkrApply() {
       }
 
     } else if (p.kind === 'port-sell') {
-      const idx = portfolio.findIndex(x => x.id === p.holdingId);
+      const idx = myPort.findIndex(x => x.id === p.holdingId);
       if (idx !== -1) {
-        const h = portfolio[idx];
+        const h = myPort[idx];
         const rem = h.remainingQty ?? h.qty;
         const qty = Math.min(p.qty, rem);
         if (!h.sales) h.sales = [];
@@ -795,7 +797,7 @@ function ibkrApply() {
   ibkrDestOverride = {};
 
   if (tradesDirty) sv(SK.trades, trades);
-  if (portDirty)   sv(SK.port, portfolio);
+  if (portDirty)   saveMyPortfolio(myPort);
   ibkrClosePreview();
   ibkrHideBanner();
   ibkrSetChip('ok', 'מסונכרן • עכשיו');

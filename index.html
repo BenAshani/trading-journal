@@ -22,7 +22,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="tokens.css?v=20260731a">
-<link rel="stylesheet" href="styles.css?v=20260915a">
+<link rel="stylesheet" href="styles.css?v=20261009a">
 </head>
 <body>
 <div id="toast"></div>
@@ -515,7 +515,7 @@
   <!-- Portfolio Page -->
   <div id="page-portfolio" class="page">
     <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">תיק השקעות</span><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
+      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500" id="port-title">תיק השקעות</span><div class="port-owner-toggle" role="tablist" aria-label="בחירת תיק"><button class="port-owner-tab on" id="port-owner-me" onclick="setPortOwner('me')"><i class="ti ti-user"></i>שלי</button><button class="port-owner-tab" id="port-owner-dad" onclick="setPortOwner('dad')"><i class="ti ti-users"></i>אבא</button></div><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
       <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
     <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
@@ -525,7 +525,7 @@
       <div class="s-card"><div class="s-label">רווח לא ממומש</div><div class="s-val" id="ps-pnl">—</div><div id="ps-pnl-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card" style="border-color:var(--blue-t)"><div class="s-label" style="color:var(--blue-t)">רווח כולל</div><div class="s-val" id="ps-total">—</div><div id="ps-total-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div><div id="ps-cnt-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card">
+      <div class="s-card" id="ps-cash-card" onclick="editPortCash()">
         <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן בתיק</div>
         <div class="s-val" id="ps-cash-val">—</div>
         <div id="ps-cash-src" style="font-size:9.5px;color:var(--tx3);margin-top:2px">יתרת מזומן בחשבון</div>
@@ -636,10 +636,10 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20260909a"></script>
+<script src="app.js?v=20261009a"></script>
 <script src="prep.js?v=20260827b"></script>
 <script src="analysis.js?v=20260908b"></script>
-<script src="ibkr.js?v=20260909a"></script>
+<script src="ibkr.js?v=20261009a"></script>
 <script>
 // render prep page when navigating to it
 (function() {

@@ -1016,6 +1016,15 @@ tr.row-loss td:first-child { box-shadow: inset -3px 0 0 var(--red-500); }
 .perf-tab { border: none; background: transparent; color: var(--color-text-tertiary); font-family: var(--font-mono); font-weight: var(--weight-semibold); font-size: 11px; line-height: 1; padding: 4px 11px; border-radius: var(--radius-full); cursor: pointer; transition: all .15s; }
 .perf-tab:hover { color: var(--color-text-secondary); }
 .perf-tab.on { background: var(--color-bg-elevated); color: var(--color-text-primary); box-shadow: var(--shadow-xs); }
+
+/* מתג בעלי תיק ההשקעות: שלי / אבא */
+.port-owner-toggle { display: inline-flex; background: var(--color-bg-sunken); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-full); padding: 2px; }
+.port-owner-tab { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--color-text-tertiary); font-family: inherit; font-weight: var(--weight-semibold); font-size: 11.5px; line-height: 1; padding: 5px 12px; border-radius: var(--radius-full); cursor: pointer; transition: all .15s; }
+.port-owner-tab i { font-size: 12px; }
+.port-owner-tab:hover { color: var(--color-text-secondary); }
+.port-owner-tab.on { background: var(--color-bg-elevated); color: var(--color-text-primary); box-shadow: var(--shadow-xs); }
+#ps-cash-card.ps-cash-editable { cursor: pointer; }
+#ps-cash-card.ps-cash-editable:hover { border-color: var(--blue-t); }
 .perf-list { display: flex; flex-direction: column; gap: 7px; }
 .perf-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: var(--space-4); }
 .perf-tkr { font-family: var(--font-mono); font-weight: var(--weight-semibold); font-size: var(--text-sm); color: var(--color-text-primary); }

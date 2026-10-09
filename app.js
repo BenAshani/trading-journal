@@ -241,6 +241,9 @@ const SK = {
   watchlist:  'tj_watchlist_v1',
   faData:     'tj_fa_data_v1',
   investCash: 'tj_invest_cash',
+  portDad:       'tj_port_dad_v1',
+  investCashDad: 'tj_invest_cash_dad',
+  portOwner:     'tj_port_owner',
 };
 
 const ld    = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
@@ -274,7 +277,19 @@ const getDefaultFee = ()  => { const v = parseFloat(localStorage.getItem(SK.fee)
 const setDefaultFee = v   => _pushSetting(SK.fee, v);
 const getRiskUnit   = ()  => { const v = parseFloat(localStorage.getItem(SK.risk)); return isNaN(v) ? 0 : v; };
 const setRiskUnit   = v   => _pushSetting(SK.risk, v);
-const getInvestCash = ()  => parseFloat(localStorage.getItem(SK.investCash)) || 0;
+const getInvestCash = ()  => parseFloat(localStorage.getItem(isDadPort() ? SK.investCashDad : SK.investCash)) || 0;
+
+// ── בעלי תיק ההשקעות: 'me' (התיק שלי — מסונכרן מ-IBKR) / 'dad' (התיק של אבא — ידני) ──
+// כל הפונקציות של התיק עובדות על המשתנה portfolio; המעבר רק מחליף את הנתונים שבו.
+let portOwner = (() => { try { return localStorage.getItem(SK.portOwner) === 'dad' ? 'dad' : 'me'; } catch { return 'me'; } })();
+const isDadPort = () => portOwner === 'dad';
+const portKey   = () => isDadPort() ? SK.portDad : SK.port;
+// IBKR תמיד עובד מול התיק שלי, גם כשמוצג התיק של אבא
+const getMyPortfolio  = () => isDadPort() ? ld(SK.port) : portfolio;
+function saveMyPortfolio(list) {
+  sv(SK.port, list);
+  if (!isDadPort()) portfolio = list;
+}
 
 // ═══════════════════════════════════════════════════════════
 //  STATE
@@ -2548,7 +2563,7 @@ function saveHolding() {
   };
   if (editHoldingId) { portfolio = portfolio.map(p => p.id === editHoldingId ? h : p); toast('✓ עודכן'); }
   else               { portfolio.unshift(h); toast('✓ נשמר!'); }
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   closeHM();
   loadPortfolio();
 }
@@ -2556,7 +2571,7 @@ function saveHolding() {
 function deleteHolding(id) {
   if (!confirm('למחוק?')) return;
   portfolio = portfolio.filter(h => h.id !== id);
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   loadPortfolio();
   toast('נמחק');
 }
@@ -2622,7 +2637,7 @@ function confirmSell() {
     portfolio[idx] = h;
     toast(`✓ מכירה: ${qty} × $${price}`);
   }
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   closeSell();
   loadPortfolio();
 }
@@ -2695,7 +2710,7 @@ function confirmSM() {
   };
   recalcHoldingAfterSalesChange(h);
   portfolio[idx] = h;
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   closeSM();
   loadPortfolio();
   toast('✓ המכירה עודכנה');
@@ -2709,7 +2724,7 @@ function deleteSale() {
   h.sales.splice(activeSaleIdx, 1);
   recalcHoldingAfterSalesChange(h);
   portfolio[idx] = h;
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   closeSM();
   loadPortfolio();
   toast('המכירה נמחקה — הכמות הוחזרה לפוזיציה');
@@ -2794,7 +2809,7 @@ function confirmAdd() {
   h.remainingQty = rem + qty;
   h.qty          = (h.qty || rem) + qty;   // סך הכל שנקנה אי־פעם
   portfolio[idx] = h;
-  sv(SK.port, portfolio);
+  sv(portKey(), portfolio);
   closeAdd();
   loadPortfolio();
   toast(`✓ חוזקה פוזיציה: ${qty} × $${price} · ממוצע $${h.avgCost.toFixed(2)}`);
@@ -2965,7 +2980,11 @@ function syncCashCard(investCash) {
     valEl.style.color = investCash < 0 ? 'var(--red)' : '';
   }
   const src = document.getElementById('ps-cash-src');
-  if (src) {
+  if (src && isDadPort()) {
+    // התיק של אבא לא מחובר ל-IBKR — המזומן מוזן ידנית (לחיצה על הכרטיס)
+    src.innerHTML = '<i class="ti ti-pencil" style="font-size:9px"></i> ' + (investCash ? 'הוזן ידנית • לחץ לעדכון' : 'לחץ להזנת מזומן');
+    src.style.color = '';
+  } else if (src) {
     const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
     const stale = (typeof ibkrCashIsStale === 'function') && ibkrCashIsStale();
     if (!investCash && cashNeedsMapping('port')) {
@@ -2978,6 +2997,47 @@ function syncCashCard(investCash) {
       src.style.color = ic && stale ? 'var(--amber-t)' : '';
     }
   }
+}
+
+// ── מעבר בין התיק שלי לתיק של אבא ──
+function setPortOwner(owner) {
+  owner = owner === 'dad' ? 'dad' : 'me';
+  if (owner === portOwner) return;
+  // סוגרים חלונות עריכה פתוחים — הם מצביעים על החזקות של התיק הקודם
+  ['hm-overlay','sell-overlay','sm-overlay','add-overlay'].forEach(id => document.getElementById(id)?.classList.remove('open'));
+  editHoldingId = null; activeSellId = null; activeSaleHoldingId = null; activeSaleIdx = null;
+  if (activeAddMode === 'portfolio') activeAddId = null;
+  portOwner = owner;
+  try { localStorage.setItem(SK.portOwner, owner); } catch {}
+  portfolio = ld(portKey());
+  applyPortOwnerUI();
+  loadPortfolio();
+}
+
+function applyPortOwnerUI() {
+  const dad = isDadPort();
+  document.getElementById('port-owner-me')?.classList.toggle('on', !dad);
+  document.getElementById('port-owner-dad')?.classList.toggle('on', dad);
+  const t = document.getElementById('port-title');
+  if (t) t.textContent = dad ? 'תיק השקעות — אבא' : 'תיק השקעות';
+  const card = document.getElementById('ps-cash-card');
+  if (card) {
+    card.classList.toggle('ps-cash-editable', dad);
+    card.title = dad ? 'לחץ לעדכון יתרת המזומן' : '';
+  }
+}
+
+// מזומן בתיק של אבא — הזנה ידנית
+function editPortCash() {
+  if (!isDadPort()) return;
+  const cur = getInvestCash();
+  const v = prompt('יתרת מזומן בתיק של אבא ($):', cur ? String(cur) : '');
+  if (v === null) return;
+  const n = parseFloat(String(v).replace(/[$,\s]/g, ''));
+  if (String(v).trim() !== '' && isNaN(n)) { toast('⚠ ערך לא תקין'); return; }
+  _pushSetting(SK.investCashDad, isNaN(n) ? 0 : n);
+  loadPortfolio();
+  toast('✓ המזומן עודכן');
 }
 
 async function loadPortfolio() {
@@ -3287,7 +3347,8 @@ async function init() {
   normalizeStoredKey();   // מנקה מפתח מלוכלך שנמשך מהענן, פעם אחת, ומרפא את המקור
 
   trades      = ld(SK.trades);
-  portfolio   = ld(SK.port);
+  portfolio   = ld(portKey());
+  applyPortOwnerUI();
   watchlist   = ld(SK.watchlist);
   faDataStore = ldObj(SK.faData) || {};
   seedTrades();
