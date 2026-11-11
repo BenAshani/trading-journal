@@ -3,3 +3,5 @@ config.js
 .claude/
 .agents/
 skills-lock.json
+
+_backup_before_redesign/

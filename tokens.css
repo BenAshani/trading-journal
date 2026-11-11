@@ -1,5 +1,5 @@
 /*
-  DESIGN TOKENS — Trading Journal
+  DESIGN TOKENS — Bloomfield Capital (iOS-inspired)
   Default: Light — financial infographic, editorial precision
   Dark:    [data-theme="dark"] — Dieter Rams × Japanese Ma
 */
@@ -9,41 +9,41 @@
   /* ─────────────────────────────────────────
      PRIMITIVE PALETTE
   ───────────────────────────────────────── */
-  --ink-900:  #1A1A2E;
-  --ink-700:  #2E2E4A;
-  --ink-600:  #4A4A6A;
-  --ink-400:  #8888A8;
-  --ink-200:  #C8C8DC;
-  --ink-100:  #E8EAF0;
-  --ink-50:   #ECEEF3;
-  --ink-25:   #F5F6F8;
+  --ink-900:  #1C1C1E;
+  --ink-700:  #2C2C2E;
+  --ink-600:  #3C3C43;
+  --ink-400:  #6C6C70;
+  --ink-200:  #C7C7CC;
+  --ink-100:  #E5E5EA;
+  --ink-50:   #EFEFF4;
+  --ink-25:   #F2F2F7;
   --ink-0:    #FFFFFF;
 
-  --indigo-700: #4338CA;
-  --indigo-500: #6366F1;
-  --indigo-100: rgba(99,102,241,0.09);
-  --indigo-150: rgba(99,102,241,0.17);
+  --indigo-700: #0062CC;
+  --indigo-500: #007AFF;
+  --indigo-100: rgba(0,122,255,0.10);
+  --indigo-150: rgba(0,122,255,0.18);
 
-  --green-600: #15803D;
-  --green-500: #22C55E;
+  --green-600: #1E7A35;
+  --green-500: #34C759;
   --green-200: #86EFAC;
-  --green-100: rgba(34,197,94,0.1);
-  --green-150: rgba(34,197,94,0.18);
+  --green-100: rgba(52,199,89,0.12);
+  --green-150: rgba(52,199,89,0.2);
 
-  --red-600:   #B91C1C;
-  --red-500:   #EF4444;
+  --red-600:   #D70015;
+  --red-500:   #FF3B30;
   --red-400:   #F87171;
-  --red-100:   rgba(239,68,68,0.1);
-  --red-150:   rgba(239,68,68,0.18);
+  --red-100:   rgba(255,59,48,0.1);
+  --red-150:   rgba(255,59,48,0.18);
 
-  --amber-600: #B45309;
-  --amber-500: #F59E0B;
-  --amber-300: #FCD34D;
-  --amber-100: rgba(245,158,11,0.1);
+  --amber-600: #B33100;
+  --amber-500: #F2662E;
+  --amber-300: #F7A38A;
+  --amber-100: rgba(242,102,46,0.12);
 
-  --purple-500: #A855F7;
-  --purple-200: #D8B4FE;
-  --purple-100: rgba(168,85,247,0.1);
+  --purple-500: #5856D6;
+  --purple-200: #B9A6F5;
+  --purple-100: rgba(88,86,214,0.1);
 
   /* ─────────────────────────────────────────
      SEMANTIC COLOR TOKENS — light mode
@@ -60,8 +60,8 @@
   --color-text-tertiary:  var(--ink-400);
 
   --color-border-subtle:  var(--ink-100);
-  --color-border-default: #D4D6E0;
-  --color-border-strong:  #B8BAC8;
+  --color-border-default: #D1D1D6;
+  --color-border-strong:  #C7C7CC;
   --color-border-focus:   var(--indigo-500);
 
   --color-accent:         var(--indigo-500);
@@ -87,11 +87,11 @@
 
   --color-purple:         var(--purple-500);
   --color-purple-subtle:  var(--purple-100);
-  --color-purple-text:    #7C3AED;
+  --color-purple-text:    #5856D6;
 
-  --color-glass-bg:       rgba(255,255,255,0.92);
-  --color-glass-border:   rgba(26,26,46,0.1);
-  --color-scrim:          rgba(26,26,46,0.35);
+  --color-glass-bg:       rgba(249,249,249,0.82);
+  --color-glass-border:   rgba(0,0,0,0.08);
+  --color-scrim:          rgba(0,0,0,0.3);
 
   /* ─────────────────────────────────────────
      TYPOGRAPHY
@@ -99,14 +99,14 @@
      IBM Plex Mono: all numeric/financial data
      Heebo: Hebrew fallback
   ───────────────────────────────────────── */
-  --font-body:    'DM Sans', 'Heebo', system-ui, sans-serif;
-  --font-display: 'DM Sans', system-ui, sans-serif;
-  --font-mono:    'IBM Plex Mono', 'Menlo', monospace;
+  --font-body:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Heebo', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Heebo', system-ui, sans-serif;
+  --font-mono:    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Heebo', system-ui, sans-serif;
 
-  --text-xs:    10px;
-  --text-sm:    11.5px;
-  --text-base:  13.5px;
-  --text-md:    15px;
+  --text-xs:    11px;
+  --text-sm:    12.5px;
+  --text-base:  15px;
+  --text-md:    16px;
   --text-lg:    17px;
   --text-xl:    20px;
   --text-2xl:   24px;
@@ -150,21 +150,21 @@
   /* ─────────────────────────────────────────
      LAYOUT
   ───────────────────────────────────────── */
-  --sidebar-width: 220px;
+  --sidebar-width: 240px;
   --radius-xs:  4px;
-  --radius-sm:  6px;
-  --radius-md:  8px;
-  --radius-lg:  12px;
-  --radius-xl:  16px;
-  --radius-2xl: 22px;
+  --radius-sm:  8px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
 
-  --shadow-xs:  0 1px 3px rgba(26,26,46,0.06);
-  --shadow-sm:  0 2px 8px rgba(26,26,46,0.08);
-  --shadow-md:  0 4px 16px rgba(26,26,46,0.1);
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 14px rgba(0,0,0,0.08);
   --shadow-lg:  0 8px 32px rgba(26,26,46,0.12);
   --shadow-xl:  0 16px 48px rgba(26,26,46,0.14), 0 4px 16px rgba(26,26,46,0.08);
-  --shadow-focus: 0 0 0 3px rgba(99,102,241,0.22);
+  --shadow-focus: 0 0 0 3px rgba(0,122,255,0.3);
 
   --glass-blur: blur(20px) saturate(180%);
 
@@ -227,46 +227,46 @@
    Warm dark grays, gold accent, refined restraint
 ───────────────────────────────────────── */
 [data-theme="dark"] {
-  --color-bg-base:        #161618;
-  --color-bg-subtle:      #111113;
-  --color-bg-elevated:    #1C1C1F;
-  --color-bg-overlay:     #232326;
-  --color-bg-raised:      #2A2A2E;
+  --color-bg-base:        #000000;
+  --color-bg-subtle:      #0A0A0B;
+  --color-bg-elevated:    #1C1C1E;
+  --color-bg-overlay:     #2C2C2E;
+  --color-bg-raised:      #3A3A3C;
   --color-bg-modal:       rgba(17,17,19,0.94);
 
-  --color-text-primary:   #E8E8EE;
-  --color-text-secondary: #A6A6B2;
-  --color-text-tertiary:  #85858F;
+  --color-text-primary:   #FFFFFF;
+  --color-text-secondary: #EBEBF5;
+  --color-text-tertiary:  #AEAEB2;
 
   --color-border-subtle:  rgba(255,255,255,0.055);
   --color-border-default: rgba(255,255,255,0.09);
   --color-border-strong:  rgba(255,255,255,0.15);
-  --color-border-focus:   #CCA042;
+  --color-border-focus:   #0A84FF;
 
-  --color-accent:         #CCA042;
-  --color-accent-hover:   #DDB85C;
-  --color-accent-subtle:  rgba(204,160,66,0.1);
-  --color-accent-muted:   rgba(204,160,66,0.18);
-  --color-accent-text:    #E8CC82;
-  --color-accent-on:      #0A0A0B;
+  --color-accent:         #0A84FF;
+  --color-accent-hover:   #409CFF;
+  --color-accent-subtle:  rgba(10,132,255,0.16);
+  --color-accent-muted:   rgba(10,132,255,0.26);
+  --color-accent-text:    #64A8FF;
+  --color-accent-on:      #FFFFFF;
 
-  --color-success:        #22C55E;
+  --color-success:        #30D158;
   --color-success-subtle: rgba(34,197,94,0.1);
   --color-success-muted:  rgba(34,197,94,0.18);
-  --color-success-text:   #86EFAC;
+  --color-success-text:   #30D158;
 
-  --color-danger:         #EF4444;
+  --color-danger:         #FF453A;
   --color-danger-subtle:  rgba(239,68,68,0.1);
   --color-danger-muted:   rgba(239,68,68,0.18);
-  --color-danger-text:    #F87171;
+  --color-danger-text:    #FF6961;
 
-  --color-warning:        #F59E0B;
-  --color-warning-subtle: rgba(245,158,11,0.1);
-  --color-warning-text:   #FCD34D;
+  --color-warning:        #FF6B3D;
+  --color-warning-subtle: rgba(255,107,61,0.14);
+  --color-warning-text:   #FF8A65;
 
-  --color-purple:         #A855F7;
+  --color-purple:         #5E5CE6;
   --color-purple-subtle:  rgba(168,85,247,0.1);
-  --color-purple-text:    #D8B4FE;
+  --color-purple-text:    #B9A6F5;
 
   --color-glass-bg:       rgba(22,22,24,0.88);
   --color-glass-border:   rgba(255,255,255,0.08);
@@ -277,7 +277,7 @@
   --shadow-md:  0 4px 16px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.07);
   --shadow-xl:  0 16px 56px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.08);
-  --shadow-focus: 0 0 0 2.5px rgba(204,160,66,0.35);
+  --shadow-focus: 0 0 0 2.5px rgba(10,132,255,0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -316,7 +316,7 @@ let faCurrentTicker = null, faCurrentReportId = null, faAutoSaveTimeout = null;
 // ═══════════════════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════════════════
-const PORT_COLORS = ['#6366F1','#22C55E','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#10B981','#F97316','#EC4899','#14B8A6'];
+const PORT_COLORS = ['#007AFF','#248A3D','#5856D6','#C93400','#30B0C7','#F2662E','#67C17A','#B9A6F5','#AF52DE','#AEAEB2'];
 const TARGET_CFG  = [
   { badge: 't1', label: 'יעד 1', pct: 50 },
   { badge: 't2', label: 'יעד 2', pct: 25 },
@@ -702,6 +702,7 @@ function nav(page, btn) {
   document.getElementById('page-' + page).classList.add('active');
   if (btn) btn.classList.add('active');
   const actions = {
+    home:      () => { if (window.bcHome) window.bcHome.render(); },
     dashboard: loadDashboard,
     live:      loadLive,
     closed:    renderClosedTable,
@@ -1924,7 +1925,7 @@ function saveTrade() {
   clearDraft();
   editTradeId = null;
   resetForm();
-  nav('live', document.querySelector('.nav-item'));
+  nav('live', document.querySelector('[data-page=live]'));
 }
 
 function deleteTrade(id) {

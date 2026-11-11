@@ -9,10 +9,10 @@
 <meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="יומן מסחר">
+<meta name="apple-mobile-web-app-title" content="Bloomfield">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#181512">
-<title>יומן מסחר</title>
+<meta name="theme-color" content="#F2F2F7">
+<title>Bloomfield Capital</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -21,8 +21,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<link rel="stylesheet" href="tokens.css?v=20260731a">
-<link rel="stylesheet" href="styles.css?v=20261009a">
+<link rel="stylesheet" href="tokens.css?v=20261111a">
+<link rel="stylesheet" href="styles.css?v=20261111a">
+<link rel="stylesheet" href="theme-ios.css?v=20261111a">
 </head>
 <body>
 <div id="toast"></div>
@@ -144,7 +145,7 @@
     <div class="settings-group">
       <div class="settings-label">API Key — Finnhub</div>
       <div class="settings-row">
-        <input type="text" class="settings-input" id="settings-key" placeholder="הדבק מפתח Finnhub..." autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:11px;direction:ltr;text-align:left">
+        <input type="text" class="settings-input" id="settings-key" placeholder="הדבק מפתח Finnhub..." autocomplete="off" style="font-family:var(--font-mono);font-size:11px;direction:ltr;text-align:left">
         <button class="btn-p" onclick="saveApiKey()">שמור</button>
       </div>
       <div class="settings-hint">finnhub.io — 60 בקשות/דקה (חינמי)</div>
@@ -152,7 +153,7 @@
     <div class="settings-group">
       <div class="settings-label">API Key — Financial Modeling Prep</div>
       <div class="settings-row">
-        <input type="text" class="settings-input" id="settings-fmp-key" placeholder="הדבק מפתח FMP..." autocomplete="off" style="font-family:'IBM Plex Mono',monospace;font-size:11px;direction:ltr;text-align:left">
+        <input type="text" class="settings-input" id="settings-fmp-key" placeholder="הדבק מפתח FMP..." autocomplete="off" style="font-family:var(--font-mono);font-size:11px;direction:ltr;text-align:left">
         <button class="btn-p" onclick="saveFmpApiKey()">שמור</button>
       </div>
       <div class="settings-hint">financialmodelingprep.com — נדרש לגרף הנרות היפני החי בניתוח חברות.</div>
@@ -175,7 +176,7 @@
     <div class="modal-title" id="pm-title"><i class="ti ti-percentage"></i>מימוש חלקי</div>
     <div class="modal-sec"><div class="modal-label">מחיר מימוש ($)</div><input type="number" id="pm-price" placeholder="0.00" step="0.01" oninput="calcPM()"></div>
     <div class="modal-sec"><div class="modal-label">כמות למימוש</div><input type="number" id="pm-qty" placeholder="0" step="1" min="1" oninput="calcPM()"><div class="quick-btns" id="pm-qbtns"></div></div>
-    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="pm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="pm-pnl">—</div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="pm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="pm-pnl">—</div></div>
     <div class="modal-actions"><button class="btn-p" onclick="confirmPM()">בצע מימוש</button><button class="btn-s" onclick="closePM()">ביטול</button></div>
   </div>
 </div>
@@ -186,7 +187,7 @@
     <div class="modal-title" style="color:var(--red)"><i class="ti ti-shield-x"></i>סגירה ב-Stop Loss</div>
     <div class="modal-sec"><div class="modal-label">מחיר סגירה ($)</div><input type="number" id="sl-price" placeholder="0.00" step="0.01" oninput="calcSL()"></div>
     <div id="sl-preset"></div>
-    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">הפסד צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="sl-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace;color:var(--red)" id="sl-pnl">—</div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">הפסד צפוי</div><div style="font-size:10.5px;color:var(--tx3);margin-top:2px" id="sl-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono);color:var(--red)" id="sl-pnl">—</div></div>
     <div class="modal-actions"><button class="btn-p" style="background:var(--red)" onclick="confirmSL()">סגור עסקה</button><button class="btn-s" onclick="closeSL()">ביטול</button></div>
   </div>
 </div>
@@ -195,7 +196,7 @@
 <div class="overlay" id="hm-overlay">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-briefcase"></i><span id="hm-title">הוסף החזקה</span></div>
-    <div class="modal-sec"><div class="modal-label">טיקר *</div><input type="text" id="hm-ticker" placeholder="AAPL" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="modal-sec"><div class="modal-label">טיקר *</div><input type="text" id="hm-ticker" placeholder="AAPL" style="font-family:var(--font-mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
       <div class="modal-sec"><div class="modal-label">כמות *</div><input type="number" id="hm-qty" placeholder="0" min="1" step="1" oninput="calcHC()"></div>
       <div class="modal-sec"><div class="modal-label">מחיר קנייה ($) *</div><input type="number" id="hm-cost" placeholder="0.00" step="0.01" oninput="calcHC()"></div>
@@ -205,7 +206,7 @@
     <div class="modal-sec"><div class="modal-label">הערות</div><input type="text" id="hm-notes" placeholder="למה קנית?"></div>
     <div class="modal-pnl" id="hm-cost-preview" style="display:none">
       <div><div style="font-size:11.5px;color:var(--tx2)">עלות כוללת</div><div style="font-size:10.5px;color:var(--tx3)" id="hm-cost-det">—</div></div>
-      <div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="hm-cost-val">—</div>
+      <div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="hm-cost-val">—</div>
     </div>
     <div class="modal-actions"><button class="btn-p" onclick="saveHolding()">שמור</button><button class="btn-s" onclick="closeHM()">ביטול</button></div>
   </div>
@@ -218,7 +219,7 @@
     <div class="sell-info"><i class="ti ti-info-circle"></i><span id="sell-info-txt"></span></div>
     <div class="modal-sec"><div class="modal-label">מחיר מכירה ($)</div><input type="number" id="sell-price" placeholder="0.00" step="0.01" oninput="calcSellPnl()"></div>
     <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="sell-qty" placeholder="0" step="1" min="1" oninput="calcSellPnl()"><div class="quick-btns" id="sell-qbtns"></div></div>
-    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sell-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="sell-pnl">—</div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sell-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="sell-pnl">—</div></div>
     <div class="modal-actions"><button class="btn-p" style="background:var(--green);color:#052e16" onclick="confirmSell()">בצע מכירה</button><button class="btn-s" onclick="closeSell()">ביטול</button></div>
   </div>
 </div>
@@ -233,7 +234,7 @@
       <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="add-qty" placeholder="0" step="1" min="1" oninput="calcAdd()"></div>
     </div>
     <div class="modal-sec"><div class="modal-label">תאריך קנייה</div><input type="date" id="add-date"></div>
-    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">עלות ממוצעת חדשה</div><div style="font-size:10.5px;color:var(--tx3)" id="add-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="add-avg">—</div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">עלות ממוצעת חדשה</div><div style="font-size:10.5px;color:var(--tx3)" id="add-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="add-avg">—</div></div>
     <div class="modal-actions"><button class="btn-p" style="background:var(--blue-t);color:#0b1020" onclick="confirmAdd()">בצע קנייה</button><button class="btn-s" onclick="closeAdd()">ביטול</button></div>
   </div>
 </div>
@@ -248,7 +249,7 @@
       <div class="modal-sec"><div class="modal-label">כמות</div><input type="number" id="sm-qty" placeholder="0" step="1" min="1" oninput="calcSM()"></div>
     </div>
     <div class="modal-sec"><div class="modal-label">תאריך מכירה</div><input type="date" id="sm-date"></div>
-    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="sm-pnl">—</div></div>
+    <div class="modal-pnl"><div><div style="font-size:11.5px;color:var(--tx2)">P&L</div><div style="font-size:10.5px;color:var(--tx3)" id="sm-det">—</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="sm-pnl">—</div></div>
     <div class="modal-actions">
       <button class="btn-p" onclick="confirmSM()">שמור</button>
       <button class="btn-s" onclick="closeSM()">ביטול</button>
@@ -310,30 +311,33 @@
     <div class="logo-mark">
       <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="22" height="22" style="color:var(--color-text-primary)">
         <path d="M8 21 L13.5 15.2 L17.5 18.2 L24 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M24 15 V10 H19" stroke="#6366F1" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 15 V10 H19" stroke="#64A8FF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <div class="logo-text">
-      <div class="logo-title">יומן מסחר</div>
+      <div class="logo-title">Bloomfield <span>Capital</span></div>
     </div>
   </div>
   <div class="nav-section">
-    <div class="nav-label">יומן מסחר</div>
-    <button class="nav-item active" onclick="nav('live',this)"><i class="ti ti-activity"></i>סטטוס תיק</button>
-    <button class="nav-item" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i>דאשבורד</button>
-    <button class="nav-item" onclick="nav('closed',this)"><i class="ti ti-checks"></i>עסקאות שנסגרו</button>
+    <button class="nav-item active" data-page="home" onclick="nav('home',this)"><i class="ti ti-home"></i>בית<span class="nav-badge" data-home-badge style="display:none"></span></button>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">מסחר</div>
+    <button class="nav-item" data-page="live" onclick="nav('live',this)"><i class="ti ti-activity"></i>סטטוס תיק</button>
+    <button class="nav-item" data-page="dashboard" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i>דאשבורד</button>
+    <button class="nav-item" data-page="closed" onclick="nav('closed',this)"><i class="ti ti-checks"></i>עסקאות שנסגרו</button>
   </div>
   <div class="nav-section">
     <div class="nav-label">תכנון</div>
-    <button class="nav-item" onclick="nav('prep',this)"><i class="ti ti-calendar-event"></i>תכנון עסקאות</button>
+    <button class="nav-item" data-page="prep" onclick="nav('prep',this)"><i class="ti ti-calendar-event"></i>תכנון עסקאות</button>
   </div>
   <div class="nav-section">
     <div class="nav-label">תיק השקעות</div>
-    <button class="nav-item" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
+    <button class="nav-item" data-page="portfolio" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
   </div>
   <div class="nav-section">
     <div class="nav-label">מחקר</div>
-    <button class="nav-item" onclick="nav('analysis',this)"><i class="ti ti-file-analytics"></i>ניתוח חברות</button>
+    <button class="nav-item" data-page="analysis" onclick="nav('analysis',this)"><i class="ti ti-file-analytics"></i>ניתוח חברות</button>
   </div>
   <div class="sidebar-bottom">
     <button class="sidebar-new-trade" onclick="nav('add',null)"><i class="ti ti-plus"></i>עסקה חדשה</button>
@@ -349,10 +353,15 @@
 <main class="main">
 
   <!-- Live Page -->
-  <div id="page-live" class="page active">
+  <div id="page-home" class="page active">
+    <div class="page-inner"><div id="home-root"></div></div>
+  </div>
+
+  <!-- Live Page -->
+  <div id="page-live" class="page">
     <div class="live-header">
       <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">עסקאות חיות</span><div class="live-dot" id="live-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="live-lbl">ממתין</span><span class="hdr-badge badge-off" id="ibkr-chip" style="display:none;cursor:pointer" onclick="ibkrChipClick()"></span></div>
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="last-upd"></span><button class="refresh-btn" id="ref-btn" onclick="fullRefresh()"><i class="ti ti-refresh"></i>רענן</button></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:var(--font-mono)" id="last-upd"></span><button class="refresh-btn" id="ref-btn" onclick="fullRefresh()"><i class="ti ti-refresh"></i>רענן</button></div>
     </div>
     <div class="api-key-bar">
       <i class="ti ti-bolt" style="color:var(--blue-t);font-size:12px"></i><span>רענון אוטומטי:</span>
@@ -443,26 +452,26 @@
         <div style="margin-bottom:1.1rem">
           <div class="form-sec-hdr"><div class="form-sec-num">1</div><div class="form-sec-title">פרטי כניסה</div></div>
           <div class="form-grid">
-            <div class="fg"><label>טיקר *</label><input type="text" id="f-ticker" placeholder="NVDA" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" oninput="this.value=this.value.toUpperCase();draftSave()"></div>
+            <div class="fg"><label>טיקר *</label><input type="text" id="f-ticker" placeholder="NVDA" style="font-family:var(--font-mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase();draftSave()"></div>
             <div class="fg"><label>תאריך *</label><input type="date" id="f-date" oninput="draftSave()"></div>
             <div class="fg"><label>כיוון *</label><select id="f-dir" onchange="draftSave()"><option value="Long">Long (קנייה)</option><option value="Short">Short (מכירה)</option></select></div>
-            <div class="fg"><label>מחיר כניסה ($) *</label><input type="number" id="f-entry" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:'IBM Plex Mono',monospace"></div>
+            <div class="fg"><label>מחיר כניסה ($) *</label><input type="number" id="f-entry" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:var(--font-mono)"></div>
             <div class="fg"><label>כמות *</label><input type="number" id="f-qty" placeholder="0" step="1" min="1" oninput="calcFormPnl();draftSave()"></div>
             <div class="fg">
               <label>עמלה ($) <span id="fee-default-badge" style="font-size:9.5px;color:var(--blue-t);font-weight:400"></span></label>
-              <input type="number" id="f-fee" step="0.01" oninput="draftSave()" style="font-family:'IBM Plex Mono',monospace">
+              <input type="number" id="f-fee" step="0.01" oninput="draftSave()" style="font-family:var(--font-mono)">
               <div class="fee-default-hint" id="fee-hint" style="display:none"><i class="ti ti-info-circle" style="font-size:10px"></i><span id="fee-hint-txt"></span></div>
             </div>
             <div class="fg full">
               <div style="background:rgba(239,68,68,0.07);border:0.5px solid rgba(239,68,68,0.22);border-radius:var(--r);padding:0.7rem">
                 <div style="display:flex;align-items:center;gap:5px;margin-bottom:7px"><i class="ti ti-shield-x" style="color:var(--red);font-size:13px"></i><span style="font-size:11.5px;font-weight:600;color:var(--red-t)">Stop Loss — הגדר לפני הכניסה!</span></div>
                 <div style="display:flex;gap:9px;align-items:flex-end">
-                  <div class="fg" style="flex:1;margin:0;gap:3px"><label>מחיר Stop Loss ($)</label><input type="number" id="f-sl" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="border-color:rgba(239,68,68,0.3);font-family:'IBM Plex Mono',monospace"></div>
-                  <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--red-t);padding-bottom:7px;white-space:nowrap" id="sl-risk">—</div>
+                  <div class="fg" style="flex:1;margin:0;gap:3px"><label>מחיר Stop Loss ($)</label><input type="number" id="f-sl" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="border-color:rgba(239,68,68,0.3);font-family:var(--font-mono)"></div>
+                  <div style="font-family:var(--font-mono);font-size:12px;color:var(--red-t);padding-bottom:7px;white-space:nowrap" id="sl-risk">—</div>
                 </div>
               </div>
             </div>
-            <div class="pnl-prev"><div><div style="font-size:11.5px;color:var(--tx2)">עלות כניסה</div><div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="pnl-det">הכנס מחירים לחישוב</div></div><div style="font-size:17px;font-weight:500;font-family:'IBM Plex Mono',monospace" id="pnl-val">—</div></div>
+            <div class="pnl-prev"><div><div style="font-size:11.5px;color:var(--tx2)">עלות כניסה</div><div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="pnl-det">הכנס מחירים לחישוב</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="pnl-val">—</div></div>
           </div>
         </div>
         <div style="margin-bottom:1.1rem">
@@ -486,7 +495,7 @@
               </div>
             </div>
             <div class="fg"><label>סטטוס</label><select id="f-status" onchange="draftSave()"><option value="open">פתוחה</option><option value="closed">סגורה</option></select></div>
-            <div class="fg"><label>מחיר יציאה ($)</label><input type="number" id="f-exit" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:'IBM Plex Mono',monospace"></div>
+            <div class="fg"><label>מחיר יציאה ($)</label><input type="number" id="f-exit" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:var(--font-mono)"></div>
             <div class="fg full"><label>סיבה לכניסה</label><textarea id="f-reason" placeholder="מה ראית? למה נכנסת לעסקה הזו?" oninput="draftSave()" rows="3"></textarea></div>
             <div class="fg full"><label>תרחיש</label><textarea id="f-scenario" placeholder="מה אתה מצפה שיקרה? מה התרחיש המנצח?" oninput="draftSave()" rows="3"></textarea></div>
             <div class="form-actions"><button class="btn-p" onclick="saveTrade()">שמור עסקה</button><button class="btn-s" onclick="resetForm()">נקה</button></div>
@@ -516,7 +525,7 @@
   <div id="page-portfolio" class="page">
     <div class="live-header">
       <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500" id="port-title">תיק השקעות</span><div class="port-owner-toggle" role="tablist" aria-label="בחירת תיק"><button class="port-owner-tab on" id="port-owner-me" onclick="setPortOwner('me')"><i class="ti ti-user"></i>שלי</button><button class="port-owner-tab" id="port-owner-dad" onclick="setPortOwner('dad')"><i class="ti ti-users"></i>אבא</button></div><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:var(--font-mono)" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
     <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
       <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div id="ps-val-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
@@ -586,13 +595,14 @@
 
 <!-- Mobile Bottom Nav -->
 <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-  <button class="mbn-item active" id="mbn-live" onclick="nav('live',null);mbnSet('live')">
-    <i class="ti ti-activity"></i>
-    <span>יומן</span>
+  <button class="mbn-item active" id="mbn-home" onclick="nav('home',null);mbnSet('home')">
+    <i class="ti ti-home"></i>
+    <span>בית</span>
+    <span class="nav-badge" data-home-badge style="display:none"></span>
   </button>
-  <button class="mbn-item" id="mbn-closed" onclick="nav('closed',null);mbnSet('closed')">
-    <i class="ti ti-checks"></i>
-    <span>סגורות</span>
+  <button class="mbn-item" id="mbn-live" onclick="nav('live',null);mbnSet('live')">
+    <i class="ti ti-activity"></i>
+    <span>מסחר</span>
   </button>
   <button class="mbn-add" onclick="nav('add',null);mbnSet('add')">
     <i class="ti ti-plus"></i>
@@ -636,10 +646,11 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20261009a"></script>
+<script src="app.js?v=20261111a"></script>
 <script src="prep.js?v=20260827b"></script>
 <script src="analysis.js?v=20260908b"></script>
 <script src="ibkr.js?v=20261009a"></script>
+<script src="home.js?v=20261111a"></script>
 <script>
 // render prep page when navigating to it
 (function() {
@@ -723,7 +734,7 @@ function toggleTheme() {
 <script>
 // Mobile bottom nav active state
 function mbnSet(page) {
-  var ids = ['live','closed','add','portfolio','analysis'];
+  var ids = ['home','live','closed','add','portfolio','analysis'];
   ids.forEach(function(id) {
     var el = document.getElementById('mbn-' + id);
     if (el) el.classList.toggle('active', id === page);
