@@ -1462,6 +1462,25 @@ async function caResearchWithClaude(symbol) {
   const msg = sym ? `בוא נחקור את ${sym} ונבנה טזה.` : 'בוא נחקור חברה חדשה ונבנה טזה.';
   let copied = false;
   try { await navigator.clipboard.writeText(msg); copied = true; } catch {}
-  window.open(url, '_blank', 'noopener');
+  caOpenClaude(url);
   if (typeof toast === 'function') toast(copied ? 'הודעת הפתיחה הועתקה · הדבק אותה בשיחה חדשה בפרויקט' : 'פתח שיחה חדשה בפרויקט וכתוב: ' + msg);
+}
+
+// פותח את הפרויקט באפליקציית Claude כשאפשר:
+// במחשב (Mac/Windows) דרך claude://, ואם האפליקציה לא נפתחה תוך רגע, בדפדפן.
+// בטלפון קישור claude.ai רגיל, שנפתח באפליקציה כשהיא מותקנת ותומכת בזה, ואחרת בדפדפן.
+function caOpenClaude(url) {
+  const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  if (mobile) { window.location.href = url; return; }
+  const appUrl = url.replace(/^https:\/\//, 'claude://');
+  let left = false;
+  const onBlur = () => { left = true; };
+  window.addEventListener('blur', onBlur, { once: true });
+  document.addEventListener('visibilitychange', onBlur, { once: true });
+  window.location.href = appUrl;
+  setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onBlur);
+    if (!left && document.visibilityState === 'visible') window.open(url, '_blank', 'noopener');
+  }, 1500);
 }
