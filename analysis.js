@@ -213,6 +213,8 @@ function caSetCompanyCategory(id, catId) {
 function caEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
 let caCurrentId = null;
+let caFilter = 'all';          // 'all' | מזהה קטגוריה | '' (ללא נושא)
+function caSetFilter(id) { caFilter = id; caRender(); }
 let caSaveTimeout = null;     // טיימר לתווית "נשמר" (ויזואלי בלבד)
 let caPersistTimer = null;    // debounce לדחיפה לענן
 let caLastEditable = null;
@@ -288,8 +290,15 @@ function caRender() {
   const sections = cats.map(cat => ({ id: cat.id, name: cat.name, uncat: false }))
     .concat([{ id: '', name: 'ללא קטגוריה', uncat: true }]);
 
-  let html = toolbar;
+  // סינון לפי נושא — "גלולות" כמו באפליקציות של אפל
+  if (caFilter !== 'all' && caFilter !== '' && !cats.some(c => c.id === caFilter)) caFilter = 'all';
+  const chip = (id, label, n) => `<button type="button" class="ca-chip ${caFilter === id ? 'on' : ''}" aria-pressed="${caFilter === id}" onclick="caSetFilter('${id}')">${caEsc(label)}<span>${n}</span></button>`;
+  const uncatN = data.filter(c => !c.categoryId).length;
+  const chips = `<div class="ca-chips" role="group" aria-label="סינון לפי נושא">${chip('all', 'הכול', data.length)}${cats.map(c => chip(c.id, c.name, data.filter(x => x.categoryId === c.id).length)).join('')}${uncatN ? chip('', 'ללא נושא', uncatN) : ''}</div>`;
+
+  let html = toolbar + chips;
   sections.forEach((sec, si) => {
+    if (caFilter !== 'all' && sec.id !== caFilter) return;
     const companies = data.filter(c => (c.categoryId || '') === sec.id);
     // "ללא קטגוריה" מוצג רק אם יש בו חברות (או שאין קטגוריות בכלל)
     if (sec.uncat && !companies.length && cats.length) return;

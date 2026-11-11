@@ -18,7 +18,7 @@
 
   let ai = null;           // ai-analysis.json
   let loadingAI = false;
-  let view = 'overview';   // overview | tasks | companies | builder
+  let view = 'overview';   // overview | tasks | positions | companies | builder | ideas | alerts
   let tmMode = 'family';   // family | loss
   const readOwner = () => { try { return localStorage.getItem('tj_port_owner') === 'dad' ? 'dad' : 'me'; } catch { return 'me'; } };
   let owner = readOwner();
@@ -95,7 +95,7 @@
       const fam = familyOf(h);
       const i = used[fam] = (used[fam] ?? -1) + 1;
       const shades = FAMILY[fam].shades;
-      return { t: h.ticker, fam, color: shades[i % shades.length], value: v, pl: v - c, plPct: c ? (v / c - 1) * 100 : 0, qty };
+      return { t: h.ticker, fam, color: shades[i % shades.length], value: v, cost: c, pl: v - c, plPct: c ? (v / c - 1) * 100 : 0, qty, avgCost: h.avgCost, notes: h.notes || '' };
     });
     const total = value + cash;
     if (cash > 0) rows.push({ t: 'מזומן', fam: 'cash', color: FAMILY.cash.shades[0], value: cash, pl: null, plPct: null, isCash: true });
@@ -249,6 +249,100 @@
     </section>`;
   }
 
+  // ── מספרים מהירים: מזומן וירידה מול הסף שלך / ריכוז ──
+  function quickStats(d, od) {
+    const cashPct = d.total ? d.cash / d.total * 100 : 0;
+    const top = d.rows.filter(r => !r.isCash)[0];
+    const tiles = [
+      { l: 'מזומן', v: pct(cashPct), s: money(d.cash) + ' שלא מושקעים כרגע' },
+    ];
+    if (od && od.limit) {
+      tiles.push({ l: 'כמה ירדו המניות', v: pct(d.plPct, true), s: od.limit + (od.limitPct && d.plPct < 0 && -d.plPct >= od.limitPct * 0.8 ? '. אתה כמעט שם' : ''), down: d.plPct < 0 });
+    } else if (top) {
+      tiles.push({ l: 'ההחזקה הגדולה', v: pct(top.w), s: top.t + ' מתוך כל התיק' });
+    }
+    return `<div class="bc-stats">${tiles.map(t => `<div class="bc-stat"><span class="bc-muted">${esc(t.l)}</span><span class="bc-stat-v ${t.down ? 'down' : ''}" dir="ltr">${esc(t.v)}</span><span class="bc-muted">${esc(t.s)}</span></div>`).join('')}</div>`;
+  }
+
+  // ── כרטיס "המשימות שלך" + ההחלטה הבאה שמחכה ──
+  function inboxHtml(od) {
+    const c = counts(od);
+    const s = state()[owner] || {};
+    const ans = s.answers || {};
+    const q = (od.questions || []).find(x => ans[x.id] == null);
+    const inbox = `<button type="button" class="bc-card bc-inbox" onclick="bcHome.view('tasks')">
+        <span class="bc-inbox-ic"><i class="ti ti-bell" aria-hidden="true"></i>${c.pending ? `<span class="bc-badge">${c.pending}</span>` : ''}</span>
+        <span class="bc-inbox-main"><span class="bc-inbox-t">המשימות שלך</span><span class="bc-muted">${c.qOpen} החלטות חדשות · ${c.total - c.doneN} משימות פתוחות</span></span>
+        <i class="ti ti-chevron-left" aria-hidden="true"></i>
+      </button>`;
+    const decision = q ? `<section class="bc-card bc-decision">
+        <div class="bc-row-between"><span class="bc-chip warn">החלטה שמחכה לך</span><span class="bc-q-tag" dir="ltr">${esc(q.tag)}</span></div>
+        <p class="bc-q-text">${esc(q.text)}</p>
+        <p class="bc-q-ctx">${esc(q.context)}</p>
+        <div class="bc-q-opts">${q.opts.map((o, i) => `<button type="button" class="bc-pill" onclick="bcHome.answer('${esc(q.id)}',${i})">${esc(o)}</button>`).join('')}</div>
+      </section>` : '';
+    return `<div class="bc-inbox-row">${inbox}${decision}</div>`;
+  }
+
+  // ── פוזיציה אחרי פוזיציה ──
+  function positionsHtml(d, od) {
+    const info = (od && od.positions) || {};
+    const rows = d.rows.filter(r => !r.isCash);
+    if (!rows.length) return '<div class="bc-empty">אין עדיין החזקות בתיק הזה</div>';
+    const hasDoc = t => typeof caFindBySymbol === 'function' && caFindBySymbol(t);
+    const cards = rows.map(r => {
+      const p = info[r.t] || {};
+      const why = p.why || r.notes || 'לא כתבת סיבה בכניסה. כדאי להשלים כדי שיהיה מול מה לבדוק.';
+      const qty = +(+r.qty).toFixed(2);
+      return `<article class="bc-card bc-pos">
+        <div class="bc-row-between">
+          <div><span class="bc-pos-t" dir="ltr">${esc(r.t)}</span><span class="bc-muted bc-pos-meta">${qty} ${qty === 1 ? 'יחידה' : 'מניות'} · ${r.w.toFixed(1)}% מהתיק · ממוצע <span dir="ltr">$${(+r.avgCost).toFixed(2)}</span></span></div>
+          ${p.status ? `<span class="bc-chip ${esc(p.tone || 'review')}">${esc(p.status)}</span>` : ''}
+        </div>
+        <div class="bc-pos-nums">
+          <div><span class="bc-muted">שווי</span><span dir="ltr">${money(r.value)}</span></div>
+          <div><span class="bc-muted">ביצועים מאז הקנייה</span><span dir="ltr" class="${r.pl >= 0 ? 'up' : 'down'}">${money(r.pl, true)} · ${pct(r.plPct, true)}</span></div>
+        </div>
+        <div class="bc-pos-txt"><span class="bc-muted">למה קנית</span><p>${esc(why)}</p></div>
+        ${p.check ? `<div class="bc-pos-txt"><span class="bc-muted">מה בודקים עכשיו</span><p>${esc(p.check)}</p></div>` : ''}
+        <div class="bc-pos-acts">
+          ${hasDoc(r.t) ? `<button type="button" class="bc-pill" onclick="caOpenBySymbol('${esc(r.t)}')"><i class="ti ti-file-analytics"></i> הניתוח שלך</button>` : ''}
+          <button type="button" class="bc-pill" onclick="nav('portfolio')">קנייה / מכירה</button>
+        </div>
+      </article>`;
+    }).join('');
+    return `<section class="bc-sec"><div class="bc-row-between bc-sec-h"><h2>פוזיציה אחרי פוזיציה</h2><span class="bc-muted">ממוין לפי משקל בתיק</span></div><div class="bc-pos-grid">${cards}</div></section>`;
+  }
+
+  // ── רעיונות להמשך ──
+  function ideasHtml(od) {
+    const ideas = (od && od.ideas) || {};
+    const col = (title, icon, tone, list) => `<div class="bc-card bc-idea-col">
+        <div class="bc-idea-h"><span class="bc-idea-ic ${tone}"><i class="ti ti-${icon}" aria-hidden="true"></i></span><h3>${title}</h3></div>
+        ${list && list.length ? list.map(i => `<div class="bc-idea"><div class="bc-row-between"><span class="bc-idea-t" dir="ltr">${esc(i.t)}</span><span class="bc-muted">${esc(i.sector || '')}</span></div><p>${esc(i.line || '')}</p></div>`).join('')
+          : '<p class="bc-muted bc-idea-empty">הרעיונות ייכנסו לכאן אחרי המחקר המלא על המניות.</p>'}
+      </div>`;
+    return `<section class="bc-sec"><div class="bc-sec-h"><h2>רעיונות להמשך</h2><p class="bc-muted">טזות להשקעה. לכל רעיון תרחיש חיובי, תרחיש שלילי ומה צריך לקרות.</p></div>
+      <div class="bc-ideas">${col('פוטנציאל גבוה', 'sparkles', 'hi', ideas.high)}${col('עוגנים שמרניים יותר', 'anchor', 'anchor', ideas.anchor)}</div></section>`;
+  }
+
+  // ── התראות לטלפון ──
+  const NOTIF = [
+    ['morning', 'סיכום לפני הפתיחה', 'כל יום מסחר ב-16:00: מה זז אתמול, חדשות על המניות שלך ומה על השולחן היום'],
+    ['trigger', 'התראה על תנאי יציאה', 'כשמניה מתקרבת לנקודת היציאה או ליעד שהגדרנו'],
+    ['weekly', 'סיכום שבועי', 'שישי בבוקר: איך התיק עבר את השבוע ומה השתנה בתוכנית'],
+    ['questions', 'שאלות חדשות', 'כשיש החלטה שמחכה לך, למשל אחרי דוח רבעוני'],
+  ];
+  function alertsHtml() {
+    const on = Object.assign({ morning: true, trigger: true, weekly: true, questions: true }, state().notif || {});
+    return `<section class="bc-card bc-alerts">
+      <div class="bc-idea-h"><span class="bc-idea-ic info"><i class="ti ti-device-mobile" aria-hidden="true"></i></span><div><h2>עדכונים לטלפון</h2><p class="bc-muted">סיכומים ושאלות חדשות יגיעו כהתראה באפליקציית Claude</p></div></div>
+      ${NOTIF.map(([id, l, desc]) => `<div class="bc-alert"><div><span class="bc-alert-l">${l}</span><span class="bc-muted">${desc}</span></div>
+        <button type="button" class="bc-switch ${on[id] ? 'on' : ''}" role="switch" aria-checked="${!!on[id]}" aria-label="${l}" onclick="bcHome.notif('${id}')"><span></span></button></div>`).join('')}
+      <p class="bc-muted">כרגע נשמרות רק ההעדפות שלך. ההתראות יתחילו להגיע כשנפעיל את העדכון היומי.</p>
+    </section>`;
+  }
+
   function greeting() {
     const h = new Date().getHours();
     return h < 5 ? 'לילה טוב' : h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : h < 21 ? 'ערב טוב' : 'לילה טוב';
@@ -281,7 +375,7 @@
         </div>
       </header>
       <div class="bc-tabs" role="tablist" aria-label="חלקי עמוד הבית">
-        ${tab('overview', 'סקירה')}${tab('tasks', 'משימות', c.pending)}${tab('companies', '<span class="t-lg">ניתוח </span>חברות')}${tab('builder', '<span class="t-lg">תכנון </span>חלוקה')}
+        ${tab('overview', 'סקירה')}${tab('tasks', 'משימות', c.pending)}${tab('positions', 'פוזיציות')}${tab('companies', '<span class="t-lg">ניתוח </span>חברות')}${tab('builder', '<span class="t-lg">תכנון </span>חלוקה')}${tab('ideas', 'רעיונות')}${tab('alerts', 'התראות')}
       </div>`;
 
     if (coEl) coEl.style.display = isCo ? '' : 'none';
@@ -312,13 +406,20 @@
             <span class="bc-tag ${d.today >= 0 ? 'up' : 'down'}" dir="ltr">${money(d.today, true)} · ${pct(d.todayPct, true)}</span><span class="bc-muted">היום</span>
           </div>
           ${d.allPriced ? '' : '<span class="bc-muted bc-note">חלק מהמחירים עוד נטענים, בינתיים מוצג מחיר הקנייה</span>'}
+          ${quickStats(d, od)}
           <div class="bc-hlist">${holdingsList(d)}</div>
           <button type="button" class="bc-link bc-more" onclick="nav('portfolio')">לניהול התיק<i class="ti ti-chevron-left" aria-hidden="true"></i></button>
         </div>
       </section>
-      ${od ? `<section class="bc-card bc-concl"><p class="bc-headline">${esc(od.headline)}</p><div class="bc-verdicts">${verdictsHtml(od)}</div></section>` : ''}`;
+      ${od ? `<section class="bc-card bc-concl"><p class="bc-headline">${esc(od.headline)}</p><div class="bc-verdicts">${verdictsHtml(od)}</div></section>` + inboxHtml(od) : ''}`;
     } else if (view === 'tasks') {
       body = od ? tasksHtml(od) : '<div class="bc-empty">אין עדיין משימות לתיק הזה</div>';
+    } else if (view === 'positions') {
+      body = positionsHtml(d, od);
+    } else if (view === 'ideas') {
+      body = ideasHtml(od);
+    } else if (view === 'alerts') {
+      body = alertsHtml();
     } else {
       body = builderHtml(d);
     }
@@ -350,6 +451,11 @@
     toggle: key => { const cur = ((state()[owner] || {}).done || {})[key]; patch('done', { [key]: !cur }); renderHome(); },
     addVerdict: i => { const cur = ((state()[owner] || {}).added || {})[i]; patch('added', { [i]: !cur }); renderHome(); },
     target: (id, v) => { patch('targets', { [id]: Math.max(0, Math.min(100, Math.round(v * 10) / 10)) }); renderHome(); },
+    notif: id => {
+      const s = state();
+      const cur = Object.assign({ morning: true, trigger: true, weekly: true, questions: true }, s.notif || {});
+      cur[id] = !cur[id]; s.notif = cur; saveState(s); renderHome();
+    },
     resetTargets: () => { const s = state(); if (s[owner]) delete s[owner].targets; saveState(s); renderHome(); },
   };
 
