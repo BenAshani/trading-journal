@@ -206,3 +206,149 @@ body {
   .bc-head .bc-seg button { flex: 1; }
   .bc-vtext { flex: 1; }
 }
+
+/* ════════════════════════════════════════
+   מבנה אחיד לכל הדפים (בית · עסקאות · תיק)
+   כותרת גדולה, לשוניות, שורת כלים, ותוכן ברוחב 1120px
+════════════════════════════════════════ */
+.main .page { padding: 24px 28px 64px; gap: 16px; }
+.main .page > * { width: 100%; max-width: 1120px; margin-inline: auto; box-sizing: border-box; }
+.main .page > .fa-overlay { max-width: none; }
+.main .page .page-inner { padding: 0; overflow: visible; flex: none; }
+#home-root { gap: 16px; }
+#home-head { display: flex; flex-direction: column; gap: 16px; }
+#home-body { display: flex; flex-direction: column; gap: 16px; }
+.page h1, .sh h1 { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 0; }
+.sh { min-height: 64px; }
+.sh-end { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sh-mob { display: none; gap: 8px; }
+.sh-icon { width: 40px; height: 40px; border-radius: 12px; border: none; cursor: pointer; background: rgba(118, 118, 128, 0.12); color: var(--color-text-primary); display: inline-flex; align-items: center; justify-content: center; font-size: 19px; }
+.sec-add { display: inline-flex; align-items: center; gap: 6px; padding: 0 18px; font-size: 15px; }
+
+/* שורת כלים: סטטוס חי, רענון, פעולות */
+.sec-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.sec-tools-status, .sec-tools-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sec-tools-upd { font-size: 13px; color: var(--color-text-tertiary); }
+.sec-tools-note { width: 100%; font-size: 13px; color: var(--color-text-tertiary); }
+.sec-tools-note:empty { display: none; }
+.sec-tools .bc-seg.sm .bc-muted { display: inline-flex; align-items: center; gap: 4px; }
+.sec-tools .iv-btn { border: none; }
+.cd-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.refresh-btn { min-height: 40px; border-radius: 999px; border: none; background: rgba(118, 118, 128, 0.12); color: var(--color-text-primary); font-size: 14px; font-weight: 500; padding: 0 16px; }
+.refresh-btn:hover { background: rgba(118, 118, 128, 0.2); }
+
+/* עסקאות › פתוחות */
+#page-live .summary-bar { padding: 0; border: none; background: none; gap: 12px; }
+#page-live .equity-card-row { border: none; border-radius: 24px; padding: 20px 24px; }
+#page-live #live-content { overflow: visible !important; flex: none !important; }
+
+/* עסקאות › ביצועים */
+.dash-grid { grid-template-columns: 1fr; }
+.dash-card { background: var(--color-bg-elevated); border: none; border-radius: 24px; padding: 20px 24px; }
+.dash-stat { border: none; border-radius: 18px; }
+.closed-sec { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.closed-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.closed-sec-head h2 { font-size: 22px; font-weight: 700; margin: 0; }
+.closed-sec .filter-row { margin: 0; }
+.filter-row select, .filter-row input { min-height: 40px; border-radius: 12px; font-size: 15px; max-width: 180px; }
+.closed-table-card { padding: 0; overflow: hidden; border-radius: 20px; }
+.bc-seg .view-toggle-btn { display: inline-flex; align-items: center; gap: 6px; border: none; }
+
+/* תיק השקעות */
+#invest-summary-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+#invest-summary-bar .s-card > div:last-child { font-size: 12px !important; }
+.port-body { display: flex; flex-direction: column; gap: 12px; }
+.bc-more { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 4px; }
+.bc-hrow:disabled { cursor: default; }
+.bc-hrow:disabled i { visibility: hidden; }
+
+/* ניתוח חברות בתוך הבית */
+#home-companies .ca-toolbar { margin-top: 0; }
+
+/* תפריט צד */
+.nav-section { padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-utils { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.sidebar-utils .nav-item { font-size: 14px; min-height: 36px; color: var(--color-text-secondary); }
+.sidebar-utils .theme-toggle { width: 100%; background: none; border: none; justify-content: flex-start; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none !important; }
+  .main .page { padding: 16px 16px 32px; gap: 14px; }
+  .page h1, .sh h1, #home-root h1 { font-size: 28px; }
+  .sh-mob { display: inline-flex; }
+  .sh-desk { display: none !important; }
+  .sh { flex-wrap: nowrap; align-items: flex-start; }
+  .sh > div:first-child { flex: 1; min-width: 0; }
+  .sh .sh-end { flex: none; }
+  /* בורר התיקים יורד לשורה מלאה מתחת לכותרת */
+  #home-head .sh, #page-portfolio .sh { flex-wrap: wrap; }
+  #home-head .sh .sh-end, #page-portfolio .sh .sh-end { width: 100%; flex-wrap: nowrap; }
+  #home-head .sh .bc-seg, #page-portfolio .sh .bc-seg { flex: 1; width: auto; }
+  #home-head .sh > div:first-child, #page-portfolio .sh > div:first-child { flex: 1 1 100%; }
+  .sec-tools { gap: 8px; }
+  .sec-tools .bc-seg.sm .bc-muted { display: none; }
+  #page-live .equity-card-row { padding: 16px; border-radius: 22px; }
+  .dash-card { padding: 16px; border-radius: 22px; }
+  .filter-row select, .filter-row input { max-width: none; flex: 1 1 140px; }
+  #invest-summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mobile-bottom-nav { justify-content: space-around; }
+}
+
+/* ── ניתוח חברות (בתוך הבית) ── */
+.ca-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.ca-tb-btn { min-height: 40px; border-radius: 999px; border: none; background: var(--color-bg-elevated); color: var(--color-text-primary); font-size: 14px; font-weight: 500; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; }
+.ca-tb-btn:hover { background: var(--color-bg-elevated); color: var(--color-accent); }
+.ca-tb-btn.ca-add-company { background: var(--color-accent); color: #FFFFFF; font-weight: 600; }
+.ca-tb-btn.ca-add-company:hover { color: #FFFFFF; filter: brightness(1.06); }
+.ca-cat { margin-bottom: 24px; }
+.ca-cat-head { border: none; padding: 6px 4px; border-radius: 12px; margin-bottom: 10px; }
+.ca-cat-head:hover { background: rgba(118, 118, 128, 0.08); }
+.ca-cat-title { font-size: 20px; font-weight: 700; gap: 8px; }
+.ca-cat-title .ti-folder, .ca-cat-title .ti-inbox { color: var(--color-accent); font-size: 18px; }
+.ca-cat-count { font-size: 13px; font-weight: 600; min-width: 24px; height: 24px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: rgba(118, 118, 128, 0.12); color: var(--color-text-secondary); }
+.ca-cat-actions button { width: 34px; height: 34px; border-radius: 10px; }
+.ca-grid-list { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.ca-card { border: none; border-radius: 22px; padding: 20px; min-height: 150px; gap: 4px; }
+.ca-card:hover { border: none; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); transform: translateY(-1px); }
+.ca-card-sym { font-family: inherit; font-size: 24px; letter-spacing: -0.3px; }
+.ca-card-name { font-size: 13px; color: var(--color-text-tertiary); }
+.ca-held { margin-inline-start: auto; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 4px 10px; background: rgba(0, 122, 255, 0.1); color: #0062CC; }
+[data-theme="dark"] .ca-held { color: #64A8FF; }
+.ca-card-del { left: auto; inset-inline-end: 10px; top: auto; bottom: 10px; }
+.ca-card-stage2 { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ca-stage-lbl { display: flex; justify-content: space-between; font-size: 13px; }
+.ca-stage-lbl span:first-child { font-weight: 600; }
+.ca-stage-lbl span:last-child { color: var(--color-text-tertiary); }
+.ca-stage-bar { display: flex; gap: 3px; }
+.ca-stage-bar span { flex: 1; height: 6px; border-radius: 3px; background: rgba(118, 118, 128, 0.16); }
+.ca-stage-bar span.on { background: var(--color-accent); }
+.ca-card-foot { font-size: 13px; border-top: 0.5px solid var(--color-border-default); padding-top: 12px; margin-top: auto; }
+.ca-cat-empty { border-radius: 20px; }
+.ca-add-card { border-radius: 22px; }
+.doc-toolbar { border-radius: 18px; }
+
+/* ── כרטיסים אחידים בכל האזורים ── */
+.pos-card, .ph-card, .prep-card, .closed-card { border: none !important; border-radius: 22px !important; box-shadow: none; }
+.pos-card:hover, .ph-card:hover, .prep-card:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); }
+.ph-card { margin-bottom: 12px; }
+.prep-add-card, .ca-add-card { border-radius: 22px; }
+#page-live .sec-title, .port-body .sec-title { padding: 8px 4px 10px; font-size: 22px; font-weight: 700; color: var(--color-text-primary); text-transform: none; letter-spacing: 0; }
+.positions-grid { padding: 0; gap: 12px; }
+.prep-grid-list { padding: 0; gap: 12px; }
+#invest-summary-bar { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.s-val { direction: ltr; text-align: right; }
+@media (max-width: 768px) {
+  #invest-summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #page-live .summary-bar { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px; }
+  #page-live .summary-bar .s-card { padding: 12px; }
+  #page-live .summary-bar .s-val { font-size: 18px; }
+}
+@media (max-width: 768px) {
+  /* כפתורי מצב כהה/הגדרות בפינה, בשורת הכותרת */
+  .sh { position: relative; }
+  .sh > div:first-child { padding-inline-end: 96px; }
+  .sh .sh-mob { position: absolute; top: 0; left: 0; }
+  #home-head .bc-tabs .bc-tab, .sec-head .bc-tab { flex: 1 1 0; justify-content: center; padding: 0 8px; font-size: 14px; gap: 6px; }
+  .bc-tab .t-lg { display: none; }
+}
+.dash-tools:has(.journal-select-wrap[style*="none"]) { display: none; }

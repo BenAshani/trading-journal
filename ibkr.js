@@ -345,7 +345,7 @@ function ibkrRefreshCashViews() {
   try {
     if (active('page-portfolio') && typeof loadPortfolio === 'function') loadPortfolio();
     if (active('page-live')      && typeof loadLive      === 'function') loadLive();
-    if (active('page-closed')    && typeof renderStats   === 'function') renderStats();
+    if (active('page-dashboard') && typeof renderClosedTable === 'function') { loadDashboard(); renderClosedTable(); }
   } catch {}
 }
 

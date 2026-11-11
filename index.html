@@ -22,8 +22,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="tokens.css?v=20261111a">
-<link rel="stylesheet" href="styles.css?v=20261111a">
-<link rel="stylesheet" href="theme-ios.css?v=20261111a">
+<link rel="stylesheet" href="styles.css?v=20261111b">
+<link rel="stylesheet" href="theme-ios.css?v=20261111b">
 </head>
 <body>
 <div id="toast"></div>
@@ -258,54 +258,9 @@
   </div>
 </div>
 
-<!-- FA Overlay -->
-<div class="fa-overlay" id="fa-overlay">
-  <div class="fa-modal">
-    <div class="fa-header">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div>
-          <div class="fa-ticker-big" id="fa-ticker-lbl">—</div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="fa-note-lbl"></div>
-        </div>
-        <div class="fa-price-blk">
-          <div class="fa-price" id="fa-price-lbl">—</div>
-          <div class="fa-chg" id="fa-chg-lbl"></div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="fa-autosave" id="fa-autosave-lbl"><i class="ti ti-device-floppy" style="font-size:11px"></i>שמירה אוטומטית</span>
-        <button class="fa-close-btn" onclick="closeFAModal()"><i class="ti ti-x" style="font-size:12px"></i>סגור</button>
-      </div>
-    </div>
-    <div class="fa-body">
-      <div class="fa-section">
-        <div class="fa-section-title"><i class="ti ti-building"></i>על העסק</div>
-        <div class="fa-biz-grid">
-          <div><div class="fa-field-lbl">תיאור עסקי</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-desc" placeholder="במה העסק עוסק? מה המודל העסקי שלו?" rows="3" oninput="faAutoSave();autoResize(this)"></textarea></div>
-          <div><div class="fa-field-lbl">חפיר תחרותי (Moat)</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-moat" placeholder="מה מגן על החברה מפני תחרות?" rows="2" oninput="faAutoSave();autoResize(this)"></textarea></div>
-          <div><div class="fa-field-lbl">סיכונים עיקריים</div><textarea class="fa-textarea fa-autoresize" id="fa-biz-risks" placeholder="מה הסיכונים הגדולים ביותר?" rows="2" oninput="faAutoSave();autoResize(this)"></textarea></div>
-        </div>
-      </div>
-      <div class="fa-section">
-        <div class="fa-section-title" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
-          <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-file-text"></i>דוחות כספיים</span>
-          <span id="fa-earnings-countdown"></span>
-        </div>
-        <div class="fa-reports-hdr" id="fa-tabs-row">
-          <button class="fa-add-report-btn" onclick="faAddReport()"><i class="ti ti-plus" style="font-size:11px"></i>הוסף דוח</button>
-        </div>
-        <div id="fa-reports-container"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- App Shell -->
 <div class="app">
-<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
-<button class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="toggleMobileSidebar()" aria-label="תפריט">
-  <span></span><span></span><span></span>
-</button>
 <aside class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-mark">
@@ -318,62 +273,59 @@
       <div class="logo-title">Bloomfield <span>Capital</span></div>
     </div>
   </div>
-  <div class="nav-section">
-    <button class="nav-item active" data-page="home" onclick="nav('home',this)"><i class="ti ti-home"></i>בית<span class="nav-badge" data-home-badge style="display:none"></span></button>
-  </div>
-  <div class="nav-section">
-    <div class="nav-label">מסחר</div>
-    <button class="nav-item" data-page="live" onclick="nav('live',this)"><i class="ti ti-activity"></i>סטטוס תיק</button>
-    <button class="nav-item" data-page="dashboard" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i>דאשבורד</button>
-    <button class="nav-item" data-page="closed" onclick="nav('closed',this)"><i class="ti ti-checks"></i>עסקאות שנסגרו</button>
-  </div>
-  <div class="nav-section">
-    <div class="nav-label">תכנון</div>
-    <button class="nav-item" data-page="prep" onclick="nav('prep',this)"><i class="ti ti-calendar-event"></i>תכנון עסקאות</button>
-  </div>
-  <div class="nav-section">
-    <div class="nav-label">תיק השקעות</div>
-    <button class="nav-item" data-page="portfolio" onclick="nav('portfolio',this)"><i class="ti ti-briefcase"></i>תיק השקעות</button>
-  </div>
-  <div class="nav-section">
-    <div class="nav-label">מחקר</div>
-    <button class="nav-item" data-page="analysis" onclick="nav('analysis',this)"><i class="ti ti-file-analytics"></i>ניתוח חברות</button>
-  </div>
+  <nav class="nav-section" aria-label="ניווט ראשי">
+    <button class="nav-item active" data-group="home" onclick="nav('home')"><i class="ti ti-home"></i>בית<span class="nav-badge" data-home-badge style="display:none"></span></button>
+    <button class="nav-item" data-group="trades" onclick="nav('trades')"><i class="ti ti-arrows-exchange"></i>עסקאות</button>
+    <button class="nav-item" data-group="portfolio" onclick="nav('portfolio')"><i class="ti ti-briefcase"></i>תיק השקעות</button>
+  </nav>
   <div class="sidebar-bottom">
-    <button class="sidebar-new-trade" onclick="nav('add',null)"><i class="ti ti-plus"></i>עסקה חדשה</button>
-    <button class="nav-item" onclick="openSettings()" style="justify-content:center;font-size:11px"><i class="ti ti-settings" style="font-size:12px"></i>הגדרות</button>
-    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">
-      <i class="ti ti-sun" id="theme-icon"></i>
-      <span id="theme-label">מצב בהיר</span>
-    </button>
+    <button class="sidebar-new-trade" onclick="nav('add')"><i class="ti ti-plus"></i>עסקה חדשה</button>
+    <div class="sidebar-utils">
+      <button class="nav-item" onclick="openSettings()"><i class="ti ti-settings"></i>הגדרות</button>
+      <button class="nav-item theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">
+        <i class="ti ti-sun" id="theme-icon"></i>
+        <span id="theme-label">מצב בהיר</span>
+      </button>
+    </div>
   </div>
 </aside>
 
 
 <main class="main">
 
-  <!-- Live Page -->
+  <!-- Home: סקירה · משימות · ניתוח חברות · תכנון חלוקה -->
   <div id="page-home" class="page active">
-    <div class="page-inner"><div id="home-root"></div></div>
+    <div id="home-root">
+      <div id="home-head"></div>
+      <div id="home-body"></div>
+      <div id="home-companies" style="display:none">
+        <div id="analysis-grid"></div>
+        <div id="analysis-doc" style="display:none"></div>
+      </div>
+      <p class="bc-foot" id="home-foot">הניתוח נכתב על ידי AI לצורכי לימוד. הוא לא ייעוץ השקעות, וההחלטות שלך.</p>
+    </div>
   </div>
 
-  <!-- Live Page -->
+  <!-- עסקאות › פתוחות -->
   <div id="page-live" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">עסקאות חיות</span><div class="live-dot" id="live-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="live-lbl">ממתין</span><span class="hdr-badge badge-off" id="ibkr-chip" style="display:none;cursor:pointer" onclick="ibkrChipClick()"></span></div>
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:var(--font-mono)" id="last-upd"></span><button class="refresh-btn" id="ref-btn" onclick="fullRefresh()"><i class="ti ti-refresh"></i>רענן</button></div>
-    </div>
-    <div class="api-key-bar">
-      <i class="ti ti-bolt" style="color:var(--blue-t);font-size:12px"></i><span>רענון אוטומטי:</span>
-      <button class="iv-btn" onclick="setIv(30)" id="iv-30">30ש׳</button>
-      <button class="iv-btn on" onclick="setIv(60)" id="iv-60">1 דק׳</button>
-      <button class="iv-btn" onclick="setIv(300)" id="iv-300">5 דק׳</button>
-      <button class="iv-btn" onclick="setIv(0)" id="iv-0">כבוי</button>
-      <div style="display:flex;align-items:center;gap:4px">
-        <svg class="cd-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2.5"/><circle id="cd-ring" cx="8" cy="8" r="6" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-dasharray="37.7" stroke-dashoffset="0" transform="rotate(-90 8 8)" style="transition:stroke-dashoffset 1s linear"/></svg>
-        <span class="cd-txt" id="cd-num">60</span>
+    <div class="sec-head" data-sec="trades"></div>
+    <div class="sec-tools">
+      <div class="sec-tools-status"><div class="live-dot" id="live-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="live-lbl">ממתין</span><span class="hdr-badge badge-off" id="ibkr-chip" style="display:none;cursor:pointer" onclick="ibkrChipClick()"></span><span class="sec-tools-upd" id="last-upd"></span></div>
+      <div class="sec-tools-actions">
+        <div class="bc-seg sm" role="group" aria-label="רענון אוטומטי">
+          <span class="bc-muted"><i class="ti ti-bolt"></i> רענון</span>
+          <button onclick="setIv(30)" id="iv-30" class="iv-btn">30ש׳</button>
+          <button onclick="setIv(60)" id="iv-60" class="iv-btn on">דקה</button>
+          <button onclick="setIv(300)" id="iv-300" class="iv-btn">5 דק׳</button>
+          <button onclick="setIv(0)" id="iv-0" class="iv-btn">כבוי</button>
+        </div>
+        <span class="cd-wrap" aria-hidden="true">
+          <svg class="cd-ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--color-border-default)" stroke-width="2.5"/><circle id="cd-ring" cx="8" cy="8" r="6" fill="none" stroke="#34C759" stroke-width="2.5" stroke-dasharray="37.7" stroke-dashoffset="0" transform="rotate(-90 8 8)" style="transition:stroke-dashoffset 1s linear"/></svg>
+          <span class="cd-txt" id="cd-num">60</span>
+        </span>
+        <button class="refresh-btn" id="ref-btn" onclick="fullRefresh()"><i class="ti ti-refresh"></i>רענן</button>
       </div>
-      <span id="api-status" style="margin-right:auto;font-size:10.5px;color:var(--tx3)"></span>
+      <span id="api-status" class="sec-tools-note"></span>
     </div>
     <div class="summary-bar" id="trading-summary-bar" style="grid-template-columns:repeat(3,1fr)">
       <div class="s-card"><div class="s-label">P&L לא ממומש</div><div class="s-val" id="sum-pnl">—</div></div>
@@ -409,25 +361,15 @@
   </div>
 
   <!-- Dashboard Page -->
+  <!-- עסקאות › ביצועים (סטטיסטיקה, לוח שנה ועסקאות שנסגרו) -->
   <div id="page-dashboard" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500">דאשבורד</span></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="journal-select-wrap" style="display:none"><i class="ti ti-book" style="font-size:13px;color:var(--tx2)"></i><select id="dash-journal" class="journal-select" onchange="setJournal(this.value)"></select></div>
-        <button class="refresh-btn" onclick="loadDashboard()"><i class="ti ti-refresh"></i>רענן</button>
-      </div>
+    <div class="sec-head" data-sec="trades"></div>
+    <div class="sec-tools dash-tools">
+      <div class="sec-tools-status"><span class="journal-select-wrap" style="display:none"><i class="ti ti-book"></i><select id="dash-journal" class="journal-select" onchange="setJournal(this.value)" aria-label="יומן"></select></span></div>
     </div>
     <div class="page-inner">
       <div class="dash-stats" id="dash-stats"></div>
       <div class="dash-grid">
-        <div class="dash-card">
-          <div class="dash-card-title">שווי התיק</div>
-          <div class="dash-chart-note" id="dash-chart-note"></div>
-          <div class="dash-chart-wrap">
-            <canvas id="dash-value-chart"></canvas>
-            <div id="dash-chart-empty" class="empty-state" style="display:none"><i class="ti ti-chart-line"></i><p>אין עסקאות סגורות עדיין</p></div>
-          </div>
-        </div>
         <div class="dash-card">
           <div class="dash-cal-nav">
             <button onclick="dashShiftMonth(-1)" aria-label="חודש קודם"><i class="ti ti-chevron-right"></i></button>
@@ -438,6 +380,18 @@
           <div class="dash-cal-summary" id="dash-cal-summary"></div>
         </div>
       </div>
+
+      <section class="closed-sec">
+        <div class="closed-sec-head">
+          <h2>עסקאות שנסגרו</h2>
+          <div class="bc-seg sm" id="closed-view-toggle" role="group" aria-label="תצוגה">
+            <button class="view-toggle-btn active on" id="vtb-table" onclick="setClosedView('table')"><i class="ti ti-table"></i>טבלה</button>
+            <button class="view-toggle-btn" id="vtb-cards" onclick="setClosedView('cards')"><i class="ti ti-layout-grid"></i>כרטיסים</button>
+          </div>
+        </div>
+        <div class="filter-row"><span class="journal-select-wrap" style="display:none"><i class="ti ti-book"></i><select id="closed-journal" class="journal-select" onchange="setJournal(this.value)"></select></span><select id="fc-dir" onchange="renderClosedTable()" aria-label="כיוון"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()" aria-label="תוצאה"><option value="">רווח והפסד</option><option value="win">רק רווח</option><option value="loss">רק הפסד</option></select><input type="search" id="fc-ticker" placeholder="חיפוש טיקר" oninput="renderClosedTable()" aria-label="חיפוש טיקר"></div>
+        <div class="card closed-table-card"><div style="overflow-x:auto" id="closed-ct"></div></div>
+      </section>
     </div>
   </div>
 
@@ -505,29 +459,20 @@
     </div>
   </div>
 
-  <!-- Closed Trades Page -->
-  <div id="page-closed" class="page">
-    <div class="page-inner">
-      <div class="page-header">
-        <div class="page-title">עסקאות שנסגרו</div>
-        <div class="view-toggle" id="closed-view-toggle">
-          <button class="view-toggle-btn active" id="vtb-table" onclick="setClosedView('table')"><i class="ti ti-table"></i>טבלה</button>
-          <button class="view-toggle-btn" id="vtb-cards" onclick="setClosedView('cards')"><i class="ti ti-layout-grid"></i>כרטיסיות</button>
-        </div>
-      </div>
-      <div class="filter-row"><span style="font-size:11.5px;color:var(--tx2)">סינון:</span><span class="journal-select-wrap" style="display:none"><i class="ti ti-book" style="font-size:13px;color:var(--tx2)"></i><select id="closed-journal" class="journal-select" onchange="setJournal(this.value)"></select></span><select id="fc-dir" onchange="renderClosedTable()"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()"><option value="">הכל</option><option value="win">רווח</option><option value="loss">הפסד</option></select><input type="text" id="fc-ticker" placeholder="חיפוש טיקר..." oninput="renderClosedTable()"></div>
-      <div id="closed-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:0.9rem"></div>
-      <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto" id="closed-ct"></div></div>
-    </div>
-  </div>
-
   <!-- Portfolio Page -->
   <div id="page-portfolio" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:500" id="port-title">תיק השקעות</span><div class="port-owner-toggle" role="tablist" aria-label="בחירת תיק"><button class="port-owner-tab on" id="port-owner-me" onclick="setPortOwner('me')"><i class="ti ti-user"></i>שלי</button><button class="port-owner-tab" id="port-owner-dad" onclick="setPortOwner('dad')"><i class="ti ti-users"></i>אבא</button></div><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span></div>
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10.5px;color:var(--tx3);font-family:var(--font-mono)" id="port-upd"></span><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
+    <header class="bc-head sh">
+      <div><h1 id="port-title">תיק השקעות</h1><p class="bc-muted">ניהול ההחזקות, הקניות והמכירות</p></div>
+      <div class="sh-end">
+        <div class="bc-seg" role="group" aria-label="בחירת תיק"><button type="button" class="port-owner-tab on" id="port-owner-me" onclick="setPortOwner('me')">התיק שלי</button><button type="button" class="port-owner-tab" id="port-owner-dad" onclick="setPortOwner('dad')">התיק של אבא</button></div>
+        <span class="sh-mob" data-mob-actions></span>
+      </div>
+    </header>
+    <div class="sec-tools">
+      <div class="sec-tools-status"><div class="live-dot" id="port-dot" style="background:var(--tx3);animation:none"></div><span class="hdr-badge badge-off" id="port-lbl">ממתין</span><span class="sec-tools-upd" id="port-upd"></span></div>
+      <div class="sec-tools-actions"><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="btn-p sec-add" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
-    <div id="invest-summary-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:0.9rem 1.4rem;border-bottom:0.5px solid var(--cb);background:var(--bg);flex-shrink:0">
+    <div id="invest-summary-bar">
       <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div id="ps-val-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div><div id="ps-cost-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
       <div class="s-card"><div class="s-label">רווח ממומש</div><div class="s-val" id="ps-realized">—</div><div id="ps-realized-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
@@ -540,23 +485,15 @@
         <div id="ps-cash-src" style="font-size:9.5px;color:var(--tx3);margin-top:2px">יתרת מזומן בחשבון</div>
       </div>
     </div>
-    <div style="padding:1.1rem 1.4rem;overflow-y:auto;flex:1">
-      <div id="port-charts-row" style="display:none;grid-template-columns:240px 1fr;gap:12px;margin-bottom:1.1rem">
-        <div class="port-chart-card"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">הקצאה</div><div style="position:relative;height:150px;display:flex;align-items:center;justify-content:center"><canvas id="alloc-chart"></canvas></div><div class="port-legend" id="alloc-legend"></div></div>
-        <div class="port-chart-card"><div class="perf-head"><div style="font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:0.8px">ביצועים</div><div class="perf-toggle"><button class="perf-tab on" id="perf-tab-pct" onclick="setPerfMode('pct')">%</button><button class="perf-tab" id="perf-tab-val" onclick="setPerfMode('value')">$</button></div></div><div id="perf-list" class="perf-list"></div></div>
-      </div>
+    <div class="port-body">
       <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
       <div id="port-closed" style="display:none;margin-top:1.1rem"></div>
     </div>
   </div>
 
-  <!-- Prep Page -->
+  <!-- עסקאות › תכנון -->
   <div id="page-prep" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px">
-        <span style="font-size:14.5px;font-weight:500">תכנון עסקאות</span>
-      </div>
-    </div>
+    <div class="sec-head" data-sec="trades"></div>
     <div class="page-inner">
       <div id="prep-grid"></div>
     </div>
@@ -580,40 +517,25 @@
     </div>
   </div>
 
-  <!-- Company Analysis Page -->
-  <div id="page-analysis" class="page">
-    <div class="live-header">
-      <div style="display:flex;align-items:center;gap:9px">
-        <span style="font-size:14.5px;font-weight:500">ניתוח חברות</span>
-      </div>
-    </div>
-    <div id="analysis-grid" class="page-inner"></div>
-    <div id="analysis-doc" style="display:none"></div>
-  </div>
-
 </main>
 
 <!-- Mobile Bottom Nav -->
-<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-  <button class="mbn-item active" id="mbn-home" onclick="nav('home',null);mbnSet('home')">
-    <i class="ti ti-home"></i>
-    <span>בית</span>
-    <span class="nav-badge" data-home-badge style="display:none"></span>
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="ניווט ראשי">
+  <button class="mbn-item active" data-group="home" onclick="nav('home')">
+    <i class="ti ti-home"></i><span>בית</span>
   </button>
-  <button class="mbn-item" id="mbn-live" onclick="nav('live',null);mbnSet('live')">
-    <i class="ti ti-activity"></i>
-    <span>מסחר</span>
+  <button class="mbn-item" data-group="trades" onclick="nav('trades')">
+    <i class="ti ti-arrows-exchange"></i><span>עסקאות</span>
   </button>
-  <button class="mbn-add" onclick="nav('add',null);mbnSet('add')">
+  <button class="mbn-add" onclick="nav('add')" aria-label="עסקה חדשה">
     <i class="ti ti-plus"></i>
   </button>
-  <button class="mbn-item" id="mbn-portfolio" onclick="nav('portfolio',null);mbnSet('portfolio')">
-    <i class="ti ti-briefcase"></i>
-    <span>תיק</span>
+  <button class="mbn-item" data-group="portfolio" onclick="nav('portfolio')">
+    <i class="ti ti-briefcase"></i><span>תיק</span>
   </button>
-  <button class="mbn-item" id="mbn-analysis" onclick="nav('analysis',null);mbnSet('analysis')">
-    <i class="ti ti-file-analytics"></i>
-    <span>ניתוח</span>
+  <button class="mbn-item" data-group="tasks" onclick="nav('tasks')">
+    <i class="ti ti-bell"></i><span>משימות</span>
+    <span class="nav-badge" data-home-badge style="display:none"></span>
   </button>
 </nav>
 
@@ -646,58 +568,13 @@
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
 <script src="db.js?v=20260728"></script>
-<script src="app.js?v=20261111a"></script>
+<script src="app.js?v=20261111b"></script>
 <script src="prep.js?v=20260827b"></script>
-<script src="analysis.js?v=20260908b"></script>
-<script src="ibkr.js?v=20261009a"></script>
-<script src="home.js?v=20261111a"></script>
+<script src="analysis.js?v=20261111b"></script>
+<script src="ibkr.js?v=20261111b"></script>
+<script src="home.js?v=20261111b"></script>
+
 <script>
-// render prep page when navigating to it
-(function() {
-  var origNav = nav;
-  nav = function(page, btn) {
-    origNav(page, btn);
-    if (page === 'prep') prepRender();
-  };
-}());
-</script>
-<script>
-function toggleMobileSidebar() {
-  var sidebar = document.getElementById('sidebar');
-  var backdrop = document.getElementById('sidebar-backdrop');
-  var toggle = document.getElementById('mobile-nav-toggle');
-  var isOpen = sidebar.classList.contains('mobile-open');
-  if (isOpen) {
-    sidebar.classList.remove('mobile-open');
-    backdrop.classList.remove('active');
-    toggle.classList.remove('open');
-    document.body.classList.remove('sidebar-open');
-  } else {
-    sidebar.classList.add('mobile-open');
-    backdrop.classList.add('active');
-    toggle.classList.add('open');
-    document.body.classList.add('sidebar-open');
-  }
-}
-function closeMobileSidebar() {
-  var sidebar = document.getElementById('sidebar');
-  var backdrop = document.getElementById('sidebar-backdrop');
-  var toggle = document.getElementById('mobile-nav-toggle');
-  sidebar.classList.remove('mobile-open');
-  backdrop.classList.remove('active');
-  toggle.classList.remove('open');
-  document.body.classList.remove('sidebar-open');
-}
-// Close sidebar on nav click (mobile)
-document.addEventListener('DOMContentLoaded', function() {
-  var origNav = window.nav;
-  if (origNav) {
-    window.nav = function(page, btn) {
-      origNav(page, btn);
-      closeMobileSidebar();
-    };
-  }
-});
 function toggleTheme() {
   var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   if (isDark) {
@@ -719,6 +596,7 @@ function toggleTheme() {
     if (active && active.id === 'page-dashboard' && typeof loadDashboard === 'function') loadDashboard();
     if (active && active.id === 'page-portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
   } catch (e) {}
+  if (typeof syncThemeButtons === 'function') syncThemeButtons();
 }
 // Sync button label with saved theme on load
 (function() {
@@ -729,26 +607,9 @@ function toggleTheme() {
     if (icon) icon.className = 'ti ti-moon';
     if (label) label.textContent = 'מצב כהה';
   }
+  if (typeof syncThemeButtons === 'function') syncThemeButtons();
 }());
 </script>
-<script>
-// Mobile bottom nav active state
-function mbnSet(page) {
-  var ids = ['home','live','closed','add','portfolio','analysis'];
-  ids.forEach(function(id) {
-    var el = document.getElementById('mbn-' + id);
-    if (el) el.classList.toggle('active', id === page);
-  });
-}
-// Patch nav to also update bottom nav
-(function() {
-  var origNav = window.nav;
-  window.nav = function(page, btn) {
-    origNav(page, btn);
-    mbnSet(page);
-    if (page === 'prep') mbnSet('');
-  };
-}());
-</script>
+
 </body>
 </html>

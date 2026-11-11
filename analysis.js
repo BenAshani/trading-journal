@@ -220,6 +220,15 @@ let caLastEditable = null;
 // ═══════════════════════════════════════════════════════════
 //  רשת כרטיסיות
 // ═══════════════════════════════════════════════════════════
+// האם החברה מוחזקת כרגע באחד התיקים (שלי / אבא)
+function caHeld(symbol) {
+  const sym = String(symbol || '').trim().toUpperCase();
+  if (!sym) return false;
+  return ['tj_port_v4', 'tj_port_dad_v1'].some(k => {
+    try { return JSON.parse(localStorage.getItem(k) || '[]').some(h => (h.ticker || '').toUpperCase() === sym && (h.remainingQty ?? h.qty) > 0); }
+    catch { return false; }
+  });
+}
 function caCardHTML(c) {
   const sym   = caEsc(c.symbol || '—');
   const name  = caEsc(c.name || '');
@@ -233,10 +242,12 @@ function caCardHTML(c) {
     <div class="ca-card-sym-row">
       ${c.symbol && typeof stockLogoImg === 'function' ? stockLogoImg(c.symbol, 28, 'ca-card-logo') : ''}
       <div class="ca-card-sym">${sym}</div>
+      ${caHeld(c.symbol) ? '<span class="ca-held">בתיק</span>' : ''}
     </div>
     ${name ? `<div class="ca-card-name">${name}</div>` : ''}
     ${blurb ? `<div class="ca-card-blurb">${blurb}</div>` : ''}
-    ${stage ? `<div class="ca-card-stage"><i class="ti ti-stairs-up"></i>שלב ${stage.id} · ${caEsc(stage.name)}</div>` : ''}
+    ${stage ? `<div class="ca-card-stage2"><div class="ca-stage-lbl"><span>${caEsc(stage.name)}</span><span>שלב ${stage.id} מתוך 7</span></div>
+      <div class="ca-stage-bar" aria-hidden="true">${[1,2,3,4,5,6,7].map(i => `<span class="${i <= stage.id ? 'on' : ''}"></span>`).join('')}</div></div>` : ''}
     <div class="ca-card-foot">
       ${cap ? `<span class="ca-card-cap"><i class="ti ti-scale"></i>${cap}</span>` : '<span></span>'}
       ${date ? `<span class="ca-card-date">${date}</span>` : ''}
@@ -448,8 +459,7 @@ function caFindBySymbol(symbol) {
 function caOpenBySymbol(symbol) {
   const c = caFindBySymbol(symbol);
   if (!c) return;
-  if (typeof nav === 'function') nav('analysis', null);
-  if (typeof mbnSet === 'function') mbnSet('analysis');
+  if (typeof nav === 'function') nav('analysis');
   caOpen(c.id);
 }
 

@@ -18,9 +18,10 @@
 
   let ai = null;           // ai-analysis.json
   let loadingAI = false;
-  let view = 'overview';   // overview | tasks | builder
+  let view = 'overview';   // overview | tasks | companies | builder
   let tmMode = 'family';   // family | loss
-  let owner = (() => { try { return localStorage.getItem('tj_port_owner') === 'dad' ? 'dad' : 'me'; } catch { return 'me'; } })();
+  const readOwner = () => { try { return localStorage.getItem('tj_port_owner') === 'dad' ? 'dad' : 'me'; } catch { return 'me'; } };
+  let owner = readOwner();
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const money = (v, sign) => {
@@ -152,7 +153,7 @@
 
   function holdingsList(d) {
     return d.rows.map(r => `
-      <button type="button" class="bc-hrow" onclick="${r.isCash ? '' : "nav('portfolio',document.querySelector('[data-page=portfolio]'))"}">
+      <button type="button" class="bc-hrow" ${r.isCash ? 'disabled' : `onclick="nav('portfolio')"`}>
         <span class="bc-dot" style="background:${r.color}"></span>
         <span class="bc-hrow-main"><span class="bc-hrow-t" dir="ltr">${esc(r.t)}</span><span class="bc-hrow-s">${FAMILY[r.fam].label} · ${r.w.toFixed(1)}%</span></span>
         <span class="bc-hrow-end"><span class="bc-hrow-v" dir="ltr">${money(r.value)}</span>${r.isCash ? '' : `<span class="bc-hrow-p ${r.pl >= 0 ? 'up' : 'down'}" dir="ltr">${pct(r.plPct, true)}</span>`}</span>
@@ -254,15 +255,42 @@
   }
 
   function renderHome() {
-    const root = document.getElementById('home-root');
-    if (!root) return;
-    if (!ai) { loadAI(); root.innerHTML = '<div class="bc-empty">טוען…</div>'; return; }
+    const head = document.getElementById('home-head');
+    const bodyEl = document.getElementById('home-body');
+    const coEl = document.getElementById('home-companies');
+    if (!head || !bodyEl) return;
+    if (!ai) { loadAI(); bodyEl.innerHTML = '<div class="bc-empty">טוען…</div>'; return; }
     const d = buildRows();
     const od = ownerData();
     const c = od ? counts(od) : { pending: 0 };
     const upd = ai.updatedAt ? new Date(ai.updatedAt) : null;
     const updTxt = upd && !isNaN(upd) ? 'הניתוח עודכן ב-' + upd.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' }) + ', ' + upd.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
     const tab = (id, label, badge) => `<button type="button" role="tab" class="bc-tab ${view === id ? 'on' : ''}" aria-selected="${view === id}" onclick="bcHome.view('${id}')">${label}${badge ? `<span class="bc-badge sm">${badge}</span>` : ''}</button>`;
+    const isCo = view === 'companies';
+    const mob = typeof mobActionsHtml === 'function' ? mobActionsHtml() : '';
+
+    head.innerHTML = `
+      <header class="bc-head sh">
+        <div><h1>${greeting()}, בן</h1><p class="bc-muted">${esc(isCo ? 'המחקר שלך על כל חברה, לפי נושאים' : updTxt)}</p></div>
+        <div class="sh-end">
+          ${isCo ? '' : `<div class="bc-seg" role="group" aria-label="בחירת תיק">
+            <button type="button" class="${owner === 'me' ? 'on' : ''}" aria-pressed="${owner === 'me'}" onclick="bcHome.owner('me')">התיק שלי</button>
+            <button type="button" class="${owner === 'dad' ? 'on' : ''}" aria-pressed="${owner === 'dad'}" onclick="bcHome.owner('dad')">התיק של אבא</button>
+          </div>`}
+          <span class="sh-mob" data-mob-actions>${mob}</span>
+        </div>
+      </header>
+      <div class="bc-tabs" role="tablist" aria-label="חלקי עמוד הבית">
+        ${tab('overview', 'סקירה')}${tab('tasks', 'משימות', c.pending)}${tab('companies', '<span class="t-lg">ניתוח </span>חברות')}${tab('builder', '<span class="t-lg">תכנון </span>חלוקה')}
+      </div>`;
+
+    if (coEl) coEl.style.display = isCo ? '' : 'none';
+    bodyEl.style.display = isCo ? 'none' : '';
+    const foot = document.getElementById('home-foot');
+    if (foot) foot.style.display = isCo ? 'none' : '';
+    if (typeof navHighlight === 'function') navHighlight('home', view === 'tasks' ? 'tasks' : null);
+    document.querySelectorAll('[data-home-badge]').forEach(el => { el.textContent = c.pending || ''; el.style.display = c.pending ? '' : 'none'; });
+    if (isCo) return;
 
     let body = '';
     if (view === 'overview') {
@@ -285,6 +313,7 @@
           </div>
           ${d.allPriced ? '' : '<span class="bc-muted bc-note">חלק מהמחירים עוד נטענים, בינתיים מוצג מחיר הקנייה</span>'}
           <div class="bc-hlist">${holdingsList(d)}</div>
+          <button type="button" class="bc-link bc-more" onclick="nav('portfolio')">לניהול התיק<i class="ti ti-chevron-left" aria-hidden="true"></i></button>
         </div>
       </section>
       ${od ? `<section class="bc-card bc-concl"><p class="bc-headline">${esc(od.headline)}</p><div class="bc-verdicts">${verdictsHtml(od)}</div></section>` : ''}`;
@@ -293,22 +322,7 @@
     } else {
       body = builderHtml(d);
     }
-
-    root.innerHTML = `
-      <header class="bc-head">
-        <div><h1>${greeting()}, בן</h1><p class="bc-muted">${esc(updTxt)}</p></div>
-        <div class="bc-seg" role="group" aria-label="בחירת תיק">
-          <button type="button" class="${owner === 'me' ? 'on' : ''}" aria-pressed="${owner === 'me'}" onclick="bcHome.owner('me')">התיק שלי</button>
-          <button type="button" class="${owner === 'dad' ? 'on' : ''}" aria-pressed="${owner === 'dad'}" onclick="bcHome.owner('dad')">התיק של אבא</button>
-        </div>
-      </header>
-      <div class="bc-tabs" role="tablist" aria-label="חלקי עמוד הבית">
-        ${tab('overview', 'סקירה')}${tab('tasks', 'משימות', c.pending)}${tab('builder', 'תכנון חלוקה')}
-      </div>
-      ${body}
-      <p class="bc-foot">הניתוח נכתב על ידי AI לצורכי לימוד. הוא לא ייעוץ השקעות, וההחלטות שלך.</p>`;
-
-    document.querySelectorAll('[data-home-badge]').forEach(el => { el.textContent = c.pending || ''; el.style.display = c.pending ? '' : 'none'; });
+    bodyEl.innerHTML = body;
   }
 
   async function refreshPrices() {
@@ -319,10 +333,19 @@
   }
 
   window.bcHome = {
-    render: () => { renderHome(); refreshPrices(); },
-    view: v => { view = v; renderHome(); },
+    render: () => { owner = readOwner(); renderHome(); refreshPrices(); if (view === 'companies' && typeof caRender === 'function') caRender(); },
+    view: v => {
+      view = v; renderHome();
+      if (v === 'companies' && typeof caRender === 'function') caRender();
+    },
     tm: m => { tmMode = m; renderHome(); },
-    owner: o => { owner = o; renderHome(); },
+    owner: o => {
+      owner = o === 'dad' ? 'dad' : 'me';
+      // אותה בחירה גם בדף תיק השקעות
+      if (typeof setPortOwner === 'function') setPortOwner(owner);
+      else { try { localStorage.setItem('tj_port_owner', owner); } catch {} }
+      renderHome();
+    },
     answer: (id, i) => { const cur = ((state()[owner] || {}).answers || {})[id]; patch('answers', { [id]: cur === i ? null : i }); renderHome(); },
     toggle: key => { const cur = ((state()[owner] || {}).done || {})[key]; patch('done', { [key]: !cur }); renderHome(); },
     addVerdict: i => { const cur = ((state()[owner] || {}).added || {})[i]; patch('added', { [i]: !cur }); renderHome(); },

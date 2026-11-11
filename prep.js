@@ -100,7 +100,7 @@ async function prepRender() {
 
       // Live price
       const q = prices[ticker];
-      const priceHTML = q ? (() => {
+      const priceHTML = q && q.price ? (() => {
         const priceFmt = q.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `<div class="pc-price-row"><span class="pc-price">$${priceFmt}</span></div>`;
       })() : '';
