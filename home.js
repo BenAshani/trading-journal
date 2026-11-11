@@ -307,6 +307,7 @@
         ${p.check ? `<div class="bc-pos-txt"><span class="bc-muted">מה בודקים עכשיו</span><p>${esc(p.check)}</p></div>` : ''}
         <div class="bc-pos-acts">
           ${hasDoc(r.t) ? `<button type="button" class="bc-pill" onclick="caOpenBySymbol('${esc(r.t)}')"><i class="ti ti-file-analytics"></i> הניתוח שלך</button>` : ''}
+          <button type="button" class="bc-pill" onclick="caResearchWithClaude('${esc(r.t)}')"><i class="ti ti-sparkles"></i> לחקור עם Claude</button>
           <button type="button" class="bc-pill" onclick="nav('portfolio')">קנייה / מכירה</button>
         </div>
       </article>`;

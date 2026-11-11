@@ -80,6 +80,26 @@ async function dbPullAll() {
   }
 }
 
+// ── Pull specific keys (e.g. after Claude wrote an analysis in the cloud) ──
+// מחזיר את רשימת המפתחות ששונו בענן מאז הפעם האחרונה
+async function dbPullKeys(keys) {
+  const sb = _getClient();
+  const uid = dbGetUserId();
+  if (!sb || !uid || !keys.length) return [];
+  try {
+    const { data, error } = await sb.from('journal_data')
+      .select('data_key, value, updated_at').eq('user_id', uid).in('data_key', keys);
+    if (error) throw error;
+    const changed = [];
+    (data || []).forEach(row => {
+      if (row.value === null || row.value === undefined) return;
+      const next = typeof row.value === 'string' ? row.value : JSON.stringify(row.value);
+      if (localStorage.getItem(row.data_key) !== next) { localStorage.setItem(row.data_key, next); changed.push(row.data_key); }
+    });
+    return changed;
+  } catch (e) { console.warn('[db] pullKeys failed', e.message); return []; }
+}
+
 // ── Setup code (for sharing config between devices) ─────────
 function dbGenSetupCode() {
   const cfg = dbGetConfig();

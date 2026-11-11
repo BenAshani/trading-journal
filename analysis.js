@@ -18,6 +18,10 @@ const CA_SECTIONS = [
   { key: 'businessModel', title: 'מודל עסקי ואיך מרוויחים', icon: 'ti-coins',            hint: 'תחומי הפעילות העיקריים, מקורות ההכנסה ואיך בדיוק מרוויחים מהם, נתחי הכנסה וצמיחה בכל תחום, מנויים/שימוש/מכירה חד-פעמית, נקודות המינוף וההזדמנויות לצמיחה עתידית.' },
   { key: 'competitors',   title: 'מי המתחרות העיקריות?',   icon: 'ti-swords',           hint: 'המתחרות המרכזיות בכל אחד מתחומי הפעילות.' },
   { key: 'partners',      title: 'מי השותפות הגדולות?',    icon: 'ti-users-group',      hint: 'שיתופי פעולה אסטרטגיים ומשמעותם.' },
+  // טזת ההשקעה — נכתבת ביחד עם Claude בפרויקט "ניתוח מניות"
+  { key: 'thesis',        title: 'טזת ההשקעה',             icon: 'ti-bulb',             hint: 'למה החברה הזו, למה עכשיו, ומה השוק לא מתמחר. תרחיש חיובי עם מספרים.' },
+  { key: 'bearCase',      title: 'מה יכול להשתבש',          icon: 'ti-alert-triangle',   hint: 'התרחיש השלילי: הסיכונים העיקריים, ומה יקרה למניה אם הם מתממשים.' },
+  { key: 'triggers',      title: 'מה צריך לקרות ומתי יוצאים', icon: 'ti-target-arrow',   hint: 'אבני דרך לבדיקה בכל דוח, מחיר או תנאי שבו הטזה נשברת, ואיך נכנסים (גודל פוזיציה).' },
 ];
 
 // ── מחזור החיים העסקי (7 שלבים) — לפי "מטמורפוזה עסקית: מחזור חיי החברה" ──
@@ -76,13 +80,20 @@ function caMigrateFields(id) {
 }
 
 // סדר ברירת המחדל של הבלוקים הקבועים במסמך — לפני שנוספו תמונות/גרפים.
-const CA_FIXED_BLOCKS = ['whoIs', 'businessModel', 'competitors', 'partners', 'stage', 'quarters'];
+const CA_FIXED_BLOCKS = ['whoIs', 'businessModel', 'competitors', 'partners', 'stage', 'thesis', 'bearCase', 'triggers', 'quarters'];
+const CA_THESIS_BLOCKS = ['thesis', 'bearCase', 'triggers'];
 
 // מיזוג חד-פעמי: מוסיף blockOrder/images/charts לניתוחים ישנים בלי לגעת
 // בתוכן הקיים. blockOrder קובע את סדר ההצגה של כל הבלוקים (כולל תמונות/גרפים
 // שהמשתמש מוסיף), ומאפשר להזיז תמונה/גרף מעל או מתחת לכל בלוק קבוע אחר.
 function caMigrateBlockOrder(c) {
   if (!Array.isArray(c.blockOrder)) c.blockOrder = [...CA_FIXED_BLOCKS];
+  // בלוקי הטזה נוספו אחר כך — מכניסים אותם לפני המעקב הרבעוני בניתוחים קיימים
+  const missing = CA_THESIS_BLOCKS.filter(k => !c.blockOrder.includes(k));
+  if (missing.length) {
+    const qi = c.blockOrder.indexOf('quarters');
+    c.blockOrder.splice(qi < 0 ? c.blockOrder.length : qi, 0, ...missing);
+  }
   if (!Array.isArray(c.images)) c.images = [];
   if (!Array.isArray(c.charts)) c.charts = [];
 }
@@ -282,6 +293,7 @@ function caRender() {
     : '';
   const toolbar = `<div class="ca-toolbar">
     <button class="ca-tb-btn ca-add-company" onclick="caAddCompany()"><i class="ti ti-plus"></i>הוסף חברה</button>
+    <button class="ca-tb-btn ca-claude" onclick="caResearchWithClaude('')"><i class="ti ti-sparkles"></i>מחקר חדש עם Claude</button>
     <button class="ca-tb-btn ca-cat-add" onclick="caAddCategory()"><i class="ti ti-folder-plus"></i>קטגוריה חדשה</button>
     ${collapseAllBtn}
   </div>`;
@@ -494,6 +506,7 @@ function caOpen(id) {
       </div>
       <div class="doc-tb-spacer"></div>
       <span class="doc-tb-save" id="doc-save-lbl"><i class="ti ti-device-floppy"></i>נשמר אוטומטית</span>
+      <button class="doc-tb-claude" onclick="caResearchWithClaude(caGet(caCurrentId)?.symbol)"><i class="ti ti-sparkles"></i>לחקור עם Claude</button>
       <button class="doc-tb-pdf" onclick="caExportPDF()"><i class="ti ti-file-download"></i>ייצוא PDF</button>
     </div>
 
@@ -1415,4 +1428,40 @@ if (!window._caBound) {
   window.addEventListener('beforeunload', function () {
     if (caPersistTimer) caFlushCloud();
   });
+}
+
+
+// ── ניתוחים שנכתבו עם Claude בפרויקט "ניתוח מניות" נשמרים ישר בענן.
+// כשחוזרים לאתר (פוקוס על הלשונית), מושכים את הגרסה העדכנית — אבל לא באמצע עריכה של מסמך,
+// כדי לא לדרוס טקסט שאתה מקליד עכשיו.
+async function caPullFromCloud() {
+  if (typeof dbPullKeys !== 'function' || typeof dbIsReady !== 'function' || !dbIsReady()) return;
+  if (caPersistTimer) return;                       // יש שינוי מקומי שעוד לא נדחף
+  const changed = await dbPullKeys([CA_KEY, CA_CATS_KEY]);
+  if (!changed.length) return;
+  const grid = document.getElementById('analysis-grid');
+  if (caCurrentId == null) { if (grid && grid.offsetParent) caRender(); }
+  else if (typeof toast === 'function') toast('הניתוח עודכן מהשיחה עם Claude · חזור לרשימה ופתח מחדש כדי לראות');
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') caPullFromCloud(); });
+
+// ── מחקר עם Claude: מעתיק הודעת פתיחה ופותח את הפרויקט "ניתוח מניות" ──
+const CA_CLAUDE_URL_KEY = 'tj_claude_project_url';
+function caClaudeUrl() {
+  try { return localStorage.getItem(CA_CLAUDE_URL_KEY) || ''; } catch { return ''; }
+}
+async function caResearchWithClaude(symbol) {
+  const sym = String(symbol || '').trim().toUpperCase();
+  let url = caClaudeUrl();
+  if (!url) {
+    url = (prompt('הדבק כאן את הקישור לפרויקט "ניתוח מניות" ב-Claude (פעם אחת בלבד):') || '').trim();
+    if (!/^https:\/\/claude\.ai\//.test(url)) { if (url) alert('הקישור צריך להתחיל ב-https://claude.ai/'); return; }
+    try { localStorage.setItem(CA_CLAUDE_URL_KEY, url); } catch {}
+    if (typeof dbPush === 'function') dbPush(CA_CLAUDE_URL_KEY, url);
+  }
+  const msg = sym ? `בוא נחקור את ${sym} ונבנה טזה.` : 'בוא נחקור חברה חדשה ונבנה טזה.';
+  let copied = false;
+  try { await navigator.clipboard.writeText(msg); copied = true; } catch {}
+  window.open(url, '_blank', 'noopener');
+  if (typeof toast === 'function') toast(copied ? 'הודעת הפתיחה הועתקה · הדבק אותה בשיחה חדשה בפרויקט' : 'פתח שיחה חדשה בפרויקט וכתוב: ' + msg);
 }

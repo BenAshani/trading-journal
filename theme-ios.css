@@ -423,3 +423,5 @@ body {
 .bc-pos .bc-chip { white-space: nowrap; flex: none; }
 .bc-pos-nums span[dir] { white-space: nowrap; }
 @media (max-width: 768px) { .bc-pos-grid { grid-template-columns: 1fr; } }
+.doc-tb-claude, .ca-tb-btn.ca-claude { display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; min-height: 36px; padding: 0 14px; border-radius: 999px; background: linear-gradient(135deg, #5856D6, #007AFF); color: #FFFFFF; }
+.ca-tb-btn.ca-claude:hover { color: #FFFFFF; filter: brightness(1.08); }
