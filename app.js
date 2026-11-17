@@ -1073,7 +1073,7 @@ function buildPositionCard(t, prices) {
   const tgts    = t.targets || [];
   const tgtHtml = tgts.length
     ? `<div class="targets-section">
-        <div class="targets-hdr"><span class="targets-title">יעדי מימוש</span><span style="font-size:9.5px;color:var(--tx3)">${rem} מניות נותרו</span></div>` +
+        <div class="targets-hdr"><span class="targets-title">יעדי מימוש</span><span style="font-size:12px;color:var(--tx3)">${rem} מניות נותרו</span></div>` +
       tgts.map((tg, ti) => {
         const shares  = Math.round(t.qty * (tg.pct / 100));
         const tpnl    = tg.price && cp ? (t.dir === 'Long' ? (tg.price - t.entry) * shares : (t.entry - tg.price) * shares) : null;
@@ -1083,8 +1083,8 @@ function buildPositionCard(t, prices) {
           <span class="target-price">${tg.price ? '$' + Number(tg.price).toFixed(2) : '—'}</span>
           <span class="target-qty">${tg.pct}%·${shares}</span>
           ${tpnl !== null ? `<span class="target-pnl" style="color:${pnlCol(tpnl)}">$${tpnl.toFixed(0)}</span>` : ''}
-          ${reached ? '<span style="font-size:9.5px;color:var(--green)">✓</span>' : ''}
-          ${tg.done ? '' : `<button class="action-btn success" style="font-size:9.5px;padding:1px 5px" onclick="openPM('${t.id}',${tg.pct})"><i class="ti ti-check" style="font-size:9.5px"></i>מש</button>`}
+          ${reached ? '<span style="font-size:12px;color:var(--green)">✓</span>' : ''}
+          ${tg.done ? '' : `<button class="action-btn success" style="font-size:12px;padding:1px 5px" onclick="openPM('${t.id}',${tg.pct})"><i class="ti ti-check" style="font-size:12px"></i>מש</button>`}
         </div>`;
       }).join('') + realLog + '</div>'
     : (reals.length ? `<div class="targets-section"><div class="targets-hdr"><span class="targets-title">מימושים</span></div>${realLog}</div>` : '');
@@ -1110,7 +1110,7 @@ function buildPositionCard(t, prices) {
       </div>
       <div class="pnl-row">
         <div>
-          <div style="font-size:11.5px;color:var(--tx2)">P&L לא ממומש <span style="color:var(--tx3)">(${rem} מניות)</span></div>
+          <div style="font-size:13px;color:var(--tx2)">P&L לא ממומש <span style="color:var(--tx3)">(${rem} מניות)</span></div>
           <div class="pnl-pct" style="color:${pnlC}">${pnlPct !== null ? signStr(pnlPct) + pnlPct.toFixed(2) + '%' : ''}</div>
         </div>
         <div class="pnl-val" style="color:${pnlC}" id="ppnl-${t.id}">${fmtM(unrealPnl)}</div>
@@ -1133,11 +1133,11 @@ function buildPositionCard(t, prices) {
     ${tgtHtml}
     ${buysLog}
     <div class="pos-actions">
-      <button class="action-btn primary" onclick="openAdd('${t.id}','trade')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
-      <button class="action-btn danger"  onclick="openSL('${t.id}')"><i class="ti ti-shield-x" style="font-size:11px"></i>סגור SL</button>
-      <button class="action-btn success" onclick="openPM('${t.id}',null)"><i class="ti ti-percentage" style="font-size:11px"></i>מימוש חלקי</button>
-      <button class="action-btn neutral" onclick="editTrade('${t.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
-      ${(typeof caFindBySymbol === 'function' && caFindBySymbol(t.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${t.ticker}')"><i class="ti ti-file-analytics" style="font-size:11px"></i>ניתוח</button>` : ''}
+      <button class="action-btn primary" onclick="openAdd('${t.id}','trade')"><i class="ti ti-arrow-up-right" style="font-size:13px"></i>חזק</button>
+      <button class="action-btn danger"  onclick="openSL('${t.id}')"><i class="ti ti-shield-x" style="font-size:13px"></i>סגור SL</button>
+      <button class="action-btn success" onclick="openPM('${t.id}',null)"><i class="ti ti-percentage" style="font-size:13px"></i>מימוש חלקי</button>
+      <button class="action-btn neutral" onclick="editTrade('${t.id}')"><i class="ti ti-edit" style="font-size:13px"></i>ערוך</button>
+      ${(typeof caFindBySymbol === 'function' && caFindBySymbol(t.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${t.ticker}')"><i class="ti ti-file-analytics" style="font-size:13px"></i>ניתוח</button>` : ''}
     </div>
   </div>`;
 }
@@ -1179,7 +1179,7 @@ async function loadLive() {
 
   document.getElementById('live-content').innerHTML =
     `<div class="sec-title">פוזיציות פתוחות · ${open.length}</div><div class="positions-grid">${cards.join('')}</div>` +
-    '<div style="font-size:10.5px;color:var(--tx3);padding:4px 1.4rem 1rem;display:flex;align-items:center;gap:4px"><i class="ti ti-circle-check" style="color:var(--green-t);font-size:12px"></i>מחירים חיים דרך Finnhub API</div>';
+    '<div style="font-size:13px;color:var(--tx3);padding:4px 1.4rem 1rem;display:flex;align-items:center;gap:4px"><i class="ti ti-circle-check" style="color:var(--green-t);font-size:12px"></i>מחירים חיים דרך Finnhub API</div>';
 
   open.forEach(t => {
     const cp = (prices[t.ticker] || priceCache[t.ticker])?.price;
@@ -1375,7 +1375,7 @@ function renderTargets() {
   const list = document.getElementById('targets-list');
   document.getElementById('add-tgt-btn').style.display = targetItems.length >= 3 ? 'none' : '';
   if (!targetItems.length) {
-    list.innerHTML = '<div style="font-size:11.5px;color:var(--tx3);text-align:center;padding:0.45rem">לחץ "הוסף יעד"</div>';
+    list.innerHTML = '<div style="font-size:13px;color:var(--tx3);text-align:center;padding:0.45rem">לחץ "הוסף יעד"</div>';
     updateTargetSummary();
     return;
   }
@@ -1579,7 +1579,7 @@ function openSL(id) {
   if (!t) return;
   document.getElementById('sl-price').value = t.sl || '';
   document.getElementById('sl-preset').innerHTML = t.sl
-    ? `<div style="font-size:11px;color:var(--tx3);margin-bottom:7px">SL: <span style="font-family:monospace;color:var(--red-t)">$${t.sl}</span> <button class="quick-btn" onclick="useSLPreset(${t.sl})">השתמש</button></div>`
+    ? `<div style="font-size:13px;color:var(--tx3);margin-bottom:7px">SL: <span style="font-family:monospace;color:var(--red-t)">$${t.sl}</span> <button class="quick-btn" onclick="useSLPreset(${t.sl})">השתמש</button></div>`
     : '';
   calcSL();
   document.getElementById('sl-overlay').classList.add('open');
@@ -1753,7 +1753,7 @@ function renderClosedTable() {
 
   // תגית "חלקי" לשקופית של פוזיציה שעדיין פתוחה, ופעולת המחיקה המתאימה
   const partialTag = s => s.parentOpen
-    ? ` <span class="badge-amber" style="font-size:9px;padding:1px 5px;border-radius:5px">חלקי · נותרו ${s.parentRemaining}</span>` : '';
+    ? ` <span class="badge-amber" style="font-size:12px;padding:1px 5px;border-radius:5px">חלקי · נותרו ${s.parentRemaining}</span>` : '';
   const delAction  = s => `deleteTrade('${s.parentId}')`;
   // פירוט המימושים בתוך הכרטיס — מוצג כשיש יותר ממימוש אחד לאותה עסקה
   const realLog = t => t.slices.length > 1
@@ -1816,8 +1816,8 @@ function renderClosedTable() {
           </div>
           ${realLog(t)}
           <div class="pos-actions">
-            <button class="action-btn neutral" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
-            <button class="action-btn danger"  onclick="${delAction(t)}"><i class="ti ti-trash" style="font-size:11px"></i>מחק</button>
+            <button class="action-btn neutral" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit" style="font-size:13px"></i>ערוך</button>
+            <button class="action-btn danger"  onclick="${delAction(t)}"><i class="ti ti-trash" style="font-size:13px"></i>מחק</button>
           </div>
         </div>`;
       }).join('') + `</div>`;
@@ -1827,29 +1827,31 @@ function renderClosedTable() {
   el.parentElement.style.overflow = '';
   el.parentElement.style.background = '';
   el.parentElement.style.border = '';
-  el.innerHTML = `<table><thead><tr>
-    <th>תאריך</th><th>טיקר</th><th>כיוון</th><th>כניסה</th><th>יציאה</th><th>כמות</th><th>P&L</th><th>%</th><th></th>
-  </tr></thead><tbody>` +
+  // תצוגת רשימה — שורות בסגנון דף הבית: לוגו · טיקר · כניסה←יציאה · P&L
+  el.innerHTML = `<div class="cl-list">` +
     f.map(t => {
-      const pct    = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
-      const pnlC   = pnlCol(t.pnl);
-      const pctC   = pct === null ? 'var(--tx3)' : pnlCol(parseFloat(pct));
-      const rowCls = t.pnl >= 0 ? 'row-win' : 'row-loss';
-      return `<tr class="${rowCls}">
-        <td style="color:var(--tx2)">${t.date}</td>
-        <td class="mono" style="font-weight:600">${t.ticker}${t.isSl ? ' 🛑' : ''}${t.slices.length > 1 ? ` <span class="crl-count">×${t.slices.length}</span>` : ''}${partialTag(t)}</td>
-        <td><span class="badge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span></td>
-        <td class="mono">$${Number(t.entry).toFixed(2)}</td>
-        <td class="mono">${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</td>
-        <td>${t.qty}</td>
-        <td class="mono" style="font-weight:600;color:${pnlC}">${(t.pnl >= 0 ? '+' : '') + ' $' + Math.abs(t.pnl).toFixed(2)}</td>
-        <td class="mono" style="color:${pctC}">${pct !== null ? (parseFloat(pct) >= 0 ? '+' : '') + pct + '%' : '—'}</td>
-        <td style="display:flex;gap:2px">
-          <button class="icon-btn edit" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit"></i></button>
-          <button class="icon-btn"      onclick="${delAction(t)}"><i class="ti ti-trash"></i></button>
-        </td>
-      </tr>`;
-    }).join('') + '</tbody></table>';
+      const pct = t.pnl && t.entry && t.qty ? ((t.pnl / (t.entry * t.qty)) * 100).toFixed(1) : null;
+      const up  = t.pnl >= 0;
+      return `<div class="cl-row">
+        ${stockLogoImg(t.ticker, 36)}
+        <div class="cl-main">
+          <div class="cl-t">${t.ticker}${t.isSl ? ' 🛑' : ''}<span class="dbadge ${t.dir === 'Long' ? 'bl' : 'bs'}">${t.dir}</span>${t.slices.length > 1 ? `<span class="crl-count">×${t.slices.length}</span>` : ''}${partialTag(t)}</div>
+          <div class="cl-s">${t.date} · ${t.qty} מניות</div>
+        </div>
+        <div class="cl-px">
+          <div class="cl-px-v">$${Number(t.entry).toFixed(2)} <i class="ti ti-arrow-left"></i> ${t.exit != null ? '$' + Number(t.exit).toFixed(2) : '—'}</div>
+          <div class="cl-s">כניסה ← יציאה</div>
+        </div>
+        <div class="cl-end">
+          <div class="cl-pnl ${up ? 'up' : 'down'}">${(up ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2)}</div>
+          ${pct !== null ? `<span class="bc-tag ${up ? 'up' : 'down'}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%</span>` : ''}
+        </div>
+        <div class="cl-acts">
+          <button class="icon-btn edit" title="ערוך" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit"></i></button>
+          <button class="icon-btn" title="מחק" onclick="${delAction(t)}"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2170,8 +2172,8 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
   const salesLog = sales.length
     ? `<div style="border-top:0.5px solid var(--br);padding:0.55rem 0.9rem">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
-          <span style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px">מכירות · ${sales.length}</span>
-          <span style="font-size:11px;font-weight:600;font-family:var(--font-mono);color:${pnlCol(realPnl)}">רווח ממומש ${fmtD(realPnl)}${realPct !== null ? ' · ' + signStr(realPct) + realPct.toFixed(1) + '%' : ''}</span>
+          <span style="font-size:12px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px">מכירות · ${sales.length}</span>
+          <span style="font-size:13px;font-weight:600;font-family:var(--font-mono);color:${pnlCol(realPnl)}">רווח ממומש ${fmtD(realPnl)}${realPct !== null ? ' · ' + signStr(realPct) + realPct.toFixed(1) + '%' : ''}</span>
         </div>
         <div class="real-log">${sales.map((s, si) => `<div class="real-row real-row-edit" onclick="openSaleEdit('${h.id}',${si})">
           <span>${s.date}</span>
@@ -2184,7 +2186,7 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
   const buys    = holdingBuys(h);
   const buysLog = buys.length > 1
     ? `<div style="border-top:0.5px solid var(--br);padding:0.55rem 0.9rem">
-        <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px">רכישות</div>
+        <div style="font-size:12px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px">רכישות</div>
         <div class="real-log">${buys.map(b => `<div class="real-row"><span>${b.date}</span><span>${b.qty}×$${(+b.price).toFixed(2)}</span><span style="color:var(--tx2)">$${Math.round(b.price * b.qty).toLocaleString()}</span></div>`).join('')}</div>
       </div>`
     : '';
@@ -2217,19 +2219,19 @@ function buildHoldingCard(h, i, allocData, allocTotal) {
       <div class="ph-stat"><div class="ph-stat-lbl">עלות ממוצעת</div><div class="ph-stat-val">$${h.avgCost.toFixed(2)}</div></div>
       <div class="ph-stat"><div class="ph-stat-lbl">עלות בסיס</div><div class="ph-stat-val">$${Math.round(h.cost).toLocaleString()}</div></div>
       <div class="ph-stat"><div class="ph-stat-lbl">שווי נוכחי</div><div class="ph-stat-val">${h.val ? '$' + Math.round(h.val).toLocaleString() : '—'}</div></div>
-      ${sales.length ? `<div class="ph-stat"><div class="ph-stat-lbl">רווח ממומש</div><div class="ph-stat-val" style="color:${pnlCol(realPnl)}">${fmtD(realPnl)}${realPct !== null ? ` <span style="font-size:10px;font-weight:500">${signStr(realPct)}${realPct.toFixed(1)}%</span>` : ''}</div></div>` : ''}
+      ${sales.length ? `<div class="ph-stat"><div class="ph-stat-lbl">רווח ממומש</div><div class="ph-stat-val" style="color:${pnlCol(realPnl)}">${fmtD(realPnl)}${realPct !== null ? ` <span style="font-size:12px;font-weight:500">${signStr(realPct)}${realPct.toFixed(1)}%</span>` : ''}</div></div>` : ''}
       ${h.date ? `<div class="ph-stat"><div class="ph-stat-lbl">תאריך קנייה</div><div class="ph-stat-val">${h.date}</div></div>` : ''}
       <div class="ph-actions">
-        <button class="action-btn primary" onclick="openAdd('${h.id}')"><i class="ti ti-arrow-up-right" style="font-size:11px"></i>חזק</button>
-        <button class="action-btn success" onclick="openSell('${h.id}')"><i class="ti ti-coin" style="font-size:11px"></i>מכור</button>
-        <button class="action-btn neutral" onclick="openHM('${h.id}')"><i class="ti ti-edit" style="font-size:11px"></i>ערוך</button>
-        ${(typeof caFindBySymbol === 'function' && caFindBySymbol(h.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${h.ticker}')"><i class="ti ti-file-analytics" style="font-size:11px"></i>ניתוח</button>` : ''}
-        <button class="action-btn danger"  onclick="deleteHolding('${h.id}')"><i class="ti ti-trash" style="font-size:11px"></i></button>
+        <button class="action-btn primary" onclick="openAdd('${h.id}')"><i class="ti ti-arrow-up-right" style="font-size:13px"></i>חזק</button>
+        <button class="action-btn success" onclick="openSell('${h.id}')"><i class="ti ti-coin" style="font-size:13px"></i>מכור</button>
+        <button class="action-btn neutral" onclick="openHM('${h.id}')"><i class="ti ti-edit" style="font-size:13px"></i>ערוך</button>
+        ${(typeof caFindBySymbol === 'function' && caFindBySymbol(h.ticker)) ? `<button class="action-btn info" onclick="caOpenBySymbol('${h.ticker}')"><i class="ti ti-file-analytics" style="font-size:13px"></i>ניתוח</button>` : ''}
+        <button class="action-btn danger"  onclick="deleteHolding('${h.id}')"><i class="ti ti-trash" style="font-size:13px"></i></button>
       </div>
     </div>
     ${buysLog}
     ${salesLog}
-    ${h.notes ? `<div style="padding:0 0.9rem 0.65rem;font-size:11.5px;color:var(--tx3)"><i class="ti ti-notes" style="font-size:11px;margin-left:3px"></i>${h.notes}</div>` : ''}
+    ${h.notes ? `<div style="padding:0 0.9rem 0.65rem;font-size:13px;color:var(--tx3)"><i class="ti ti-notes" style="font-size:13px;margin-left:3px"></i>${h.notes}</div>` : ''}
   </div>`;
 }
 
@@ -2323,7 +2325,7 @@ function syncCashCard(investCash) {
   const src = document.getElementById('ps-cash-src');
   if (src && isDadPort()) {
     // התיק של אבא לא מחובר ל-IBKR — המזומן מוזן ידנית (לחיצה על הכרטיס)
-    src.innerHTML = '<i class="ti ti-pencil" style="font-size:9px"></i> ' + (investCash ? 'הוזן ידנית • לחץ לעדכון' : 'לחץ להזנת מזומן');
+    src.innerHTML = '<i class="ti ti-pencil" style="font-size:12px"></i> ' + (investCash ? 'הוזן ידנית • לחץ לעדכון' : 'לחץ להזנת מזומן');
     src.style.color = '';
   } else if (src) {
     const ic = (typeof ibkrGetCash === 'function') ? ibkrGetCash() : null;
@@ -2333,7 +2335,7 @@ function syncCashCard(investCash) {
       src.style.color = '';
     } else {
       src.innerHTML = ic
-        ? '<i class="ti ti-building-bank" style="font-size:9px"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
+        ? '<i class="ti ti-building-bank" style="font-size:12px"></i> נמשך מ-IBKR • ' + ibkrTimeAgo(ic.ts)
         : 'יתרת מזומן בחשבון';
       src.style.color = ic && stale ? 'var(--amber-t)' : '';
     }

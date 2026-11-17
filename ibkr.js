@@ -605,7 +605,7 @@ function ibkrOpenPreview() {
         <div class="ibkr-prop-line1">
           <span class="ibkr-prop-ticker">${ex.ticker}</span>
           <span class="ibkr-prop-kind ibkr-kind-${p.kind}">${IBKR_KIND_LBL[p.kind]}</span>
-          <span class="ibkr-prop-dirtxt" style="font-size:11px;color:var(--tx2)">${dirTxt}</span>
+          <span class="ibkr-prop-dirtxt" style="font-size:13px;color:var(--tx2)">${dirTxt}</span>
         </div>
         <div class="ibkr-prop-meta ibkr-meta-desktop">${ex.account ? ex.account + ' · ' : ''}${ex.date}${ex.fee ? ' · fee $' + ex.fee.toFixed(2) : ''}${ex.currency !== 'USD' ? ' · ' + ex.currency : ''}</div>
       </div>
@@ -884,17 +884,17 @@ function ibkrRenderAccountMap() {
   };
 
   wrap.innerHTML =
-    '<div style="font-size:10.5px;color:var(--tx3);margin-bottom:5px">שיוך חשבונות — איזה חשבון שייך לכל תיק (קובע ניתוב עסקאות ומזומן):</div>' +
+    '<div style="font-size:13px;color:var(--tx3);margin-bottom:5px">שיוך חשבונות — איזה חשבון שייך לכל תיק (קובע ניתוב עסקאות ומזומן):</div>' +
     accounts.map(acc => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <span style="font-size:11px;font-family:var(--font-mono);direction:ltr;flex:1">${acc}</span>
-        <select class="settings-input" style="width:150px;font-size:11px;padding:4px 8px" onchange="ibkrSetAccountDest('${acc}', this.value)">
+        <span style="font-size:13px;font-family:var(--font-mono);direction:ltr;flex:1">${acc}</span>
+        <select class="settings-input" style="width:150px;font-size:13px;padding:4px 8px" onchange="ibkrSetAccountDest('${acc}', this.value)">
           <option value=""       ${!dest[acc] ? 'selected' : ''}>זיהוי אוטומטי</option>
           <option value="trades" ${dest[acc] === 'trades' ? 'selected' : ''}>תיק מסחר (יומן)</option>
           <option value="port"   ${dest[acc] === 'port' ? 'selected' : ''}>תיק השקעות</option>
         </select>
       </div>`).join('') +
-    (cashData ? `<div style="font-size:10.5px;display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:7px;border-top:0.5px solid var(--br)">${statusLine('trades')}${statusLine('port')}</div>` : '');
+    (cashData ? `<div style="font-size:13px;display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:7px;border-top:0.5px solid var(--br)">${statusLine('trades')}${statusLine('port')}</div>` : '');
 }
 function ibkrSetAccountDest(acc, dest) {
   const cfg = ibkrGetCfg();

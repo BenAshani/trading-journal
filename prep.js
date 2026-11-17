@@ -114,7 +114,7 @@ async function prepRender() {
         const riskStr    = riskDollar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const rUnits     = riskUnit > 0 ? (riskDollar / riskUnit).toFixed(1) + 'R' : '';
         riskHTML = `<div class="pc-risk-row">
-          <i class="ti ti-alert-triangle" style="font-size:11px;color:var(--amber)"></i>
+          <i class="ti ti-alert-triangle" style="font-size:13px;color:var(--amber)"></i>
           <span class="pc-risk-label">סיכון:</span>
           <span class="pc-risk-val">$${riskStr}</span>
           ${rUnits ? `<span class="pc-risk-r">${rUnits}</span>` : ''}
@@ -127,7 +127,7 @@ async function prepRender() {
         <div class="pc-targets">
           ${targets.map((tgt, i) => `
             <div class="pc-target-row">
-              <span class="target-badge ${['t1','t2','t3','t1','t2'][i]||'t1'}" style="font-size:9.5px;min-width:52px">יעד ${i+1}</span>
+              <span class="target-badge ${['t1','t2','t3','t1','t2'][i]||'t1'}" style="font-size:12px;min-width:52px">יעד ${i+1}</span>
               ${tgt.target   ? `<span class="pc-stat"><span class="pc-stat-l">מחיר</span><span class="pc-stat-v mono">$${tgt.target}</span></span>` : ''}
               ${tgt.sellQty  ? `<span class="pc-stat"><span class="pc-stat-l">מכירה</span><span class="pc-stat-v mono">${tgt.sellQty}</span></span>` : ''}
               ${tgt.newStop  ? `<span class="pc-stat"><span class="pc-stat-l">SL חדש</span><span class="pc-stat-v mono red">$${tgt.newStop}</span></span>` : ''}
@@ -144,7 +144,7 @@ async function prepRender() {
       const anyChecked = reqCnt + optCnt > 0;
       let clHTML = '';
       if (anyChecked) {
-        const warnIcon = !reqOk ? `<i class="ti ti-alert-triangle" style="color:var(--red);font-size:11px"></i>` : `<i class="ti ti-circle-check" style="color:var(--green-t);font-size:11px"></i>`;
+        const warnIcon = !reqOk ? `<i class="ti ti-alert-triangle" style="color:var(--red);font-size:13px"></i>` : `<i class="ti ti-circle-check" style="color:var(--green-t);font-size:13px"></i>`;
         clHTML = `<div class="pc-cl-score">
           ${warnIcon}
           <span style="color:${reqOk?'var(--green-t)':'var(--red)'}">חובה ${reqCnt}/3</span>
@@ -162,7 +162,7 @@ async function prepRender() {
           <div class="pc-header">
             <div>
               <div class="pc-ticker">${ticker}</div>
-              ${date ? `<div class="pc-date"><i class="ti ti-calendar" style="font-size:10px"></i>${date}</div>` : ''}
+              ${date ? `<div class="pc-date"><i class="ti ti-calendar" style="font-size:12px"></i>${date}</div>` : ''}
             </div>
           </div>
 
@@ -170,7 +170,7 @@ async function prepRender() {
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--space-3)">
             <span class="dbadge ${gradeClx}" style="display:inline-flex">${grade}</span>
             <span class="dbadge ${t.dir === 'Short' ? 'bs' : 'bl'}" style="display:inline-flex">${dirTxt}</span>
-            ${t.convertedTo ? `<span class="dbadge" style="display:inline-flex;background:rgba(34,197,94,.14);color:var(--green-t)"><i class="ti ti-check" style="font-size:11px"></i>הומר לעסקה</span>` : ''}
+            ${t.convertedTo ? `<span class="dbadge" style="display:inline-flex;background:rgba(34,197,94,.14);color:var(--green-t)"><i class="ti ti-check" style="font-size:13px"></i>הומר לעסקה</span>` : ''}
           </div>
           ${t.gradeNote ? `<div class="pc-note">${t.gradeNote}</div>` : ''}
 
@@ -184,7 +184,7 @@ async function prepRender() {
           ${tgtHTML}
 
           <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:0.5px solid var(--br)">
-            <button class="btn-p" style="width:100%;justify-content:center;font-size:11.5px;padding:7px"
+            <button class="btn-p" style="width:100%;justify-content:center;font-size:13px;padding:7px"
               onclick="prepConvertToTrade('${t.id}',event)">
               <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>${t.convertedTo ? 'פתח עסקה נוספת מהתכנון' : 'המר לעסקה פתוחה'}
             </button>
@@ -234,7 +234,7 @@ function prepFormHTML(t) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">טיקר</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">טיקר</label>
           <input id="pm-ticker" type="text" placeholder="NVDA"
             value="${esc(t.ticker)}"
             style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:700;font-size:16px;letter-spacing:-.01em"
@@ -242,7 +242,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כמות מניות</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כמות מניות</label>
           <input id="pm-qty" type="number" step="1" min="1" placeholder="0"
             value="${esc(t.qty)}"
             style="font-family:'IBM Plex Mono',monospace"
@@ -250,7 +250,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כיוון</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כיוון</label>
           <select id="pm-dir" onchange="prepModalField('dir',this.value)">
             <option value="Long" ${t.dir!=='Short'?'selected':''}>Long (לונג)</option>
             <option value="Short" ${t.dir==='Short'?'selected':''}>Short (שורט)</option>
@@ -258,7 +258,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סיווג</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סיווג</label>
           <select id="pm-grade" onchange="prepModalField('grade',this.value)">
             <option value="1" ${t.grade==='1'?'selected':''}>סיווג 1</option>
             <option value="2" ${t.grade==='2'?'selected':''}>סיווג 2</option>
@@ -266,7 +266,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">תאריך כניסה מתוכנן</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">תאריך כניסה מתוכנן</label>
           <input id="pm-entry-date" type="date"
             value="${esc(t.entryDate || '')}"
             style="font-family:'IBM Plex Mono',monospace"
@@ -274,7 +274,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סטופ לוס (¢)</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סטופ לוס (¢)</label>
           <input id="pm-stop" type="number" step="0.01" min="0" placeholder="0.00"
             value="${esc(t.stop)}"
             style="font-family:'IBM Plex Mono',monospace;border-color:rgba(239,68,68,0.3)"
@@ -282,7 +282,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg" style="grid-column:1/-1">
-          <label style="font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">פירוט / סטראטגיה</label>
+          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">פירוט / סטראטגיה</label>
           <input id="pm-note" type="text" placeholder="סיבה, סטראטגיה, הערות..."
             value="${esc(t.gradeNote)}"
             oninput="prepModalField('gradeNote',this.value)">
@@ -295,7 +295,7 @@ function prepFormHTML(t) {
       <div class="fa-section-title" style="justify-content:space-between">
         <span><i class="ti ti-target"></i>ניהול עסקה</span>
         <button class="add-target-btn" onclick="prepModalAddTarget()">
-          <i class="ti ti-plus" style="font-size:11px"></i>הוסף יעד
+          <i class="ti ti-plus" style="font-size:13px"></i>הוסף יעד
         </button>
       </div>
       <div id="pm-targets"></div>
@@ -316,10 +316,10 @@ function prepFormHTML(t) {
         <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>המר לעסקה פתוחה
       </button>
       <span class="settings-saved" id="pm-saved">
-        <i class="ti ti-check" style="font-size:11px"></i>נשמר!
+        <i class="ti ti-check" style="font-size:13px"></i>נשמר!
       </span>
     </div>
-    ${t.convertedTo ? `<div style="font-size:10.5px;color:var(--green-t);margin-top:8px;display:flex;align-items:center;gap:5px">
+    ${t.convertedTo ? `<div style="font-size:13px;color:var(--green-t);margin-top:8px;display:flex;align-items:center;gap:5px">
       <i class="ti ti-check" style="font-size:12px"></i>התכנון כבר הומר לעסקה — התכנון נשמר ואפשר להמיר שוב</div>` : ''}
   `;
 }
@@ -374,13 +374,13 @@ function prepRenderTargets(tradeId, targets) {
   const el = document.getElementById('pm-targets');
   if (!el) return;
   if (!targets || targets.length === 0) {
-    el.innerHTML = `<div style="font-size:11px;color:var(--tx3);padding:8px 0;text-align:center">לחץ "+ הוסף יעד" כדי להוסיף יעד מימוש</div>`;
+    el.innerHTML = `<div style="font-size:13px;color:var(--tx3);padding:8px 0;text-align:center">לחץ "+ הוסף יעד" כדי להוסיף יעד מימוש</div>`;
     return;
   }
   el.innerHTML = targets.map((tgt, i) => `
     <div class="target-item" style="flex-wrap:wrap;gap:8px;padding:10px 8px" id="pm-tgt-${tgt.id}">
       <div style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:2px">
-        <span class="target-badge ${T_CLASSES[i]||'t1'}" style="font-size:10.5px">${T_LABELS[i]||('יעד '+(i+1))}</span>
+        <span class="target-badge ${T_CLASSES[i]||'t1'}" style="font-size:13px">${T_LABELS[i]||('יעד '+(i+1))}</span>
         ${targets.length > 1
           ? `<button class="remove-target" onclick="prepModalRemoveTarget('${tgt.id}')" title="הסר"><i class="ti ti-x"></i></button>`
           : ''}

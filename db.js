@@ -152,7 +152,7 @@ function dbSetSyncStatus(state) {
     syncing: { icon: 'ti-loader-2',    color: 'var(--blue-t)', text: 'מסנכרן...' },
   };
   const s = map[state] || map.local;
-  el.innerHTML = `<i class="ti ${s.icon}" style="font-size:11px;${state==='syncing'?'animation:spin 1s linear infinite':''}"></i>${s.text}`;
+  el.innerHTML = `<i class="ti ${s.icon}" style="font-size:13px;${state==='syncing'?'animation:spin 1s linear infinite':''}"></i>${s.text}`;
   el.style.color = s.color;
 }
 

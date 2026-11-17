@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="tokens.css?v=20261111a">
 <link rel="stylesheet" href="styles.css?v=20261111b">
 <link rel="stylesheet" href="theme-ios.css?v=20261111d">
+<link rel="stylesheet" href="theme-pages.css?v=20261117a">
 </head>
 <body>
 <div id="toast"></div>
@@ -31,142 +32,133 @@
 <!-- Settings Overlay -->
 <div class="overlay" id="settings-overlay">
   <div class="settings-modal">
-    <div class="settings-title"><i class="ti ti-settings" style="color:var(--blue-t)"></i>הגדרות<span id="db-sync-status" style="font-size:10.5px;font-weight:400;margin-right:auto;display:flex;align-items:center;gap:4px;color:var(--tx3)"><i class="ti ti-database" style="font-size:11px"></i>מקומי בלבד</span></div>
+    <div class="set-head">
+      <div>
+        <h2 class="set-h">הגדרות</h2>
+        <span id="db-sync-status" class="set-sync"><i class="ti ti-database"></i>מקומי בלבד</span>
+      </div>
+      <button class="set-done" onclick="closeSettings()">סיום</button>
+    </div>
 
     <!-- Cloud Sync -->
-    <div class="settings-group">
-      <div class="settings-label"><i class="ti ti-cloud" style="color:var(--blue-t);font-size:13px"></i> סינכרון ענן — Supabase</div>
-      <div class="settings-hint" style="margin-bottom:8px">מאפשר גישה לנתונים מכל מכשיר. <a href="https://supabase.com" target="_blank" style="color:var(--blue-t)">צור פרויקט חינמי</a> ב-Supabase והכנס את הפרטים כאן.</div>
-
-      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Project URL</div>
-          <input type="text" class="settings-input" id="db-url" placeholder="https://xxxx.supabase.co" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+    <section class="set-sec">
+      <div class="set-sec-t"><span class="set-ic blue"><i class="ti ti-cloud"></i></span>סינכרון ענן</div>
+      <div class="set-card">
+        <p class="set-hint">גישה לנתונים מכל מכשיר. <a href="https://supabase.com" target="_blank">צור פרויקט חינמי</a> ב-Supabase והכנס את הפרטים כאן.</p>
+        <label class="set-field"><span>Project URL</span><input type="text" class="settings-input ltr" id="db-url" placeholder="https://xxxx.supabase.co"></label>
+        <label class="set-field"><span>Anon / Public Key</span><input type="text" class="settings-input ltr" id="db-anon-key" placeholder="eyJhbGc..."></label>
+        <label class="set-field"><span>מזהה משתמש (אימייל שלך)</span><input type="email" class="settings-input ltr" id="db-user-id" placeholder="you@email.com"></label>
+        <div class="set-actions">
+          <button class="btn-p" onclick="dbSaveSettings()"><i class="ti ti-cloud-upload"></i>הפעל סינכרון</button>
+          <span class="settings-saved" id="db-save-feedback"><i class="ti ti-check"></i>פעיל!</span>
         </div>
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Anon / Public Key</div>
-          <input type="text" class="settings-input" id="db-anon-key" placeholder="eyJhbGc..." style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
-        </div>
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">מזהה משתמש (אימייל שלך)</div>
-          <input type="email" class="settings-input" id="db-user-id" placeholder="you@email.com" style="direction:ltr;text-align:left;font-size:12px;width:100%">
-        </div>
-      </div>
-      <div style="display:flex;gap:7px;align-items:center">
-        <button class="btn-p" onclick="dbSaveSettings()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-cloud-upload" style="font-size:12px"></i> הפעל סינכרון</button>
-        <span class="settings-saved" id="db-save-feedback"><i class="ti ti-check" style="font-size:12px"></i>פעיל!</span>
       </div>
 
-      <!-- Setup Code (shown after first setup) -->
-      <div id="db-code-section" style="display:none;margin-top:12px;padding:10px;background:var(--bg-overlay);border-radius:var(--r);border:0.5px solid var(--br)">
-        <div style="font-size:10.5px;font-weight:500;color:var(--tx2);margin-bottom:6px"><i class="ti ti-qrcode" style="font-size:11px"></i> קוד הגדרה — העתק למכשיר אחר</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="text" id="db-code-display" readonly style="flex:1;font-size:9px;font-family:var(--font-mono);direction:ltr;background:var(--bg);border:0.5px solid var(--br);border-radius:5px;padding:5px 7px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis">
-          <button class="btn-s" onclick="dbCopyCode()" style="font-size:11px;padding:5px 10px;white-space:nowrap"><i class="ti ti-copy" style="font-size:11px"></i> העתק</button>
+      <div class="set-card" id="db-code-section" style="display:none">
+        <div class="set-row-t"><i class="ti ti-qrcode"></i>קוד הגדרה — העתק למכשיר אחר</div>
+        <div class="set-inline">
+          <input type="text" class="settings-input ltr" id="db-code-display" readonly>
+          <button class="btn-s" onclick="dbCopyCode()"><i class="ti ti-copy"></i>העתק</button>
         </div>
-        <div style="font-size:10px;color:var(--tx3);margin-top:4px">במכשיר אחר: פתח הגדרות ← הדבק קוד זה בתיבה למטה ← לחץ "החל"</div>
+        <p class="set-hint">במכשיר אחר: פתח הגדרות ← הדבק קוד זה בתיבה למטה ← לחץ "החל"</p>
       </div>
 
-      <!-- Apply Setup Code -->
-      <div style="margin-top:10px;padding:10px;background:var(--bg-overlay);border-radius:var(--r);border:0.5px dashed var(--br)">
-        <div style="font-size:10.5px;font-weight:500;color:var(--tx2);margin-bottom:6px"><i class="ti ti-device-mobile" style="font-size:11px"></i> מכשיר חדש — הדבק קוד הגדרה</div>
-        <div style="display:flex;gap:6px">
-          <input type="text" class="settings-input" id="db-setup-code" placeholder="הדבק קוד כאן..." style="flex:1;font-size:10px;direction:ltr">
-          <button class="btn-s" onclick="dbApplyCode()" style="font-size:11px;padding:5px 10px;white-space:nowrap">החל</button>
+      <div class="set-card">
+        <div class="set-row-t"><i class="ti ti-device-mobile"></i>מכשיר חדש — הדבק קוד הגדרה</div>
+        <div class="set-inline">
+          <input type="text" class="settings-input ltr" id="db-setup-code" placeholder="הדבק קוד כאן...">
+          <button class="btn-s" onclick="dbApplyCode()">החל</button>
         </div>
       </div>
-    </div>
+    </section>
+
     <!-- IBKR Flex Sync -->
-    <div class="settings-group">
-      <div class="settings-label"><i class="ti ti-building-bank" style="color:var(--blue-t);font-size:13px"></i> סנכרון מ-Interactive Brokers</div>
-      <div class="settings-hint" style="margin-bottom:8px">מושך אוטומטית עסקאות ויתרת מזומן בכל פתיחת האתר. כדי שהמזומן יימשך — הוסף לשאילתת ה-Flex ב-IBKR את הסעיף Cash Report (או Change in NAV).</div>
-
-      <div style="display:grid;grid-template-columns:1fr 110px;gap:7px;margin-bottom:7px">
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Flex Token</div>
-          <input type="text" class="settings-input" id="ibkr-token" placeholder="1234567890..." style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+    <section class="set-sec">
+      <div class="set-sec-t"><span class="set-ic indigo"><i class="ti ti-building-bank"></i></span>Interactive Brokers</div>
+      <div class="set-card">
+        <p class="set-hint">מושך אוטומטית עסקאות ויתרת מזומן בכל פתיחת האתר. כדי שהמזומן יימשך — הוסף לשאילתת ה-Flex ב-IBKR את הסעיף Cash Report (או Change in NAV).</p>
+        <div class="set-grid2">
+          <label class="set-field"><span>Flex Token</span><input type="text" class="settings-input ltr" id="ibkr-token" placeholder="1234567890..."></label>
+          <label class="set-field"><span>Query ID</span><input type="text" class="settings-input ltr" id="ibkr-query" placeholder="123456"></label>
         </div>
-        <div>
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">Query ID</div>
-          <input type="text" class="settings-input" id="ibkr-query" placeholder="123456" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+        <div id="ibkr-accounts" class="set-accounts" style="display:none"></div>
+        <details class="set-details">
+          <summary>מתקדם — Proxy ודיבאג</summary>
+          <label class="set-field"><span>כתובת Proxy (ריק = מזוהה אוטומטית מ-Supabase)</span><input type="text" class="settings-input ltr" id="ibkr-proxy" placeholder="https://xxxx.supabase.co/functions/v1/ibkr-flex"></label>
+          <label class="set-check"><input type="checkbox" id="ibkr-debug">מצב דיבאג — הצג תשובה גולמית מ-IBKR</label>
+        </details>
+        <div class="set-actions">
+          <button class="btn-p" onclick="ibkrSaveSettings()">שמור</button>
+          <button class="btn-s" onclick="ibkrSyncNow()"><i class="ti ti-refresh"></i>סנכרן עכשיו</button>
+          <label class="btn-s set-file">
+            <i class="ti ti-file-import"></i>ייבוא קובץ Flex
+            <input type="file" accept=".xml,text/xml" style="display:none" onchange="ibkrHandleFile(this)">
+          </label>
+          <button class="btn-s" onclick="ibkrResetSeen()" title="מציג שוב את כל העסקאות מהדוח — כולל כאלה שנדחו — בלי לשכפל מה שכבר נוסף"><i class="ti ti-history"></i>משוך היסטוריה מחדש</button>
+          <span class="settings-saved" id="ibkr-saved"><i class="ti ti-check"></i>נשמר!</span>
+        </div>
+        <div id="ibkr-debug-wrap" style="display:none">
+          <div class="set-row-t"><i class="ti ti-bug"></i>Debug: תשובה גולמית אחרונה מ-IBKR</div>
+          <textarea id="ibkr-debug-raw" class="set-debug" readonly></textarea>
         </div>
       </div>
-      <div id="ibkr-accounts" style="display:none;margin-bottom:8px;padding:8px;background:var(--bg-overlay,rgba(0,0,0,0.04));border-radius:8px"></div>
-      <details style="margin-bottom:8px">
-        <summary style="font-size:10.5px;color:var(--tx3);cursor:pointer">מתקדם — Proxy ודיבאג</summary>
-        <div style="margin-top:7px">
-          <div style="font-size:10.5px;color:var(--tx3);margin-bottom:3px">כתובת Proxy (ריק = מזוהה אוטומטית מ-Supabase)</div>
-          <input type="text" class="settings-input" id="ibkr-proxy" placeholder="https://xxxx.supabase.co/functions/v1/ibkr-flex" style="direction:ltr;text-align:left;font-size:11px;font-family:var(--font-mono);width:100%">
+    </section>
+
+    <!-- Trading -->
+    <section class="set-sec">
+      <div class="set-sec-t"><span class="set-ic green"><i class="ti ti-adjustments"></i></span>מסחר</div>
+      <div class="set-card set-list">
+        <div class="set-li">
+          <div class="set-li-main"><div class="set-li-t">עמלת מסחר ברירת מחדל ($)</div><div class="set-hint">תמולא אוטומטית בכל עסקה חדשה.</div></div>
+          <div class="set-li-ctl">
+            <input type="number" class="settings-input ltr" id="settings-fee" placeholder="2.50" step="0.01" min="0">
+            <button class="btn-p" onclick="saveSettings()">שמור</button>
+            <span class="settings-saved" id="settings-saved"><i class="ti ti-check"></i>נשמר!</span>
+          </div>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);cursor:pointer;margin-top:7px">
-          <input type="checkbox" id="ibkr-debug" style="accent-color:var(--blue-t)">
-          מצב דיבאג — הצג תשובה גולמית מ-IBKR
-        </label>
-      </details>
+        <div class="set-li">
+          <div class="set-li-main"><div class="set-li-t">יחידת סיכון ($)</div><div class="set-hint">הסכום שאתה מוכן להפסיד בעסקה אחת. משמש לחישוב P&amp;L ביחידות סיכון.</div></div>
+          <div class="set-li-ctl">
+            <input type="number" class="settings-input ltr" id="settings-risk" placeholder="100" step="1" min="0">
+            <button class="btn-p" onclick="saveRiskUnit()">שמור</button>
+            <span class="settings-saved" id="risk-saved"><i class="ti ti-check"></i>נשמר!</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-        <button class="btn-p" onclick="ibkrSaveSettings()" style="font-size:12px;padding:0.35rem 0.9rem">שמור</button>
-        <button class="btn-s" onclick="ibkrSyncNow()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-refresh" style="font-size:12px"></i> סנכרן עכשיו</button>
-        <label class="btn-s" style="font-size:12px;padding:0.35rem 0.9rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-          <i class="ti ti-file-import" style="font-size:12px"></i> ייבוא קובץ Flex
-          <input type="file" accept=".xml,text/xml" style="display:none" onchange="ibkrHandleFile(this)">
-        </label>
-        <button class="btn-s" onclick="ibkrResetSeen()" style="font-size:12px;padding:0.35rem 0.9rem" title="מציג שוב את כל העסקאות מהדוח — כולל כאלה שנדחו — בלי לשכפל מה שכבר נוסף"><i class="ti ti-history" style="font-size:12px"></i> משוך היסטוריה מחדש</button>
-        <span class="settings-saved" id="ibkr-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
+    <!-- API keys -->
+    <section class="set-sec">
+      <div class="set-sec-t"><span class="set-ic orange"><i class="ti ti-key"></i></span>מפתחות API</div>
+      <div class="set-card set-list">
+        <div class="set-li col">
+          <div class="set-li-main"><div class="set-li-t">Finnhub</div><div class="set-hint">finnhub.io — 60 בקשות/דקה (חינמי). מחירים חיים.</div></div>
+          <div class="set-inline">
+            <input type="text" class="settings-input ltr" id="settings-key" placeholder="הדבק מפתח Finnhub..." autocomplete="off">
+            <button class="btn-p" onclick="saveApiKey()">שמור</button>
+          </div>
+        </div>
+        <div class="set-li col">
+          <div class="set-li-main"><div class="set-li-t">Financial Modeling Prep</div><div class="set-hint">נדרש לגרף הנרות היפני החי בניתוח חברות.</div></div>
+          <div class="set-inline">
+            <input type="text" class="settings-input ltr" id="settings-fmp-key" placeholder="הדבק מפתח FMP..." autocomplete="off">
+            <button class="btn-p" onclick="saveFmpApiKey()">שמור</button>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div id="ibkr-debug-wrap" style="display:none;margin-top:10px">
-        <div style="font-size:10.5px;font-weight:500;color:var(--tx2);margin-bottom:4px"><i class="ti ti-bug" style="font-size:11px"></i> Debug: תשובה גולמית אחרונה מ-IBKR</div>
-        <textarea id="ibkr-debug-raw" readonly style="width:100%;height:140px;font-size:9.5px;font-family:var(--font-mono);direction:ltr;background:var(--bg);border:0.5px solid var(--br);border-radius:6px;padding:6px;color:var(--tx3);resize:vertical"></textarea>
+    <!-- Backup -->
+    <section class="set-sec">
+      <div class="set-sec-t"><span class="set-ic gray"><i class="ti ti-database"></i></span>גיבוי ושחזור</div>
+      <div class="set-card">
+        <p class="set-hint">ייצא את כל הנתונים לקובץ JSON. ייבא להעברת נתונים בין מכשירים.</p>
+        <div class="set-actions">
+          <button class="btn-p" onclick="exportData()"><i class="ti ti-download"></i>ייצא גיבוי</button>
+          <button class="btn-s" onclick="importData()"><i class="ti ti-upload"></i>ייבא גיבוי</button>
+        </div>
       </div>
-    </div>
-
-    <div class="settings-group">
-      <div class="settings-label">עמלת מסחר ברירת מחדל ($)</div>
-      <div class="settings-row">
-        <input type="number" class="settings-input" id="settings-fee" placeholder="2.50" step="0.01" min="0" style="width:140px;direction:ltr;text-align:left">
-        <button class="btn-p" onclick="saveSettings()">שמור</button>
-        <span class="settings-saved" id="settings-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
-      </div>
-      <div class="settings-hint">עמלה זו תמולא אוטומטית בכל עסקה חדשה.</div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-label" style="display:flex;align-items:center;gap:6px">
-        <i class="ti ti-target" style="color:var(--amber-t);font-size:13px"></i>
-        יחידת סיכון ($)
-      </div>
-      <div class="settings-row">
-        <input type="number" class="settings-input" id="settings-risk" placeholder="100" step="1" min="0" style="width:140px;direction:ltr;text-align:left">
-        <button class="btn-p" onclick="saveRiskUnit()">שמור</button>
-        <span class="settings-saved" id="risk-saved"><i class="ti ti-check" style="font-size:12px"></i>נשמר!</span>
-      </div>
-      <div class="settings-hint">הסכום שאתה מוכן להפסיד בעסקה אחת. ישמש לחישוב P&L ביחידות סיכון בסקירת החשבון.</div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-label">API Key — Finnhub</div>
-      <div class="settings-row">
-        <input type="text" class="settings-input" id="settings-key" placeholder="הדבק מפתח Finnhub..." autocomplete="off" style="font-family:var(--font-mono);font-size:11px;direction:ltr;text-align:left">
-        <button class="btn-p" onclick="saveApiKey()">שמור</button>
-      </div>
-      <div class="settings-hint">finnhub.io — 60 בקשות/דקה (חינמי)</div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-label">API Key — Financial Modeling Prep</div>
-      <div class="settings-row">
-        <input type="text" class="settings-input" id="settings-fmp-key" placeholder="הדבק מפתח FMP..." autocomplete="off" style="font-family:var(--font-mono);font-size:11px;direction:ltr;text-align:left">
-        <button class="btn-p" onclick="saveFmpApiKey()">שמור</button>
-      </div>
-      <div class="settings-hint">financialmodelingprep.com — נדרש לגרף הנרות היפני החי בניתוח חברות.</div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-label"><i class="ti ti-database" style="color:var(--blue-t);font-size:13px"></i> גיבוי ושחזור נתונים</div>
-      <div class="settings-row" style="gap:8px">
-        <button class="btn-p" onclick="exportData()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-download" style="font-size:12px"></i> ייצא גיבוי</button>
-        <button class="btn-s" onclick="importData()" style="font-size:12px;padding:0.35rem 0.9rem"><i class="ti ti-upload" style="font-size:12px"></i> ייבא גיבוי</button>
-      </div>
-      <div class="settings-hint">ייצא את כל הנתונים לקובץ JSON. ייבא להעברת נתונים בין מכשירים.</div>
-    </div>
-    <div class="modal-actions"><button class="btn-s" onclick="closeSettings()">סגור</button></div>
+    </section>
   </div>
 </div>
 
@@ -327,22 +319,24 @@
       </div>
       <span id="api-status" class="sec-tools-note"></span>
     </div>
-    <div class="summary-bar" id="trading-summary-bar" style="grid-template-columns:repeat(3,1fr)">
-      <div class="s-card"><div class="s-label">P&L לא ממומש</div><div class="s-val" id="sum-pnl">—</div></div>
+    <div class="summary-bar" id="trading-summary-bar">
+      <div class="s-card"><div class="s-label">P&amp;L לא ממומש</div><div class="s-val" id="sum-pnl">—</div></div>
       <div class="s-card"><div class="s-label">שווי פוזיציות</div><div class="s-val" id="sum-val">—</div></div>
       <div class="s-card"><div class="s-label">פוזיציות פתוחות</div><div class="s-val" id="sum-cnt">0</div></div>
       <div style="display:none"><div class="s-val" id="sum-avg">—</div></div>
       <div class="s-card" id="sum-cash-card" style="display:none">
-        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן פנוי — מסחר</div>
+        <div class="s-label"><i class="ti ti-cash"></i>מזומן פנוי — מסחר</div>
         <div class="s-val" id="sum-cash">—</div>
-        <div style="font-size:9.5px;color:var(--tx3);margin-top:2px" id="sum-cash-sub"></div>
+        <div class="s-sub" id="sum-cash-sub"></div>
       </div>
     </div>
-    <div class="equity-card-row">
-      <div class="eq-mode-tabs">
-        <button class="eq-mode-tab on" id="eq-tab-value" onclick="setEquityMode('value')">ערך תיק</button>
-        <span class="eq-mode-div"></span>
-        <button class="eq-mode-tab" id="eq-tab-pct" onclick="setEquityMode('pct')">ביצועים</button>
+    <section class="equity-card-row">
+      <div class="eq-head">
+        <h2>שווי החשבון</h2>
+        <div class="eq-mode-tabs">
+          <button class="eq-mode-tab on" id="eq-tab-value" onclick="setEquityMode('value')">ערך תיק</button>
+          <button class="eq-mode-tab" id="eq-tab-pct" onclick="setEquityMode('pct')">ביצועים</button>
+        </div>
       </div>
       <div class="equity-big" id="eq-big">—</div>
       <div class="equity-sub" id="eq-sub"></div>
@@ -356,8 +350,8 @@
         <button class="eq-range-btn" onclick="setEquityRange('1y')">שנה</button>
         <button class="eq-range-btn" onclick="setEquityRange('all')">הכל</button>
       </div>
-    </div>
-    <div id="live-content" style="overflow-y:auto;flex:1"></div>
+    </section>
+    <div id="live-content"></div>
   </div>
 
   <!-- Dashboard Page -->
@@ -389,7 +383,7 @@
             <button class="view-toggle-btn" id="vtb-cards" onclick="setClosedView('cards')"><i class="ti ti-layout-grid"></i>כרטיסים</button>
           </div>
         </div>
-        <div class="filter-row"><span class="journal-select-wrap" style="display:none"><i class="ti ti-book"></i><select id="closed-journal" class="journal-select" onchange="setJournal(this.value)"></select></span><select id="fc-dir" onchange="renderClosedTable()" aria-label="כיוון"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()" aria-label="תוצאה"><option value="">רווח והפסד</option><option value="win">רק רווח</option><option value="loss">רק הפסד</option></select><input type="search" id="fc-ticker" placeholder="חיפוש טיקר" oninput="renderClosedTable()" aria-label="חיפוש טיקר"></div>
+        <div class="filter-row"><span class="journal-select-wrap" style="display:none"><i class="ti ti-book"></i><select id="closed-journal" class="journal-select" onchange="setJournal(this.value)"></select></span><select id="fc-dir" onchange="renderClosedTable()" aria-label="כיוון"><option value="">כל הכיוונים</option><option>Long</option><option>Short</option></select><select id="fc-res" onchange="renderClosedTable()" aria-label="תוצאה"><option value="">רווח והפסד</option><option value="win">רק רווח</option><option value="loss">רק הפסד</option></select><input type="search" class="fc-search" id="fc-ticker" placeholder="חיפוש טיקר" oninput="renderClosedTable()" aria-label="חיפוש טיקר"></div>
         <div class="card closed-table-card"><div style="overflow-x:auto" id="closed-ct"></div></div>
       </section>
     </div>
@@ -397,65 +391,63 @@
 
   <!-- Add/Edit Trade Page -->
   <div id="page-add" class="page">
-    <div class="page-inner">
-      <div class="page-header">
-        <div class="page-title" id="form-title">עסקה חדשה</div>
-        <div class="autosave-bar idle" id="autosave-bar"><i class="ti ti-device-floppy" style="font-size:12px"></i><span id="autosave-txt">שמירה אוטומטית פעילה</span></div>
-      </div>
-      <div class="card">
-        <div style="margin-bottom:1.1rem">
-          <div class="form-sec-hdr"><div class="form-sec-num">1</div><div class="form-sec-title">פרטי כניסה</div></div>
-          <div class="form-grid">
-            <div class="fg"><label>טיקר *</label><input type="text" id="f-ticker" placeholder="NVDA" style="font-family:var(--font-mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase();draftSave()"></div>
-            <div class="fg"><label>תאריך *</label><input type="date" id="f-date" oninput="draftSave()"></div>
-            <div class="fg"><label>כיוון *</label><select id="f-dir" onchange="draftSave()"><option value="Long">Long (קנייה)</option><option value="Short">Short (מכירה)</option></select></div>
-            <div class="fg"><label>מחיר כניסה ($) *</label><input type="number" id="f-entry" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:var(--font-mono)"></div>
-            <div class="fg"><label>כמות *</label><input type="number" id="f-qty" placeholder="0" step="1" min="1" oninput="calcFormPnl();draftSave()"></div>
-            <div class="fg">
-              <label>עמלה ($) <span id="fee-default-badge" style="font-size:9.5px;color:var(--blue-t);font-weight:400"></span></label>
-              <input type="number" id="f-fee" step="0.01" oninput="draftSave()" style="font-family:var(--font-mono)">
-              <div class="fee-default-hint" id="fee-hint" style="display:none"><i class="ti ti-info-circle" style="font-size:10px"></i><span id="fee-hint-txt"></span></div>
-            </div>
-            <div class="fg full">
-              <div style="background:rgba(239,68,68,0.07);border:0.5px solid rgba(239,68,68,0.22);border-radius:var(--r);padding:0.7rem">
-                <div style="display:flex;align-items:center;gap:5px;margin-bottom:7px"><i class="ti ti-shield-x" style="color:var(--red);font-size:13px"></i><span style="font-size:11.5px;font-weight:600;color:var(--red-t)">Stop Loss — הגדר לפני הכניסה!</span></div>
-                <div style="display:flex;gap:9px;align-items:flex-end">
-                  <div class="fg" style="flex:1;margin:0;gap:3px"><label>מחיר Stop Loss ($)</label><input type="number" id="f-sl" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="border-color:rgba(239,68,68,0.3);font-family:var(--font-mono)"></div>
-                  <div style="font-family:var(--font-mono);font-size:12px;color:var(--red-t);padding-bottom:7px;white-space:nowrap" id="sl-risk">—</div>
-                </div>
+    <header class="bc-head sh">
+      <div><h1 id="form-title">עסקה חדשה</h1><p class="bc-muted">שלושה שלבים: כניסה, יעדים, ומחשבות</p></div>
+      <div class="sh-end"><div class="autosave-bar idle" id="autosave-bar"><i class="ti ti-device-floppy"></i><span id="autosave-txt">שמירה אוטומטית פעילה</span></div></div>
+    </header>
+    <div class="add-body">
+      <section class="card form-card">
+        <div class="form-sec-hdr"><div class="form-sec-num">1</div><div><h2 class="form-sec-title">פרטי כניסה</h2><div class="bc-muted">מה, מתי, ובכמה</div></div></div>
+        <div class="form-grid">
+          <div class="fg"><label>טיקר *</label><input type="text" id="f-ticker" placeholder="NVDA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();draftSave()"></div>
+          <div class="fg"><label>תאריך *</label><input type="date" id="f-date" oninput="draftSave()"></div>
+          <div class="fg"><label>כיוון *</label><select id="f-dir" onchange="draftSave()"><option value="Long">Long (קנייה)</option><option value="Short">Short (מכירה)</option></select></div>
+          <div class="fg"><label>מחיר כניסה ($) *</label><input type="number" id="f-entry" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()"></div>
+          <div class="fg"><label>כמות *</label><input type="number" id="f-qty" placeholder="0" step="1" min="1" oninput="calcFormPnl();draftSave()"></div>
+          <div class="fg">
+            <label>עמלה ($) <span id="fee-default-badge" class="fee-badge"></span></label>
+            <input type="number" id="f-fee" step="0.01" oninput="draftSave()">
+            <div class="fee-default-hint" id="fee-hint" style="display:none"><i class="ti ti-info-circle"></i><span id="fee-hint-txt"></span></div>
+          </div>
+          <div class="fg full">
+            <div class="sl-box">
+              <div class="sl-box-t"><i class="ti ti-shield-x"></i>Stop Loss — הגדר לפני הכניסה</div>
+              <div class="sl-box-row">
+                <div class="fg"><label>מחיר Stop Loss ($)</label><input type="number" id="f-sl" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()"></div>
+                <div class="sl-box-risk" id="sl-risk">—</div>
               </div>
             </div>
-            <div class="pnl-prev"><div><div style="font-size:11.5px;color:var(--tx2)">עלות כניסה</div><div style="font-size:10.5px;color:var(--tx3);margin-top:1px" id="pnl-det">הכנס מחירים לחישוב</div></div><div style="font-size:17px;font-weight:500;font-family:var(--font-mono)" id="pnl-val">—</div></div>
           </div>
+          <div class="pnl-prev"><div><div class="pnl-prev-l">עלות כניסה</div><div class="bc-muted" id="pnl-det">הכנס מחירים לחישוב</div></div><div class="pnl-prev-v" id="pnl-val">—</div></div>
         </div>
-        <div style="margin-bottom:1.1rem">
-          <div class="form-sec-hdr"><div class="form-sec-num" style="background:var(--green);color:#052e16">2</div><div class="form-sec-title">יעדי מימוש</div></div>
-          <div class="form-grid">
-            <div class="targets-builder">
-              <div class="tb-hdr"><span class="tb-title">יעדים</span><button class="add-target-btn" id="add-tgt-btn" onclick="addTarget()"><i class="ti ti-plus" style="font-size:11px"></i>הוסף יעד</button></div>
-              <div id="targets-list"></div>
-              <div id="targets-summary" style="font-size:10.5px;color:var(--tx3);margin-top:7px;padding-top:7px;border-top:0.5px solid var(--br)"></div>
+      </section>
+
+      <section class="card form-card">
+        <div class="form-sec-hdr"><div class="form-sec-num green">2</div><div><h2 class="form-sec-title">יעדי מימוש</h2><div class="bc-muted">איפה אתה מממש, ובאיזה חלק</div></div></div>
+        <div class="targets-builder">
+          <div class="tb-hdr"><span class="tb-title">יעדים</span><button class="add-target-btn" id="add-tgt-btn" onclick="addTarget()"><i class="ti ti-plus"></i>הוסף יעד</button></div>
+          <div id="targets-list"></div>
+          <div id="targets-summary" class="targets-summary"></div>
+        </div>
+      </section>
+
+      <section class="card form-card">
+        <div class="form-sec-hdr"><div class="form-sec-num gray">3</div><div><h2 class="form-sec-title">ניתוח ומחשבות</h2><div class="bc-muted">למה נכנסת, ומה התרחיש</div></div></div>
+        <div class="form-grid">
+          <div class="fg">
+            <label>סיווג עסקה</label>
+            <div class="grade-toggle">
+              <button type="button" id="f-grade-1" class="grade-btn active" onclick="setGrade('1')">סיווג 1</button>
+              <button type="button" id="f-grade-2" class="grade-btn" onclick="setGrade('2')">סיווג 2</button>
             </div>
           </div>
+          <div class="fg"><label>סטטוס</label><select id="f-status" onchange="draftSave()"><option value="open">פתוחה</option><option value="closed">סגורה</option></select></div>
+          <div class="fg"><label>מחיר יציאה ($)</label><input type="number" id="f-exit" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()"></div>
+          <div class="fg full"><label>סיבה לכניסה</label><textarea id="f-reason" placeholder="מה ראית? למה נכנסת לעסקה הזו?" oninput="draftSave()" rows="3"></textarea></div>
+          <div class="fg full"><label>תרחיש</label><textarea id="f-scenario" placeholder="מה אתה מצפה שיקרה? מה התרחיש המנצח?" oninput="draftSave()" rows="3"></textarea></div>
         </div>
-        <div>
-          <div class="form-sec-hdr"><div class="form-sec-num" style="background:var(--tx3)">3</div><div class="form-sec-title">ניתוח ומחשבות</div></div>
-          <div class="form-grid">
-            <div class="fg">
-              <label>סיווג עסקה</label>
-              <div class="grade-toggle">
-                <button type="button" id="f-grade-1" class="grade-btn active" onclick="setGrade('1')">סיווג 1</button>
-                <button type="button" id="f-grade-2" class="grade-btn" onclick="setGrade('2')">סיווג 2</button>
-              </div>
-            </div>
-            <div class="fg"><label>סטטוס</label><select id="f-status" onchange="draftSave()"><option value="open">פתוחה</option><option value="closed">סגורה</option></select></div>
-            <div class="fg"><label>מחיר יציאה ($)</label><input type="number" id="f-exit" placeholder="0.00" step="0.01" oninput="calcFormPnl();draftSave()" style="font-family:var(--font-mono)"></div>
-            <div class="fg full"><label>סיבה לכניסה</label><textarea id="f-reason" placeholder="מה ראית? למה נכנסת לעסקה הזו?" oninput="draftSave()" rows="3"></textarea></div>
-            <div class="fg full"><label>תרחיש</label><textarea id="f-scenario" placeholder="מה אתה מצפה שיקרה? מה התרחיש המנצח?" oninput="draftSave()" rows="3"></textarea></div>
-            <div class="form-actions"><button class="btn-p" onclick="saveTrade()">שמור עסקה</button><button class="btn-s" onclick="resetForm()">נקה</button></div>
-          </div>
-        </div>
-      </div>
+      </section>
+      <div class="form-actions"><button class="btn-p" onclick="saveTrade()"><i class="ti ti-check"></i>שמור עסקה</button><button class="btn-s" onclick="resetForm()">נקה</button></div>
     </div>
   </div>
 
@@ -473,21 +465,21 @@
       <div class="sec-tools-actions"><button class="refresh-btn" id="port-ref-btn" onclick="loadPortfolio()"><i class="ti ti-refresh"></i>רענן</button><button class="btn-p sec-add" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה</button></div>
     </div>
     <div id="invest-summary-bar">
-      <div class="s-card"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div id="ps-val-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div><div id="ps-cost-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card"><div class="s-label">רווח ממומש</div><div class="s-val" id="ps-realized">—</div><div id="ps-realized-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card"><div class="s-label">רווח לא ממומש</div><div class="s-val" id="ps-pnl">—</div><div id="ps-pnl-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card" style="border-color:var(--blue-t)"><div class="s-label" style="color:var(--blue-t)">רווח כולל</div><div class="s-val" id="ps-total">—</div><div id="ps-total-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
-      <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div><div id="ps-cnt-sub" style="font-size:9.5px;color:var(--tx3);margin-top:2px"></div></div>
+      <div class="s-card s-hero"><div class="s-label">שווי תיק</div><div class="s-val" id="ps-val">—</div><div class="s-sub" id="ps-val-sub"></div></div>
+      <div class="s-card"><div class="s-label">עלות בסיס</div><div class="s-val" id="ps-cost">—</div><div class="s-sub" id="ps-cost-sub"></div></div>
+      <div class="s-card"><div class="s-label">רווח ממומש</div><div class="s-val" id="ps-realized">—</div><div class="s-sub" id="ps-realized-sub"></div></div>
+      <div class="s-card"><div class="s-label">רווח לא ממומש</div><div class="s-val" id="ps-pnl">—</div><div class="s-sub" id="ps-pnl-sub"></div></div>
+      <div class="s-card s-accent"><div class="s-label">רווח כולל</div><div class="s-val" id="ps-total">—</div><div class="s-sub" id="ps-total-sub"></div></div>
+      <div class="s-card"><div class="s-label">החזקות</div><div class="s-val" id="ps-cnt">0</div><div class="s-sub" id="ps-cnt-sub"></div></div>
       <div class="s-card" id="ps-cash-card" onclick="editPortCash()">
-        <div class="s-label" style="display:flex;align-items:center;gap:4px"><i class="ti ti-cash" style="font-size:11px;color:var(--blue-t)"></i>מזומן בתיק</div>
+        <div class="s-label"><i class="ti ti-cash"></i>מזומן בתיק</div>
         <div class="s-val" id="ps-cash-val">—</div>
-        <div id="ps-cash-src" style="font-size:9.5px;color:var(--tx3);margin-top:2px">יתרת מזומן בחשבון</div>
+        <div class="s-sub" id="ps-cash-src">יתרת מזומן בחשבון</div>
       </div>
     </div>
     <div class="port-body">
-      <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p style="margin-bottom:0.65rem">אין החזקות עדיין</p><button class="add-btn" style="display:inline-flex" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
-      <div id="port-closed" style="display:none;margin-top:1.1rem"></div>
+      <div id="port-holdings"><div class="empty-state"><i class="ti ti-briefcase"></i><p>אין החזקות עדיין</p><button class="add-btn" onclick="openHM()"><i class="ti ti-plus"></i>הוסף החזקה ראשונה</button></div></div>
+      <div id="port-closed" style="display:none"></div>
     </div>
   </div>
 
@@ -501,11 +493,11 @@
 
   <!-- Prep Detail Overlay -->
   <div class="fa-overlay" id="prep-overlay">
-    <div class="fa-modal" style="max-width:580px">
+    <div class="fa-modal prep-modal">
       <div class="fa-header">
         <div>
           <div class="fa-ticker-big" id="prep-modal-ticker">—</div>
-          <div style="font-size:11px;color:var(--tx3);margin-top:3px" id="prep-modal-sub"></div>
+          <div class="bc-muted" id="prep-modal-sub"></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <button class="fa-close-btn" onclick="prepCloseCard()">
@@ -543,10 +535,10 @@
 
 <!-- IBKR: inline banner (new trades found) -->
 <div id="ibkr-banner" class="ibkr-banner">
-  <i class="ti ti-building-bank" style="color:var(--blue-t);font-size:14px"></i>
+  <i class="ti ti-building-bank" style="color:var(--blue-t);font-size:20px"></i>
   <span id="ibkr-banner-txt" style="flex:1"></span>
-  <button class="btn-p" style="font-size:11.5px;padding:0.3rem 0.8rem" onclick="ibkrOpenPreview()">הצג</button>
-  <button class="btn-s" style="font-size:11.5px;padding:0.3rem 0.8rem" onclick="ibkrIgnoreAll()">התעלם</button>
+  <button class="btn-p" onclick="ibkrOpenPreview()">הצג</button>
+  <button class="btn-s" onclick="ibkrIgnoreAll()">התעלם</button>
 </div>
 
 <!-- IBKR: preview / diff modal -->
@@ -567,11 +559,11 @@
 
 <!-- cache-bust: העלה את המספר בכל שינוי קוד כדי שהדפדפן יטען גרסה טרייה ולא מהמטמון -->
 <script src="config.js?v=20260728"></script>
-<script src="db.js?v=20261111d"></script>
-<script src="app.js?v=20261111b"></script>
-<script src="prep.js?v=20260827b"></script>
+<script src="db.js?v=20261117a"></script>
+<script src="app.js?v=20261117a"></script>
+<script src="prep.js?v=20261117a"></script>
 <script src="analysis.js?v=20261111e"></script>
-<script src="ibkr.js?v=20261111b"></script>
+<script src="ibkr.js?v=20261117a"></script>
 <script src="home.js?v=20261111d"></script>
 
 <script>
