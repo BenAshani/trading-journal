@@ -482,13 +482,164 @@
 .doc-tb-save { font-size: 13px; font-weight: 600; color: var(--color-text-tertiary); }
 .doc-tb-pdf { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; border: none !important; background: var(--color-accent); color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; }
 .doc-tb-pdf:hover { opacity: 0.9; background: var(--color-accent); }
-.doc-scroll { background: transparent; }
-.doc-page { border-radius: 28px; border: none !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.06); }
-.doc-h2 { font-size: 22px; font-weight: 700; letter-spacing: 0; }
-.doc-badge { border-radius: 999px; }
-.doc-stage-card { border-radius: 18px; }
-.doc-quarter, .doc-block { border-radius: 20px; }
-.doc-add-q, .doc-ir-btn, .doc-add-block-btn, .doc-chart-range-btn, .doc-calc-add, .doc-calc-toggle { border-radius: 999px !important; }
+/* ════════════════════════════════════════
+   COMPANY ANALYSIS — המסמך
+   במקום "דף וורד" לבן עם צבעים קבועים: ערימת כרטיסים בסגנון הבית —
+   כרטיס כותרת גדול, כרטיס לכל סעיף, שדות כתיבה על רקע אפור, ומצב כהה מלא.
+════════════════════════════════════════ */
+#analysis-doc { background: transparent; display: flex; flex-direction: column; gap: 16px; }
+.doc-toolbar { position: sticky; top: 0; z-index: 20; border-radius: 20px !important; min-height: 60px; }
+.doc-tb-save { display: inline-flex; align-items: center; gap: 6px; }
+.doc-tb-save i { font-size: 16px; }
+.doc-tb-claude { min-height: 40px !important; padding: 0 16px !important; }
+.doc-scroll { padding: 0 !important; background: transparent; }
+.doc-page {
+  max-width: 880px; margin: 0 0 0 auto; margin-inline: 0 auto; padding: 0 !important; background: transparent !important; color: var(--color-text-primary);
+  border: none !important; border-radius: 0; box-shadow: none !important; display: flex; flex-direction: column; gap: 12px;
+}
+#doc-blocks { display: flex; flex-direction: column; gap: 12px; }
+
+/* כרטיס כותרת */
+.doc-titleblock { background: var(--color-bg-elevated); border: none !important; border-radius: var(--card-r); padding: 28px; margin: 0 !important; display: flex; flex-direction: column; gap: 10px; }
+.doc-symbol-row { gap: 14px; }
+.doc-symbol-logo, #doc-logo-slot img, #doc-logo-slot .stock-logo-fb { width: 52px !important; height: 52px !important; border-radius: 14px !important; }
+.doc-symbol { font-family: inherit !important; font-size: 40px; font-weight: 700; letter-spacing: -0.5px; color: var(--color-text-primary); min-height: 0 !important; padding: 0 !important; background: transparent !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; width: auto !important; }
+.doc-badge { white-space: nowrap; margin-inline-start: auto; font-size: 13px; font-weight: 600; padding: 5px 12px; border: none; background: rgba(0, 122, 255, 0.1); color: var(--color-accent-text); }
+.doc-company { margin: 0; font-size: 20px; font-weight: 600; color: var(--color-text-secondary); background: transparent !important; border: none !important; padding: 0 !important; min-height: 0 !important; }
+.doc-blurb { margin: 4px 0 0; font-size: 16px; line-height: 1.5; color: var(--color-text-primary); background: var(--fill) !important; border: none !important; border-radius: 14px; padding: 12px 16px; min-height: 48px; }
+.doc-blurb:focus { background: var(--color-bg-elevated) !important; box-shadow: 0 0 0 2px var(--color-accent); }
+.doc-meta-row { gap: 8px; margin-top: 4px; }
+.doc-meta { gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: var(--fill); font-size: 14px; color: var(--color-text-secondary); }
+.doc-meta i { font-size: 16px; color: var(--color-accent); }
+.doc-meta input, .doc-meta select { font: inherit; font-size: 14px; font-weight: 500; color: var(--color-text-primary); background: transparent !important; border: none !important; padding: 0 !important; min-height: 0 !important; min-width: 0; width: auto; box-shadow: none !important; }
+.doc-meta input { field-sizing: content; min-width: 90px; max-width: 220px; }
+.doc-meta:focus-within { box-shadow: 0 0 0 2px var(--color-accent); background: var(--color-bg-elevated); }
+
+/* סעיף = כרטיס */
+.doc-section { background: var(--color-bg-elevated); border-radius: var(--card-r); padding: 24px; margin: 0 !important; display: flex; flex-direction: column; gap: 12px; }
+.doc-h2 { margin: 0 !important; gap: 12px; font-size: 22px; font-weight: 700; color: var(--color-text-primary); }
+.doc-h2 i { flex: none; width: 36px; height: 36px; border-radius: 11px; background: rgba(0, 122, 255, 0.1); color: var(--color-accent); font-size: 19px; display: inline-flex; align-items: center; justify-content: center; }
+.doc-h2-row { margin: 0; flex-wrap: wrap; }
+.doc-h2-actions { gap: 8px; flex-wrap: wrap; }
+.doc-add-q, .doc-ir-btn, .doc-calc-add, .doc-chart-msg-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: none !important; border-radius: 999px;
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.doc-add-q { background: var(--color-accent); color: #FFFFFF; }
+.doc-add-q:hover { background: var(--color-accent); filter: brightness(1.06); }
+.doc-ir-btn, .doc-calc-add, .doc-chart-msg-btn { background: rgba(0, 122, 255, 0.1); color: var(--color-accent-text); }
+.doc-ir-btn:hover, .doc-calc-add:hover, .doc-chart-msg-btn:hover { background: rgba(0, 122, 255, 0.18); }
+.doc-ir-btn i, .doc-add-q i { font-size: 16px; }
+
+/* שדות כתיבה */
+.doc-editable {
+  margin: 0; min-height: 60px; padding: 14px 16px; border: none; border-radius: 16px;
+  background: var(--color-bg-base); color: var(--color-text-primary); font-size: 16px; line-height: 1.7;
+}
+.doc-editable:hover { background: var(--color-bg-base); }
+.doc-editable:focus { background: var(--color-bg-elevated); box-shadow: 0 0 0 2px var(--color-accent); border-color: transparent; }
+.doc-editable:empty:before { color: var(--color-text-tertiary); font-style: normal; }
+.doc-editable b, .doc-editable strong { color: var(--color-text-primary); }
+
+/* שלב במחזור החיים */
+.doc-stage-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 0; }
+.doc-stage-card { background: var(--color-bg-base); border: none !important; border-radius: 18px; padding: 14px 16px; color: var(--color-text-primary); }
+.doc-stage-card:hover { background: var(--fill); }
+.doc-stage-card.sel { background: rgba(0, 122, 255, 0.08); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.doc-stage-card-head { gap: 10px; margin-bottom: 6px; }
+.doc-stage-num { width: 26px; height: 26px; font-size: 13px; font-family: inherit; background: var(--fill-2); color: var(--color-text-primary); }
+.doc-stage-name { font-size: 16px; color: var(--color-text-primary); }
+.doc-stage-focus { font-size: 13px; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.doc-stage-crit { font-size: 13px; line-height: 1.6; color: var(--color-text-secondary); padding-inline-start: 18px; padding-right: 18px; }
+.doc-stage-crit b { color: var(--color-text-primary); }
+
+/* מעקב רבעוני */
+#doc-quarters { display: flex; flex-direction: column; gap: 10px; }
+.doc-quarter { background: var(--color-bg-base); border: none !important; border-radius: 20px; padding: 16px 18px; margin: 0; }
+.doc-q-head { gap: 8px; margin-bottom: 10px; }
+.doc-q-label { font-family: inherit !important; font-size: 18px !important; font-weight: 700; color: var(--color-text-primary); background: transparent !important; border: none !important; border-radius: 0 !important; padding: 0 !important; min-height: 32px !important; box-shadow: none !important; }
+.doc-q-label:focus { box-shadow: inset 0 -2px 0 var(--color-accent) !important; }
+.doc-q-collapse, .doc-q-del, .doc-blk-del, .doc-blk-refresh {
+  width: 36px; height: 36px; border-radius: 10px; font-size: 17px; color: var(--color-text-tertiary); background: transparent;
+}
+.doc-q-collapse:hover, .doc-blk-refresh:hover { background: var(--fill); color: var(--color-text-primary); }
+.doc-q-del:hover, .doc-blk-del:hover { background: var(--down-bg); color: var(--down); }
+.doc-q-move-btn, .doc-blk-move-btn { width: 28px; height: 18px; color: var(--color-text-tertiary); }
+.doc-q-move-btn i, .doc-blk-move-btn i { font-size: 15px; }
+.doc-q-move-btn:hover:not(:disabled), .doc-blk-move-btn:hover:not(:disabled) { color: var(--color-accent); }
+.doc-q-move-btn:disabled, .doc-blk-move-btn:disabled { color: var(--fill-2); }
+.doc-quarter .doc-editable, .doc-q-body { background: var(--color-bg-elevated) !important; padding: 12px 14px !important; }
+.doc-q-empty { font-size: 15px; font-style: normal; color: var(--color-text-tertiary); background: var(--color-bg-base); border-radius: 16px; padding: 24px; }
+.doc-q-concl-wrap { margin-top: 12px; padding-top: 0; border-top: none; }
+.doc-q-concl-lbl { font-size: 13px; font-weight: 600; color: var(--color-accent-text); text-transform: none; letter-spacing: 0; margin-bottom: 6px; gap: 6px; }
+.doc-q-concl-lbl i { font-size: 16px; }
+.doc-q-concl, .doc-quarter .doc-q-concl { background: rgba(0, 122, 255, 0.08) !important; border: none; }
+.doc-q-concl:hover { background: rgba(0, 122, 255, 0.1) !important; }
+
+/* טבלת נתונים כספיים */
+.doc-fin-table { margin: 0 0 10px; background: var(--color-bg-elevated); border-radius: 16px; padding: 12px 14px; }
+.doc-fin-header, .doc-fin-row { grid-template-columns: 120px 1fr 1fr 84px; gap: 8px; }
+.doc-fin-header { font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; margin-bottom: 4px; }
+.doc-fin-row { padding: 5px 0; border-top: 0.5px solid var(--sep); }
+.doc-fin-lbl { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+.doc-fin-inp, .doc-calc-inp { font-family: inherit !important; font-size: 15px !important; color: var(--color-text-primary); background: var(--fill) !important; border: none !important; border-radius: 10px !important; min-height: 38px; padding: 6px 10px !important; }
+.doc-fin-inp:focus, .doc-calc-inp:focus { background: var(--color-bg-elevated) !important; box-shadow: 0 0 0 2px var(--color-accent); }
+.doc-fin-inp[readonly] { background: var(--color-bg-base) !important; color: var(--color-text-secondary); }
+.doc-fin-eff { font-family: inherit; font-size: 12px; color: var(--color-text-tertiary); }
+.doc-fin-badge { font-family: inherit; font-size: 13px; padding: 6px 8px; border-radius: 999px; background: var(--fill); color: var(--color-text-secondary); }
+.doc-fin-badge.pos { background: var(--up-bg); color: var(--up); }
+.doc-fin-badge.neg { background: var(--down-bg); color: var(--down); }
+.doc-calc-toggle { width: 32px; height: 32px; border: none !important; background: var(--fill); color: var(--color-text-secondary); font-size: 15px; }
+.doc-calc-toggle:hover { background: var(--fill-2); color: var(--color-text-primary); }
+.doc-calc-panel { background: var(--color-bg-base); border: none; border-radius: 14px; padding: 12px; margin: 4px 0 8px; }
+.doc-calc-hd { font-size: 13px; color: var(--color-text-secondary); }
+.doc-calc-rm { width: 28px; height: 28px; font-size: 15px; color: var(--color-text-tertiary); }
+.doc-calc-foot { border-top: 0.5px solid var(--sep); padding-top: 8px; }
+.doc-calc-total { font-family: inherit; font-size: 15px; color: var(--color-text-primary); }
+.doc-fin-footer { background: var(--color-bg-base); border: none; border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--color-text-secondary); }
+.doc-fin-pe { border-top: 0.5px solid var(--sep); font-size: 15px; color: var(--color-text-primary); padding-top: 10px; }
+
+/* תמונות וגרפים */
+.doc-section .doc-blk-head { margin: 0; gap: 10px; }
+.doc-blk-icon { width: 36px; height: 36px; border-radius: 11px; background: rgba(0, 122, 255, 0.1); font-size: 19px; display: inline-flex; align-items: center; justify-content: center; }
+.doc-blk-title { font-size: 18px; font-weight: 700; color: var(--color-text-primary); }
+.doc-img-block-img { border-radius: 16px; }
+.doc-img-caption { font-size: 15px; color: var(--color-text-secondary); border: none !important; background: var(--color-bg-base) !important; border-radius: 12px; padding: 10px 14px !important; min-height: 44px !important; }
+.doc-img-caption::placeholder { color: var(--color-text-tertiary); font-style: normal; }
+.doc-chart-range { display: inline-flex; gap: 2px; background: var(--fill); border-radius: 10px; padding: 2px; }
+.doc-chart-range-btn { min-height: 30px; padding: 0 10px; border: none !important; border-radius: 8px !important; font-family: inherit; font-size: 13px; color: var(--color-text-secondary); background: transparent; }
+.doc-chart-range-btn:hover { background: transparent; color: var(--color-text-primary); }
+.doc-chart-range-btn.sel { background: var(--color-bg-elevated); color: var(--color-text-primary); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); }
+.doc-chart-msg { font-size: 15px; color: var(--color-text-tertiary); background: var(--color-bg-base); border-radius: 16px; min-height: 120px; }
+.doc-chart-foot { font-family: inherit; font-size: 12px; color: var(--color-text-tertiary); }
+
+/* הוספת בלוקים */
+.doc-add-block-row { margin: 0 0 24px; gap: 8px; flex-wrap: wrap; }
+.doc-add-block-btn { min-height: 48px; padding: 0 18px; border-radius: 16px; border: 1.5px dashed var(--color-border-strong) !important; background: transparent; color: var(--color-text-secondary); font-size: 15px; font-weight: 500; }
+.doc-add-block-btn:hover { background: rgba(0, 122, 255, 0.06); border-color: var(--color-accent) !important; color: var(--color-accent); }
+.doc-add-block-btn i { font-size: 18px; color: var(--color-accent); }
+
+@media (max-width: 768px) {
+  .doc-toolbar { top: 0; padding: 8px !important; }
+  .doc-tb-save { display: none; }
+  .doc-titleblock, .doc-section { padding: 18px; border-radius: 22px; }
+  #analysis-doc .doc-symbol { font-size: 32px !important; }
+  #analysis-doc .doc-company { font-size: 18px !important; }
+  #analysis-doc .doc-q-label { font-size: 17px !important; }
+  .doc-h2 { font-size: 19px; }
+  .doc-fin-header, .doc-fin-row { grid-template-columns: 84px 1fr 1fr 64px; gap: 4px; }
+  .doc-fin-lbl { font-size: 13px; }
+  .doc-fin-inp { font-size: 14px !important; padding: 6px !important; }
+}
+
+/* PDF: נשאר מסמך נקי על לבן */
+@media print {
+  body.ca-printing .doc-page { gap: 0 !important; }
+  body.ca-printing .doc-titleblock, body.ca-printing .doc-section { background: #fff !important; border-radius: 0 !important; padding: 0 0 18px !important; color: #1e1e28 !important; }
+  body.ca-printing .doc-titleblock { border-bottom: 2px solid #1e1e28 !important; margin-bottom: 20px !important; }
+  body.ca-printing .doc-editable, body.ca-printing .doc-quarter, body.ca-printing .doc-stage-card, body.ca-printing .doc-blurb, body.ca-printing .doc-meta, body.ca-printing .doc-fin-table { background: transparent !important; box-shadow: none !important; padding-inline: 0 !important; }
+  body.ca-printing * { color: #1e1e28 !important; }
+}
 
 /* ════════════════════════════════════════
    MODALS / SHEETS
