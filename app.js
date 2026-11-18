@@ -144,9 +144,17 @@ function chartInk() {
 }
 
 // ברירות מחדל גלובליות (טולטיפ/מקרא/טקסט) — מתעדכן גם בהחלפת מצב תצוגה
+// הגופן של הגרפים — אותו גופן מערכת של שאר האתר (במקום IBM Plex Mono הקטן)
+const CHART_FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Heebo', system-ui, sans-serif";
 function applyChartTheme() {
   if (typeof Chart === 'undefined') return;
   const ink = chartInk();
+  Chart.defaults.font.family = CHART_FONT;
+  Chart.defaults.font.size = 13;
+  Chart.defaults.plugins.tooltip.titleFont = { family: CHART_FONT, size: 13, weight: '600' };
+  Chart.defaults.plugins.tooltip.bodyFont = { family: CHART_FONT, size: 15, weight: '700' };
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius = 12;
   Chart.defaults.color = ink.tick;
   Chart.defaults.borderColor = ink.grid;
 }
@@ -781,14 +789,14 @@ function renderEquityChart() {
         x: {
           display: true,
           grid: { display: false },
-          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 },
+          ticks: { font: { size: 13, family: CHART_FONT }, color: axisCol, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 },
         },
         y: {
           display: true,
           position: 'right',
           grid: { color: ctx => (pct && ctx.tick.value === 0) ? ink.zero : ink.grid },
           border: { display: false },
-          ticks: { font: { size: 10, family: "'IBM Plex Mono'" }, color: axisCol, maxTicksLimit: 5, callback: v => pct ? (+v).toFixed(Math.abs(+v) < 10 ? 1 : 0) + '%' : fmtAxisUSD(+v) },
+          ticks: { font: { size: 13, family: CHART_FONT }, color: axisCol, maxTicksLimit: 5, callback: v => pct ? (+v).toFixed(Math.abs(+v) < 10 ? 1 : 0) + '%' : fmtAxisUSD(+v) },
         },
       },
       animation: { duration: 400 },
@@ -824,6 +832,14 @@ function accountValueSeries(src = trades, pnlOnly = false) {
 // journalRU קובע איזה יומן מוצג — כך שהחלפת יחידת הסיכון בהגדרות פותחת
 // יומן ודאשבורד חדש, ואפשר לעבור בין היומן של $100, $200 וכן הלאה.
 function tradeRU(t) { const r = +t.riskUnit; return r > 0 ? r : 0; }
+
+// R של עסקה: הרווח/הפסד חלקי יחידת הסיכון שהייתה פעילה כשהעסקה נפתחה.
+// עסקה ישנה בלי יחידת סיכון שמורה — לפי יחידת הסיכון של היומן המוצג.
+function tradeRMultiple(t, pnl) {
+  const ru = (t && tradeRU(t)) || journalRiskUnit();
+  return ru > 0 && pnl !== null && pnl !== undefined ? pnl / ru : null;
+}
+const fmtR = r => r === null || r === undefined ? '—' : (r >= 0 ? '+' : '−') + Math.abs(r).toFixed(1) + 'R';
 
 // כל ערכי יחידת הסיכון שמופיעים בעסקאות + ההגדרה הנוכחית, ממוינים
 function journalUnits() {
@@ -901,6 +917,12 @@ function renderDashStats() {
     ? `<span style="color:${totalPnl >= 0 ? 'var(--amber-t)' : 'var(--red-t)'}">${signStr(totalPnl / riskUnit)}${(totalPnl / riskUnit).toFixed(1)}R</span>`
     : 'P&L ממומש';
 
+  // R לכל עסקה סגורה: ממוצע, הטובה והגרועה
+  const rs     = closed.map(t => tradeRMultiple(t, t.pnl)).filter(r => r !== null);
+  const avgR   = rs.length ? rs.reduce((a, r) => a + r, 0) / rs.length : null;
+  const bestR  = rs.length ? Math.max(...rs) : null;
+  const worstR = rs.length ? Math.min(...rs) : null;
+
   document.getElementById('dash-stats').innerHTML = `
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-trending-up"></i>סך רווח/הפסד</div>
@@ -918,6 +940,11 @@ function renderDashStats() {
       ${wr !== null
         ? `<div class="dash-wr-bar"><div class="dash-wr-win" style="width:${wr.toFixed(1)}%"></div><div class="dash-wr-loss" style="width:${(100 - wr).toFixed(1)}%"></div></div>`
         : '<div class="dash-stat-sub">אין עסקאות סגורות</div>'}
+    </div>
+    <div class="dash-stat">
+      <div class="dash-stat-lbl"><i class="ti ti-target-arrow"></i>ממוצע R לעסקה</div>
+      <div class="dash-stat-val" style="color:${avgR === null ? 'var(--tx)' : pnlCol(avgR)}">${avgR === null ? '—' : fmtR(avgR)}</div>
+      <div class="dash-stat-sub">${avgR === null ? (riskUnit > 0 ? 'אין עסקאות סגורות' : 'הגדר יחידת סיכון בהגדרות') : `הטובה ${fmtR(bestR)} · הגרועה ${fmtR(worstR)}`}</div>
     </div>
     <div class="dash-stat">
       <div class="dash-stat-lbl"><i class="ti ti-scale"></i>יחס סיכוי/סיכון</div>
@@ -1755,6 +1782,8 @@ function renderClosedTable() {
   const partialTag = s => s.parentOpen
     ? ` <span class="badge-amber" style="font-size:12px;padding:1px 5px;border-radius:5px">חלקי · נותרו ${s.parentRemaining}</span>` : '';
   const delAction  = s => `deleteTrade('${s.parentId}')`;
+  // R לכל שורה — לפי יחידת הסיכון של העסקה המקורית
+  const rOf = g => tradeRMultiple(trades.find(x => x.id === g.parentId), g.pnl);
   // פירוט המימושים בתוך הכרטיס — מוצג כשיש יותר ממימוש אחד לאותה עסקה
   const realLog = t => t.slices.length > 1
     ? `<div class="closed-real-log">
@@ -1802,7 +1831,7 @@ function renderClosedTable() {
               </div>
               <div style="text-align:left">
                 <div class="pnl-val" style="color:${pnlC};font-size:18px">${(t.pnl >= 0 ? '+' : '') + '$' + Math.abs(t.pnl).toFixed(2)}</div>
-                ${pct !== null ? `<div class="day-c" style="color:${pctC}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%</div>` : ''}
+                ${pct !== null ? `<div class="day-c" style="color:${pctC}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%${rOf(t) !== null ? ' · ' + fmtR(rOf(t)) : ''}</div>` : ''}
               </div>
             </div>
           </div>
@@ -1844,7 +1873,10 @@ function renderClosedTable() {
         </div>
         <div class="cl-end">
           <div class="cl-pnl ${up ? 'up' : 'down'}">${(up ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2)}</div>
-          ${pct !== null ? `<span class="bc-tag ${up ? 'up' : 'down'}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%</span>` : ''}
+          <div class="cl-tags">
+            ${pct !== null ? `<span class="bc-tag ${up ? 'up' : 'down'}">${parseFloat(pct) >= 0 ? '+' : ''}${pct}%</span>` : ''}
+            ${rOf(t) !== null ? `<span class="cl-r ${up ? 'up' : 'down'}" title="רווח/הפסד ביחידות סיכון">${fmtR(rOf(t))}</span>` : ''}
+          </div>
         </div>
         <div class="cl-acts">
           <button class="icon-btn edit" title="ערוך" onclick="editTrade('${t.parentId}')"><i class="ti ti-edit"></i></button>
@@ -2395,6 +2427,7 @@ async function loadPortfolio() {
   const investCash = getInvestCash();
   syncCashCard(investCash);
   renderClosedPositions(realized.closed);
+  if (typeof renderBenchmark === 'function') renderBenchmark();   // התיק מול S&P 500 — נטען ברקע
 
   // ── רווח ממומש (מוצג תמיד, גם ללא החזקות פתוחות) ──
   const psReal = document.getElementById('ps-realized');

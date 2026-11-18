@@ -815,13 +815,16 @@ function caDrawChart(entryId, entry, range) {
 // צבעים לגרף — ערכים קבועים (לא משתני ערכת נושא), באותו סגנון כמו שאר
 // דף הניתוח (doc-page): ה"נייר" תמיד בהיר, גם במצב כהה של שאר האפליקציה.
 function caChartInk() {
-  return { up: '#15803D', down: '#B91C1C', text: '#8a8a97', grid: 'rgba(26,26,46,.08)', last: '#6366F1' };
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark
+    ? { up: '#30D158', down: '#FF6961', text: '#AEAEB2', grid: 'rgba(255,255,255,.1)', last: '#0A84FF' }
+    : { up: '#1E7A35', down: '#C93400', text: '#6C6C70', grid: 'rgba(60,60,67,.12)', last: '#007AFF' };
 }
 
 function caBuildCandleSVG(data) {
   const NS = 'http://www.w3.org/2000/svg';
   const ink = caChartInk();
-  const W = 640, H = 220, padT = 10, padB = 22, padL = 4, padR = 46;
+  const W = 640, H = 230, padT = 10, padB = 26, padL = 4, padR = 56;
   let hi = Math.max(...data.map(d => d.h));
   let lo = Math.min(...data.map(d => d.l));
   const pad = (hi - lo) * 0.06 || 1;
@@ -844,7 +847,7 @@ function caBuildCandleSVG(data) {
     svg.appendChild(line);
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('x', W - padR + 6); t.setAttribute('y', ly + 3);
-    t.setAttribute('font-size', '9'); t.setAttribute('font-family', 'IBM Plex Mono, monospace');
+    t.setAttribute('font-size', '12'); t.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Heebo, system-ui, sans-serif');
     t.setAttribute('fill', ink.text); t.textContent = v.toFixed(v < 10 ? 2 : 0);
     svg.appendChild(t);
   });
@@ -866,7 +869,7 @@ function caBuildCandleSVG(data) {
     if (i === 0 || i === n - 1 || i % Math.ceil(n / 6) === 0) {
       const lbl = document.createElementNS(NS, 'text');
       lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
-      lbl.setAttribute('font-size', '9'); lbl.setAttribute('font-family', 'IBM Plex Mono, monospace');
+      lbl.setAttribute('font-size', '12'); lbl.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Heebo, system-ui, sans-serif');
       lbl.setAttribute('fill', ink.text); lbl.setAttribute('text-anchor', 'middle');
       lbl.textContent = d.date.slice(5).replace('-', '/');
       svg.appendChild(lbl);

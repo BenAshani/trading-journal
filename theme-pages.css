@@ -245,7 +245,7 @@
   background: var(--color-bg-elevated); border-radius: var(--card-r); padding: 56px 24px !important;
   gap: 12px; color: var(--color-text-tertiary); flex: none;
 }
-.empty-state i { font-size: 40px; opacity: 1; color: var(--color-accent); margin: 0; background: rgba(0, 122, 255, 0.1); width: 72px; height: 72px; border-radius: 20px; display: flex; align-items: center; justify-content: center; }
+.empty-state > i { font-size: 40px; opacity: 1; color: var(--color-accent); margin: 0; background: rgba(0, 122, 255, 0.1); width: 72px; height: 72px; border-radius: 20px; display: flex; align-items: center; justify-content: center; }
 .empty-state p { font-size: 17px; font-weight: 600; color: var(--color-text-primary); line-height: 1.5; margin: 0; }
 .empty-state .add-btn { margin-top: 4px; }
 
@@ -803,4 +803,92 @@
   .fa-overlay { padding: 12px 8px; }
   .fa-header { padding: 18px 16px 8px; }
   .fa-body { padding: 4px 12px 16px; }
+}
+
+/* ════════════════════════════════════════
+   PLAN WINDOW (prep-overlay) + plan cards
+════════════════════════════════════════ */
+.pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pm-full { grid-column: 1 / -1; }
+#prep-overlay .fg label { font-size: 13px; font-weight: 500; color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; }
+#prep-overlay .fa-section { display: flex; flex-direction: column; gap: 14px; }
+.pm-sec-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pm-sec-row > span { display: inline-flex; align-items: center; gap: 8px; }
+#prep-overlay .fa-section-title i { width: 32px; height: 32px; border-radius: 10px; background: rgba(0, 122, 255, 0.1); display: inline-flex; align-items: center; justify-content: center; }
+#prep-overlay .fa-section-title { display: flex; align-items: center; gap: 10px; margin: 0; }
+.pm-tgt { display: flex; flex-direction: column; gap: 10px; background: var(--color-bg-base) !important; padding: 14px !important; border-radius: 16px !important; }
+.pm-tgt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pm-tgt-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pm-tgt .ti-input-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pm-tgt .ti-input { background: var(--color-bg-elevated) !important; }
+.pm-tgt .target-badge { font-size: 13px; padding: 4px 10px; }
+.pm-empty { font-size: 15px; color: var(--color-text-tertiary); text-align: center; padding: 20px; background: var(--color-bg-base); border-radius: 16px; }
+.pm-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pm-actions .btn-p, .pm-actions .btn-s { flex: 1 1 180px; }
+.pm-converted { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--up); background: var(--up-bg); border-radius: 14px; padding: 10px 14px; }
+
+/* checklist — עיגולי סימון בסגנון iOS */
+#pm-checklist { display: flex; flex-direction: column; gap: 8px; }
+.pcl-group { display: flex; flex-direction: column; gap: 8px; }
+.pcl-group-title { margin: 8px 0 0; }
+.pcl-item { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.pcl-item input[type=checkbox] {
+  -webkit-appearance: none; appearance: none; flex: none; width: 24px; height: 24px; margin: 1px 0 0; border-radius: 50%;
+  border: 1.5px solid #C7C7CC; background: var(--color-bg-elevated); cursor: pointer; display: grid; place-content: center;
+}
+.pcl-item input[type=checkbox]:checked { background: var(--color-accent); border-color: var(--color-accent); }
+.pcl-item input[type=checkbox]:checked::after { content: ''; width: 6px; height: 11px; border: solid #FFFFFF; border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+.pcl-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pcl-badge.required { background: var(--down-bg); color: var(--down); border: none; }
+.pcl-badge.optional { background: var(--fill); color: var(--color-text-secondary); border: none; }
+.pcl-score { padding: 10px 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; border-radius: 14px; border: none; }
+.pcl-score.strong { background: var(--up-bg); color: var(--up); }
+.pcl-score.ok { background: rgba(0, 122, 255, 0.1); color: var(--color-accent-text); }
+.pcl-score.weak { background: var(--down-bg); color: var(--down); }
+.pcl-warning { border-radius: 14px; border: none; background: var(--down-bg); color: var(--down); font-size: 14px; padding: 10px 14px; }
+
+/* plan cards */
+.pc-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.pc-foot { margin-top: 14px; }
+.pc-convert { width: 100%; }
+.pc-cl-score { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.pc-target-row { border-bottom: 0.5px solid var(--sep); padding: 8px 0; gap: 6px; }
+
+@media (max-width: 768px) {
+  .pm-grid { grid-template-columns: 1fr; }
+  .pm-tgt-fields { grid-template-columns: 1fr 1fr; }
+}
+
+/* R per trade */
+.cl-tags { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.cl-r { font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--fill); direction: ltr; }
+.cl-r.up { color: var(--up); } .cl-r.down { color: var(--down); }
+
+/* ════════════════════════════════════════
+   PORTFOLIO vs S&P 500
+════════════════════════════════════════ */
+.bench-card { background: var(--color-bg-elevated); border-radius: var(--card-r); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.bench-head p { margin: 4px 0 0; font-size: 15px; }
+.bench-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.bench-num { background: var(--color-bg-base); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bench-num b { font-size: 26px; font-weight: 700; text-align: right; letter-spacing: -0.3px; }
+.bench-num b.up { color: var(--up); } .bench-num b.down { color: var(--down); }
+.bench-num span[dir] { text-align: right; font-weight: 600; }
+.bench-verdict.win { background: var(--up-bg); color: var(--up); }
+.bench-verdict.lose { background: var(--down-bg); color: var(--down); }
+.bench-verdict > span:first-child { font-size: 14px; font-weight: 700; }
+.bench-chart { position: relative; height: 260px; }
+.bench-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; color: var(--color-text-secondary); }
+.bench-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.bench-legend i { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+.bench-foot { margin: 0; font-size: 13px; color: var(--color-text-tertiary); }
+.bench-msg { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--color-bg-base); border-radius: 18px; padding: 16px 18px; font-size: 15px; color: var(--color-text-secondary); }
+.bench-msg > i { font-size: 22px; color: var(--color-accent); }
+.bench-spin { animation: spin 1s linear infinite; }
+@media (max-width: 768px) {
+  .bench-card { padding: 18px; border-radius: 22px; }
+  .bench-nums { grid-template-columns: 1fr 1fr; }
+  .bench-verdict { grid-column: 1 / -1; }
+  .bench-num b { font-size: 22px; }
+  .bench-chart { height: 220px; }
 }

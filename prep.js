@@ -167,7 +167,7 @@ async function prepRender() {
           </div>
 
           ${priceHTML}
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--space-3)">
+          <div class="pc-badges">
             <span class="dbadge ${gradeClx}" style="display:inline-flex">${grade}</span>
             <span class="dbadge ${t.dir === 'Short' ? 'bs' : 'bl'}" style="display:inline-flex">${dirTxt}</span>
             ${t.convertedTo ? `<span class="dbadge" style="display:inline-flex;background:rgba(34,197,94,.14);color:var(--green-t)"><i class="ti ti-check" style="font-size:13px"></i>הומר לעסקה</span>` : ''}
@@ -183,10 +183,10 @@ async function prepRender() {
           ${clHTML}
           ${tgtHTML}
 
-          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:0.5px solid var(--br)">
-            <button class="btn-p" style="width:100%;justify-content:center;font-size:13px;padding:7px"
+          <div class="pc-foot">
+            <button class="btn-p pc-convert"
               onclick="prepConvertToTrade('${t.id}',event)">
-              <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>${t.convertedTo ? 'פתח עסקה נוספת מהתכנון' : 'המר לעסקה פתוחה'}
+              <i class="ti ti-arrow-badge-right"></i>${t.convertedTo ? 'פתח עסקה נוספת מהתכנון' : 'המר לעסקה פתוחה'}
             </button>
           </div>
         </div>`;
@@ -231,26 +231,25 @@ function prepFormHTML(t) {
     <!-- Core fields -->
     <div class="fa-section">
       <div class="fa-section-title"><i class="ti ti-pencil"></i>פרטי התכנון</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="pm-grid">
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">טיקר</label>
+          <label>טיקר</label>
           <input id="pm-ticker" type="text" placeholder="NVDA"
             value="${esc(t.ticker)}"
-            style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:700;font-size:16px;letter-spacing:-.01em"
+            style="text-transform:uppercase;font-weight:700"
             oninput="this.value=this.value.toUpperCase();prepModalField('ticker',this.value)">
         </div>
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כמות מניות</label>
+          <label>כמות מניות</label>
           <input id="pm-qty" type="number" step="1" min="1" placeholder="0"
             value="${esc(t.qty)}"
-            style="font-family:'IBM Plex Mono',monospace"
             oninput="prepModalField('qty',this.value)">
         </div>
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">כיוון</label>
+          <label>כיוון</label>
           <select id="pm-dir" onchange="prepModalField('dir',this.value)">
             <option value="Long" ${t.dir!=='Short'?'selected':''}>Long (לונג)</option>
             <option value="Short" ${t.dir==='Short'?'selected':''}>Short (שורט)</option>
@@ -258,7 +257,7 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סיווג</label>
+          <label>סיווג</label>
           <select id="pm-grade" onchange="prepModalField('grade',this.value)">
             <option value="1" ${t.grade==='1'?'selected':''}>סיווג 1</option>
             <option value="2" ${t.grade==='2'?'selected':''}>סיווג 2</option>
@@ -266,23 +265,21 @@ function prepFormHTML(t) {
         </div>
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">תאריך כניסה מתוכנן</label>
+          <label>תאריך כניסה מתוכנן</label>
           <input id="pm-entry-date" type="date"
             value="${esc(t.entryDate || '')}"
-            style="font-family:'IBM Plex Mono',monospace"
             oninput="prepModalField('entryDate',this.value)">
         </div>
 
         <div class="fg">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">סטופ לוס (¢)</label>
+          <label>סטופ לוס (¢)</label>
           <input id="pm-stop" type="number" step="0.01" min="0" placeholder="0.00"
             value="${esc(t.stop)}"
-            style="font-family:'IBM Plex Mono',monospace;border-color:rgba(239,68,68,0.3)"
             oninput="prepModalField('stop',this.value)">
         </div>
 
-        <div class="fg" style="grid-column:1/-1">
-          <label style="font-size:12px;color:var(--tx3);font-weight:600;letter-spacing:.08em;text-transform:uppercase">פירוט / סטראטגיה</label>
+        <div class="fg pm-full">
+          <label>פירוט / סטראטגיה</label>
           <input id="pm-note" type="text" placeholder="סיבה, סטראטגיה, הערות..."
             value="${esc(t.gradeNote)}"
             oninput="prepModalField('gradeNote',this.value)">
@@ -292,7 +289,7 @@ function prepFormHTML(t) {
 
     <!-- Targets -->
     <div class="fa-section">
-      <div class="fa-section-title" style="justify-content:space-between">
+      <div class="fa-section-title pm-sec-row">
         <span><i class="ti ti-target"></i>ניהול עסקה</span>
         <button class="add-target-btn" onclick="prepModalAddTarget()">
           <i class="ti ti-plus" style="font-size:13px"></i>הוסף יעד
@@ -308,19 +305,19 @@ function prepFormHTML(t) {
     </div>
 
     <!-- Save + convert -->
-    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
+    <div class="pm-actions">
       <button class="btn-p" onclick="prepModalSave()">
-        <i class="ti ti-device-floppy" style="font-size:13px;margin-left:6px"></i>שמור תכנון
+        <i class="ti ti-device-floppy"></i>שמור תכנון
       </button>
       <button class="btn-s" onclick="prepConvertToTrade('${t.id}',event)">
-        <i class="ti ti-arrow-badge-right" style="font-size:14px;margin-left:5px"></i>המר לעסקה פתוחה
+        <i class="ti ti-arrow-badge-right"></i>המר לעסקה פתוחה
       </button>
       <span class="settings-saved" id="pm-saved">
         <i class="ti ti-check" style="font-size:13px"></i>נשמר!
       </span>
     </div>
-    ${t.convertedTo ? `<div style="font-size:13px;color:var(--green-t);margin-top:8px;display:flex;align-items:center;gap:5px">
-      <i class="ti ti-check" style="font-size:12px"></i>התכנון כבר הומר לעסקה — התכנון נשמר ואפשר להמיר שוב</div>` : ''}
+    ${t.convertedTo ? `<div class="pm-converted">
+      <i class="ti ti-check"></i>התכנון כבר הומר לעסקה — התכנון נשמר ואפשר להמיר שוב</div>` : ''}
   `;
 }
 
@@ -374,34 +371,34 @@ function prepRenderTargets(tradeId, targets) {
   const el = document.getElementById('pm-targets');
   if (!el) return;
   if (!targets || targets.length === 0) {
-    el.innerHTML = `<div style="font-size:13px;color:var(--tx3);padding:8px 0;text-align:center">לחץ "+ הוסף יעד" כדי להוסיף יעד מימוש</div>`;
+    el.innerHTML = `<div class="pm-empty">לחץ "הוסף יעד" כדי להוסיף יעד מימוש</div>`;
     return;
   }
   el.innerHTML = targets.map((tgt, i) => `
-    <div class="target-item" style="flex-wrap:wrap;gap:8px;padding:10px 8px" id="pm-tgt-${tgt.id}">
-      <div style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:2px">
-        <span class="target-badge ${T_CLASSES[i]||'t1'}" style="font-size:13px">${T_LABELS[i]||('יעד '+(i+1))}</span>
+    <div class="target-item pm-tgt" id="pm-tgt-${tgt.id}">
+      <div class="pm-tgt-head">
+        <span class="target-badge ${T_CLASSES[i]||'t1'}">${T_LABELS[i]||('יעד '+(i+1))}</span>
         ${targets.length > 1
           ? `<button class="remove-target" onclick="prepModalRemoveTarget('${tgt.id}')" title="הסר"><i class="ti ti-x"></i></button>`
           : ''}
       </div>
-      <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap">
-        <div class="ti-input-wrap" style="min-width:110px;flex:1">
+      <div class="pm-tgt-fields">
+        <div class="ti-input-wrap">
           <div class="ti-label">מחיר יעד ($)</div>
           <input class="ti-input" type="number" step="0.01" placeholder="0.00"
-            value="${esc(tgt.target)}" style="font-family:'IBM Plex Mono',monospace"
+            value="${esc(tgt.target)}"
             oninput="prepModalTargetField('${tgt.id}','target',this.value)">
         </div>
-        <div class="ti-input-wrap" style="min-width:90px;flex:1">
+        <div class="ti-input-wrap">
           <div class="ti-label">כמות למכירה</div>
           <input class="ti-input" type="number" step="1" min="1" placeholder="0"
-            value="${esc(tgt.sellQty)}" style="font-family:'IBM Plex Mono',monospace"
+            value="${esc(tgt.sellQty)}"
             oninput="prepModalTargetField('${tgt.id}','sellQty',this.value)">
         </div>
-        <div class="ti-input-wrap" style="min-width:110px;flex:1">
+        <div class="ti-input-wrap">
           <div class="ti-label">סטופ לוס חדש ($)</div>
           <input class="ti-input" type="number" step="0.01" placeholder="0.00"
-            value="${esc(tgt.newStop)}" style="font-family:'IBM Plex Mono',monospace;border-color:rgba(239,68,68,0.28)"
+            value="${esc(tgt.newStop)}"
             oninput="prepModalTargetField('${tgt.id}','newStop',this.value)">
         </div>
       </div>
